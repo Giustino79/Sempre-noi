@@ -3,7 +3,7 @@ import {
   Trophy, PlusCircle, ShieldAlert, Users, Camera, 
   CheckCircle2, Sparkles, LogOut, Plus, UserPlus, Key, User, 
   Beer, Copy, Check, ChevronRight, ArrowLeft, BookOpen, Flag, 
-  XCircle, Share2, RefreshCw, Eye, Sun, Crown, Trash2, Clock
+  XCircle, Share2, RefreshCw, Eye, Sun, Crown, Trash2, Clock, Lock
 } from 'lucide-react';
 
 // ============================================================================
@@ -112,30 +112,67 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md' }) {
   );
 }
 
-// --- OPZIONI UFFICIALI DELLA SALA VAR (CON EMOJI 🟨 🚨 🟥) ---
+// --- OPZIONI UFFICIALI DELLA SALA VAR (SOLO MALUS PURO SENZA SOMMARE I PUNTI BIRRA) ---
 const VAR_PENALTY_OPTIONS = [
   {
     id: 'yellow',
     label: '🟨 Cartellino giallo: birra avanzata -2pt',
-    desc: 'Il giocatore ha lasciato il fondo caldo o non ha finito il bicchiere.',
-    penaltyPts: 2,
-    revokeBeer: false
+    desc: 'Toglie esattamente -2 pt in classifica e assegna 1 Cartellino Giallo.',
+    penaltyPts: 2
   },
   {
     id: 'simulation',
     label: '🚨 Simulazione in area: foto riciclata/vuota -5pt',
-    desc: 'Foto vecchia, bicchiere già vuoto o presa in prestito dal vicino di banco.',
-    penaltyPts: 5,
-    revokeBeer: true
+    desc: 'Toglie esattamente -5 pt in classifica e annulla la bevuta dalla Sala VAR.',
+    penaltyPts: 5
   },
   {
     id: 'red',
     label: '🟥 Cartellino rosso: birra analcolica/radler -10pt',
-    desc: 'Grave violazione del codice etico: birra 0.0% o aromatizzata al limone.',
-    penaltyPts: 10,
-    revokeBeer: true
+    desc: 'Toglie esattamente -10 pt in classifica e assegna 1 Cartellino Rosso.',
+    penaltyPts: 10
   }
 ];
+
+// --- CONTROLLI ORARIO E CALENDARIO REAL-TIME ---
+// 1. Goccia d'Oro: consentita SOLO tra le 07:00 e le 12:30
+const checkGocciaWindow = () => {
+  const now = new Date();
+  const totalMinutes = now.getHours() * 60 + now.getMinutes();
+  const startMinutes = 7 * 60; // 07:00
+  const endMinutes = 12 * 60 + 30; // 12:30
+  const isOpen = totalMinutes >= startMinutes && totalMinutes <= endMinutes;
+  const isTooEarly = totalMinutes < startMinutes;
+  return { isOpen, isTooEarly };
+};
+
+// 2. Capitano della Serata: consentito SOLO Venerdì (5) e Sabato (6) prima delle 20:00
+const checkCaptainWindow = () => {
+  const now = new Date();
+  const day = now.getDay(); // 0=Dom, 1=Lun, ..., 5=Ven, 6=Sab
+  const hour = now.getHours();
+  const isFriOrSat = day === 5 || day === 6;
+  const isBefore20 = hour < 20;
+  const isOpen = isFriOrSat && isBefore20;
+
+  const dayNames = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+  let reason = '';
+  if (!isFriOrSat) {
+    reason = `Oggi è ${dayNames[day]}: attivabile solo Venerdì e Sabato entro le 20:00`;
+  } else if (!isBefore20) {
+    reason = 'Sono passate le 20:00! Tempo scaduto per dichiarare il Capitano stasera';
+  }
+  return { isOpen, reason };
+};
+
+// Identificativo settimana corrente (per sbloccare il Capitano ogni nuova settimana)
+const getCurrentWeekKey = () => {
+  const now = new Date();
+  const startOfYear = new Date(now.getFullYear(), 0, 1);
+  const pastDays = Math.floor((now - startOfYear) / 86400000);
+  const weekNum = Math.ceil((pastDays + startOfYear.getDay() + 1) / 7);
+  return `${now.getFullYear()}-W${weekNum}`;
+};
 
 // --- LEGA DEMO DI DEFAULT ---
 const DEFAULT_LEAGUES = [
@@ -144,10 +181,10 @@ const DEFAULT_LEAGUES = [
     name: 'Lega Storica Sempre Noi',
     adminId: 'usr_manolo',
     members: [
-      { id: 'u1', name: 'Manolo', glassType: 'triple', points: 54.5, weekendPts: 21.0, beers: 7, yellowCards: 1, redCards: 0, captainActive: false, captainBeers: 0, captainUsedThisWeek: false },
-      { id: 'u2', name: 'Marco', glassType: 'ipa', points: 46.0, weekendPts: 17.5, beers: 6, yellowCards: 0, redCards: 0, captainActive: true, captainBeers: 2, captainUsedThisWeek: true },
-      { id: 'u3', name: 'Andrea', glassType: 'stout', points: 38.0, weekendPts: 12.0, beers: 5, yellowCards: 0, redCards: 0, captainActive: false, captainBeers: 0, captainUsedThisWeek: false },
-      { id: 'u4', name: 'Luca', glassType: 'lager', points: 21.5, weekendPts: 6.0, beers: 4, yellowCards: 1, redCards: 1, captainActive: false, captainBeers: 0, captainUsedThisWeek: false }
+      { id: 'u1', name: 'Manolo', glassType: 'triple', points: 54.5, weekendPts: 21.0, beers: 7, yellowCards: 1, redCards: 0, captainActive: false, captainBeers: 0, captainWeekUsed: null },
+      { id: 'u2', name: 'Marco', glassType: 'ipa', points: 46.0, weekendPts: 17.5, beers: 6, yellowCards: 0, redCards: 0, captainActive: true, captainBeers: 2, captainWeekUsed: '2026-W46' },
+      { id: 'u3', name: 'Andrea', glassType: 'stout', points: 38.0, weekendPts: 12.0, beers: 5, yellowCards: 0, redCards: 0, captainActive: false, captainBeers: 0, captainWeekUsed: null },
+      { id: 'u4', name: 'Luca', glassType: 'lager', points: 21.5, weekendPts: 6.0, beers: 4, yellowCards: 1, redCards: 1, captainActive: false, captainBeers: 0, captainWeekUsed: null }
     ],
     feed: [
       {
@@ -173,11 +210,6 @@ const DEFAULT_LEAGUES = [
     ]
   }
 ];
-
-const isBefore1230 = () => {
-  const now = new Date();
-  return now.getHours() < 12 || (now.getHours() === 12 && now.getMinutes() <= 30);
-};
 
 export default function App() {
   // --- 1. DATABASE ACCOUNT & CREDENZIALI SALVATE ---
@@ -216,10 +248,11 @@ export default function App() {
   const [joinLeagueCustomName, setJoinLeagueCustomName] = useState('');
   const [copiedType, setCopiedType] = useState(null);
 
-  // --- 3. STATO NAVIGAZIONE E GIOCO ---
+  // --- 3. STATO NAVIGAZIONE, OROLOGIO LIVE E GIOCO ---
   const [activeTab, setActiveTab] = useState('classifica');
   const [toastMessage, setToastMessage] = useState(null);
   const [showGlassPicker, setShowGlassPicker] = useState(false);
+  const [clockTick, setClockTick] = useState(Date.now());
 
   // --- 4. STATO SEZIONE "STAPPA!" + GOCCIA D'ORO + CAPITANO ---
   const [beerTitle, setBeerTitle] = useState('');
@@ -227,7 +260,7 @@ export default function App() {
   const [abvTier, setAbvTier] = useState('leggera');
   const [qualityTier, setQualityTier] = useState('spina');
   const [bonusSempreNoi, setBonusSempreNoi] = useState(false);
-  const [bonusGocciaDOro, setBonusGocciaDOro] = useState(() => isBefore1230());
+  const [bonusGocciaDOro, setBonusGocciaDOro] = useState(() => checkGocciaWindow().isOpen);
   const [capturedPhoto, setCapturedPhoto] = useState(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const videoRef = useRef(null);
@@ -242,6 +275,21 @@ export default function App() {
     setToastMessage({ text, type });
     setTimeout(() => setToastMessage(null), 4000);
   };
+
+  // Aggiorna l'orologio interno ogni 20 secondi per bloccare in tempo reale le fasce orarie
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setClockTick(Date.now());
+      if (!checkGocciaWindow().isOpen) {
+        setBonusGocciaDOro(false);
+      }
+    }, 20000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const gocciaStatus = useMemo(() => checkGocciaWindow(), [clockTick]);
+  const captainWindowStatus = useMemo(() => checkCaptainWindow(), [clockTick]);
+  const currentWeekKey = useMemo(() => getCurrentWeekKey(), [clockTick]);
 
   // --- FUNZIONI DI SINCRONIZZAZIONE CLOUD (FIREBASE REST) ---
   const pushLeagueToCloud = async (leagueObj) => {
@@ -297,7 +345,6 @@ export default function App() {
     }
   };
 
-  // Polling automatico ogni 3 secondi per aggiornare giocatori, punti, foto e VAR su tutti i telefoni
   useEffect(() => {
     if (!cleanDbUrl) return;
     fetchAllLeaguesFromCloud();
@@ -342,7 +389,6 @@ export default function App() {
     }
   }, []);
 
-  // --- SE C'È UN INVITO IN SOSPESO E L'UTENTE È LOGGATO, UNISCILO SUBITO! ---
   useEffect(() => {
     if (!currentUser) return;
     const savedInvite = localStorage.getItem('sempre_noi_pending_invite');
@@ -409,7 +455,7 @@ export default function App() {
       redCards: 0,
       captainActive: false,
       captainBeers: 0,
-      captainUsedThisWeek: false
+      captainWeekUsed: null
     };
 
     let targetLeague = null;
@@ -471,7 +517,7 @@ export default function App() {
             redCards: 0,
             captainActive: false,
             captainBeers: 0,
-            captainUsedThisWeek: false
+            captainWeekUsed: null
           }]
         : [];
 
@@ -572,7 +618,7 @@ export default function App() {
           redCards: 0,
           captainActive: false,
           captainBeers: 0,
-          captainUsedThisWeek: false
+          captainWeekUsed: null
         }
       ],
       feed: []
@@ -594,7 +640,12 @@ export default function App() {
   const activeLeague = leagues.find(l => l.id === activeLeagueId);
   const myMemberProfile = activeLeague?.members.find(m => m.id === currentUser?.id);
 
-  // Copia Link d'invito completo di nome lega e host
+  // Controlla se il giocatore ha già usato il Capitano in QUESTA settimana
+  const hasUsedCaptainThisWeek = Boolean(
+    myMemberProfile?.captainWeekUsed === currentWeekKey ||
+    (myMemberProfile?.captainUsedThisWeek && !myMemberProfile?.captainWeekUsed)
+  );
+
   const handleCopyInvite = (leagueObj, type) => {
     const shareUrl = `${window.location.origin}${window.location.pathname}?join=${encodeURIComponent(leagueObj.id)}&name=${encodeURIComponent(leagueObj.name)}&host=${encodeURIComponent(currentUser.username)}`;
     const textToCopy = type === 'link' 
@@ -609,11 +660,17 @@ export default function App() {
     setTimeout(() => setCopiedType(null), 2500);
   };
 
-  // --- GESTIONE "IL CAPITANO DELLA SERATA" ---
+  // --- GESTIONE "IL CAPITANO DELLA SERATA" SINCRONIZZATO CON CALENDARIO E ORARIO ---
   const handleActivateCaptain = () => {
     if (!activeLeagueId || !myMemberProfile) return;
-    if (myMemberProfile.captainUsedThisWeek && !myMemberProfile.captainActive) {
-      showToast('Hai già usato il Bonus Capitano questa settimana!', 'warning');
+
+    if (!captainWindowStatus.isOpen) {
+      showToast(`🔒 ${captainWindowStatus.reason}`, 'danger');
+      return;
+    }
+
+    if (hasUsedCaptainThisWeek && !myMemberProfile.captainActive) {
+      showToast('Hai già utilizzato il Bonus Capitano in questa settimana!', 'warning');
       return;
     }
 
@@ -627,6 +684,7 @@ export default function App() {
               ...m,
               captainActive: true,
               captainBeers: 0,
+              captainWeekUsed: currentWeekKey,
               captainUsedThisWeek: true
             };
           }
@@ -636,7 +694,7 @@ export default function App() {
       pushLeagueToCloud(updated);
       return updated;
     }));
-    showToast('👑 Fascia da Capitano attivata! Tutte le tue birre validate stasera valgono PUNTI DOPPI (x2). Raggiungi almeno 4 birre o scatta il malus -10 pt!', 'success');
+    showToast('👑 Fascia da Capitano attivata entro le 20:00! Tutte le tue birre validate stasera valgono PUNTI DOPPI (x2). Raggiungi almeno 4 birre o scatta il malus -10 pt!', 'success');
   };
 
   const handleEndCaptainEvening = () => {
@@ -758,7 +816,8 @@ export default function App() {
     const base = formatMap[format].pts;
     const mult = abvMap[abvTier].mult;
     const qualityBonus = qualityMap[qualityTier].bonus;
-    const gocciaBonus = bonusGocciaDOro ? 3 : 0;
+    const isGocciaValidNow = gocciaStatus.isOpen && bonusGocciaDOro;
+    const gocciaBonus = isGocciaValidNow ? 3 : 0;
     const isCaptainActive = Boolean(myMemberProfile?.captainActive);
 
     let subtotal = (base * mult) + qualityBonus;
@@ -781,9 +840,9 @@ export default function App() {
       abvLabel: abvMap[abvTier].label,
       styleLabel: qualityMap[qualityTier].label
     };
-  }, [format, abvTier, qualityTier, bonusSempreNoi, bonusGocciaDOro, myMemberProfile]);
+  }, [format, abvTier, qualityTier, bonusSempreNoi, bonusGocciaDOro, gocciaStatus.isOpen, myMemberProfile]);
 
-  // --- INVIO NUOVA BIRRA (VA IN SALA VAR SENZA DARE PUNTI FINO ALLE 2 CONFERME) ---
+  // --- INVIO NUOVA BIRRA (VA IN SALA VAR SENZA AGGIUNGERE PUNTI FINO ALLE 2 CONFERME) ---
   const handleAddBeer = (e) => {
     e.preventDefault();
     if (!capturedPhoto) {
@@ -793,7 +852,7 @@ export default function App() {
 
     const activeBonuses = [];
     if (bonusSempreNoi) activeBonuses.push('Sempre noi (x1.3)');
-    if (bonusGocciaDOro) activeBonuses.push("Goccia d'Oro (+3pt)");
+    if (gocciaStatus.isOpen && bonusGocciaDOro) activeBonuses.push("Goccia d'Oro (+3pt)");
     if (calculatedDrink.isCaptainActive) activeBonuses.push('Capitano Serata (x2)');
 
     const newBeer = {
@@ -810,7 +869,7 @@ export default function App() {
       location: bonusSempreNoi ? 'Tavolata "Sempre noi" (x1.3)' : 'Scatto Live Fotocamera',
       photoUrl: capturedPhoto,
       bonuses: activeBonuses,
-      approvals: [], // Parte da 0: servono 2 conferme dagli amici per assegnare i punti
+      approvals: [],
       varVotes: [],
       status: 'pending_var'
     };
@@ -830,11 +889,11 @@ export default function App() {
     setBeerTitle('');
     setCapturedPhoto(null);
     setBonusSempreNoi(false);
-    showToast(`📸 Birra inviata in Sala VAR! I +${calculatedDrink.total} pt verranno accreditati appena 2 amici confermeranno la foto.`, 'success');
+    showToast(`📸 Birra in Sala VAR! (0 pt assegnati per ora: servono 2 Conferme per +${calculatedDrink.total} pt)`, 'success');
     setActiveTab('var');
   };
 
-  // --- SALA VAR: CONFERMA BIRRA (A 2 CONFERME ASSEGNA I PUNTI E RIMUOVE LA FOTO) ---
+  // --- SALA VAR: CONFERMA BIRRA (A 2 CONFERME ASSEGNA I PUNTI DELLA BIRRA E RIMUOVE LA FOTO) ---
   const handleApproveBeer = (beerId) => {
     const targetBeer = (activeLeague?.feed || []).find(item => item.id === beerId);
     if (!targetBeer) return;
@@ -853,7 +912,6 @@ export default function App() {
     setLeagues(prev => prev.map(l => {
       if (l.id !== activeLeagueId) return l;
 
-      // Se arriva a 2 conferme, rimuove la foto dalla Sala VAR e accredita i punti in classifica
       const updatedFeed = reachedTwoConfirmations
         ? (l.feed || []).filter(item => item.id !== beerId)
         : (l.feed || []).map(item => item.id === beerId ? { ...item, approvals: newApprovals } : item);
@@ -879,24 +937,41 @@ export default function App() {
     }));
 
     if (reachedTwoConfirmations) {
-      showToast(`🍻 2/2 Conferme raggiunte! +${targetBeer.points} pt assegnati a ${targetBeer.playerName} e foto rimossa dalla Sala VAR!`, 'success');
+      showToast(`🍻 2/2 Conferme! +${targetBeer.points} pt accreditati a ${targetBeer.playerName} e foto rimossa dalla Sala VAR!`, 'success');
     } else {
-      showToast('✅ 1ª Conferma registrata (1/2)! Serve 1 altra conferma per assegnare i punti.', 'success');
+      showToast('✅ 1ª Conferma registrata (1/2)! Serve 1 altra conferma per accreditare i punti.', 'success');
     }
   };
 
-  // --- SALA VAR: CHIAMA VAR (A 2 VOTI APPLICA IL MALUS E RIMUOVE LA FOTO) ---
+  // Apertura modale VAR (pre-seleziona l'eventuale sanzione già scelta dal 1° giudice)
+  const handleOpenVarModal = (beerItem) => {
+    if (beerItem.playerId === currentUser.id) {
+      showToast('⚠️ Non puoi segnalare al VAR la tua stessa birra!', 'warning');
+      return;
+    }
+    const existingFirstVote = (beerItem.varVotes || [])[0];
+    if (existingFirstVote?.reasonId) {
+      setSelectedPenaltyId(existingFirstVote.reasonId);
+    } else {
+      setSelectedPenaltyId('simulation');
+    }
+    setVarModalBeer(beerItem);
+  };
+
+  // --- SALA VAR: CHIAMA VAR (A 2 SEGNALAZIONI APPLICA SOLO IL MALUS E RIMUOVE LA FOTO) ---
   const handleConfirmVarCall = () => {
     if (!varModalBeer || !activeLeagueId) return;
 
-    if (varModalBeer.playerId === currentUser.id) {
+    const liveBeer = (activeLeague?.feed || []).find(item => item.id === varModalBeer.id) || varModalBeer;
+
+    if (liveBeer.playerId === currentUser.id) {
       showToast('⚠️ Non puoi segnalare al VAR la tua stessa birra!', 'warning');
       setVarModalBeer(null);
       return;
     }
 
     const chosenOption = VAR_PENALTY_OPTIONS.find(o => o.id === selectedPenaltyId) || VAR_PENALTY_OPTIONS[1];
-    const currentVotes = varModalBeer.varVotes || [];
+    const currentVotes = liveBeer.varVotes || [];
     if (currentVotes.some(v => v.voterId === currentUser.id)) {
       setVarModalBeer(null);
       return;
@@ -912,22 +987,24 @@ export default function App() {
       }
     ];
     const reachedTwoVarVotes = newVotes.length >= 2;
+    const onlyMalusPts = Number(chosenOption.penaltyPts); // SOLO il malus (-2, -5 o -10), MAI sommato ai punti della birra
 
     setLeagues(prev => prev.map(l => {
       if (l.id !== activeLeagueId) return l;
 
-      // Se arriva a 2 voti VAR, rimuove la foto dalla Sala VAR e infligge il malus al giocatore
+      // Al 2° voto VAR la foto sparisce immediatamente dalla Sala VAR
       const updatedFeed = reachedTwoVarVotes
-        ? (l.feed || []).filter(item => item.id !== varModalBeer.id)
-        : (l.feed || []).map(item => item.id === varModalBeer.id ? { ...item, varVotes: newVotes, status: 'pending_var' } : item);
+        ? (l.feed || []).filter(item => item.id !== liveBeer.id)
+        : (l.feed || []).map(item => item.id === liveBeer.id ? { ...item, varVotes: newVotes, status: 'pending_var' } : item);
 
+      // Applica ESCLUSIVAMENTE il malus (-2, -5 o -10 pt) senza mai sottrarre i punti della birra
       const updatedMembers = reachedTwoVarVotes
         ? l.members.map(m => {
-            if (m.id === varModalBeer.playerId) {
+            if (m.id === liveBeer.playerId) {
               return {
                 ...m,
-                points: Number((m.points - chosenOption.penaltyPts).toFixed(1)),
-                weekendPts: Number((m.weekendPts - chosenOption.penaltyPts).toFixed(1)),
+                points: Number((m.points - onlyMalusPts).toFixed(1)),
+                weekendPts: Number((m.weekendPts - onlyMalusPts).toFixed(1)),
                 yellowCards: chosenOption.id === 'yellow' || chosenOption.id === 'simulation' ? m.yellowCards + 1 : m.yellowCards,
                 redCards: chosenOption.id === 'red' ? m.redCards + 1 : m.redCards
               };
@@ -943,9 +1020,9 @@ export default function App() {
 
     setVarModalBeer(null);
     if (reachedTwoVarVotes) {
-      showToast(`🚨 Sentenza VAR (2/2)! Malus di -${chosenOption.penaltyPts} pt applicato a ${varModalBeer.playerName} e foto rimossa dalla Sala VAR!`, 'danger');
+      showToast(`🚨 VAR Confermato (2/2)! Applicato solo il malus di -${onlyMalusPts} pt a ${liveBeer.playerName} e foto rimossa dalla Sala VAR!`, 'danger');
     } else {
-      showToast('🖥️ 1° Voto VAR registrato (1/2)! Con un altro voto scatterà il malus.', 'warning');
+      showToast(`🖥️ 1ª Segnalazione VAR registrata (1/2) per -${onlyMalusPts} pt! Serve 1 altro voto VAR per applicare il malus.`, 'warning');
     }
   };
 
@@ -1492,7 +1569,7 @@ export default function App() {
             </div>
           )}
 
-          {/* TAB 2: STAPPA! (CON GOCCIA D'ORO E IL CAPITANO DELLA SERATA) */}
+          {/* TAB 2: STAPPA! (CON BLOCCO ORARIO GOCCIA D'ORO E CALENDARIO CAPITANO) */}
           {activeTab === 'stappa' && (
             <form onSubmit={handleAddBeer} className="space-y-4">
               {/* RIEPILOGO FORMULA PUNTI LIVE */}
@@ -1502,7 +1579,7 @@ export default function App() {
                   <h2 className="text-[11px] font-bold text-white mt-0.5">
                     (({calculatedDrink.base}pt × {calculatedDrink.mult}) + {calculatedDrink.qualityBonus}pt)
                     {bonusSempreNoi ? ' × 1.3' : ''}
-                    {bonusGocciaDOro ? ' + 3pt' : ''}
+                    {gocciaStatus.isOpen && bonusGocciaDOro ? ' + 3pt' : ''}
                     {calculatedDrink.isCaptainActive ? ' × 2 (CAP)' : ''}
                   </h2>
                 </div>
@@ -1512,7 +1589,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* PANNELLO UFFICIALE: IL "CAPITANO" DELLA SERATA (x2 Punti / Minimo 4 Birre / -10pt Malus) */}
+              {/* PANNELLO UFFICIALE: IL "CAPITANO" DELLA SERATA (SINCRONIZZATO CON CALENDARIO VEN/SAB < 20:00) */}
               <div className={`p-3.5 rounded-2xl border transition space-y-2.5 ${
                 myMemberProfile?.captainActive 
                   ? 'bg-purple-950/60 border-purple-400 text-white shadow-lg shadow-purple-500/10' 
@@ -1526,7 +1603,7 @@ export default function App() {
                         Il "Capitano" della Serata (x2 Punti)
                       </span>
                       <span className="text-[10px] text-slate-400 block">
-                        Attivabile 1 volta a settimana entro le 20:00 di Ven/Sab. Raddoppia i punti, ma se non raggiungi <strong>4 birre validate</strong> scatta il malus <strong>"Tradimento delle aspettative" (-10 pt)</strong>!
+                        Attivabile 1 volta a settimana solo <strong>Venerdì e Sabato entro le 20:00</strong>. Raddoppia i punti, ma se non raggiungi <strong>4 birre validate</strong> scatta il malus <strong>"Tradimento delle aspettative" (-10 pt)</strong>!
                       </span>
                     </div>
                   </div>
@@ -1560,20 +1637,22 @@ export default function App() {
                         : `⚠️ Chiudi Serata Capitano (Attenzione: < 4 birre = -10 pt)`}
                     </button>
                   </div>
+                ) : hasUsedCaptainThisWeek ? (
+                  <div className="w-full py-2.5 px-3 rounded-xl bg-slate-950 border border-slate-800 text-slate-500 text-[11px] font-black uppercase flex items-center justify-center gap-1.5">
+                    <Lock className="w-3.5 h-3.5" /> Bonus Capitano già utilizzato questa settimana
+                  </div>
+                ) : !captainWindowStatus.isOpen ? (
+                  <div className="w-full py-2.5 px-3 rounded-xl bg-red-950/30 border border-red-500/30 text-red-300 text-[10px] font-bold flex items-center justify-center gap-1.5 text-center">
+                    <XCircle className="w-4 h-4 text-red-400 shrink-0" />
+                    <span>{captainWindowStatus.reason}</span>
+                  </div>
                 ) : (
                   <button
                     type="button"
                     onClick={handleActivateCaptain}
-                    disabled={myMemberProfile?.captainUsedThisWeek}
-                    className={`w-full py-2.5 rounded-xl text-xs font-black uppercase transition ${
-                      myMemberProfile?.captainUsedThisWeek
-                        ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                        : 'bg-purple-600 hover:bg-purple-500 text-white shadow-md'
-                    }`}
+                    className="w-full py-2.5 rounded-xl text-xs font-black uppercase bg-purple-600 hover:bg-purple-500 text-white shadow-md transition"
                   >
-                    {myMemberProfile?.captainUsedThisWeek 
-                      ? 'Bonus Capitano già usato questa settimana' 
-                      : `👑 Dichiara "Capitano della Serata" (x2 Punti)`}
+                    👑 Dichiara "Capitano della Serata" (x2 Punti)
                   </button>
                 )}
               </div>
@@ -1674,21 +1753,56 @@ export default function App() {
                 <span className="text-sm font-black text-emerald-400">x1,3</span>
               </div>
 
-              {/* BONUS 2: Trofeo "Goccia d'Oro" (+3 pt prima delle 12:30) */}
+              {/* BONUS 2: Trofeo "Goccia d'Oro" (SOLO 07:00 - 12:30, ALTRIMENTI BARRATO CON X ROSSA) */}
               <div 
-                onClick={() => setBonusGocciaDOro(!bonusGocciaDOro)}
-                className={`p-3.5 rounded-2xl border flex items-center justify-between cursor-pointer transition ${
-                  bonusGocciaDOro ? 'bg-amber-950/60 border-amber-400 text-white' : 'bg-slate-900 border-slate-800 text-slate-400'
+                onClick={() => {
+                  if (!gocciaStatus.isOpen) {
+                    showToast(
+                      gocciaStatus.isTooEarly
+                        ? '⏰ Troppo presto! Il Trofeo Goccia d\'Oro apre alle 07:00 del mattino.'
+                        : '❌ Sei arrivato tardi! Il Trofeo Goccia d\'Oro è valido solo dalle 07:00 alle 12:30.',
+                      'danger'
+                    );
+                    return;
+                  }
+                  setBonusGocciaDOro(!bonusGocciaDOro);
+                }}
+                className={`relative overflow-hidden p-3.5 rounded-2xl border flex items-center justify-between transition ${
+                  !gocciaStatus.isOpen
+                    ? 'bg-slate-950/90 border-red-500/40 text-slate-500 cursor-not-allowed opacity-85'
+                    : bonusGocciaDOro
+                    ? 'bg-amber-950/60 border-amber-400 text-white cursor-pointer'
+                    : 'bg-slate-900 border-slate-800 text-slate-400 cursor-pointer'
                 }`}
               >
                 <div className="flex items-center gap-2.5">
-                  <Sun className={`w-5 h-5 ${bonusGocciaDOro ? 'text-amber-400' : 'text-slate-500'}`} />
+                  <div className="relative flex items-center justify-center w-7 h-7">
+                    <Sun className={`w-5 h-5 ${gocciaStatus.isOpen && bonusGocciaDOro ? 'text-amber-400' : 'text-slate-600'}`} />
+                    {!gocciaStatus.isOpen && (
+                      <XCircle className="w-7 h-7 text-red-500 absolute inset-0 stroke-[2.5] drop-shadow" />
+                    )}
+                  </div>
                   <div>
-                    <span className="text-xs font-bold block">Trofeo "Goccia d'Oro"</span>
-                    <span className="text-[10px] text-slate-400">Prima birra della giornata bevuta prima delle 12:30</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-xs font-bold ${!gocciaStatus.isOpen ? 'line-through text-slate-500' : ''}`}>
+                        Trofeo "Goccia d'Oro"
+                      </span>
+                      {!gocciaStatus.isOpen && (
+                        <span className="text-[9px] font-black uppercase bg-red-500/20 text-red-400 border border-red-500/40 px-1.5 py-0.2 rounded">
+                          {gocciaStatus.isTooEarly ? 'Apre alle 07:00' : 'Arrivato Tardi!'}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-slate-400 block">
+                      {gocciaStatus.isOpen
+                        ? 'Fascia attiva (07:00 - 12:30): prima birra del mattino!'
+                        : 'Fascia oraria 07:00 - 12:30 chiusa'}
+                    </span>
                   </div>
                 </div>
-                <span className="text-sm font-black text-amber-400">+3 pt</span>
+                <span className={`text-sm font-black ${!gocciaStatus.isOpen ? 'text-red-500 line-through' : 'text-amber-400'}`}>
+                  +3 pt
+                </span>
               </div>
 
               {/* FOTOCAMERA ISTANTANEA OBBLIGATORIA */}
@@ -1769,7 +1883,7 @@ export default function App() {
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-300">
-                  I punti vengono accreditati solo al raggiungimento di <strong>2 Conferme</strong>. Con <strong>2 chiamate VAR</strong> scatta il malus. Una volta raggiunto il verdetto (2/2), la foto sparisce dalla Sala VAR!
+                  Con <strong>2 Conferme</strong> vengono accreditati i punti della birra. Con <strong>2 Segnalazioni VAR</strong> viene applicato <strong>solo il malus</strong> (-2, -5 o -10 pt) e la foto sparisce subito dalla Sala VAR!
                 </p>
               </div>
 
@@ -1778,7 +1892,7 @@ export default function App() {
                   <CheckCircle2 className="w-10 h-10 text-emerald-400/70 mx-auto" />
                   <h3 className="text-xs font-black uppercase text-white">Nessuna foto in attesa di revisione</h3>
                   <p className="text-[11px] text-slate-400">
-                    Tutte le bevute sono state giudicate (2/2) e i relativi punti o malus sono già stati registrati in Classifica F1!
+                    Tutte le bevute sono state giudicate (2/2) e rimosse dalla Sala VAR!
                   </p>
                 </div>
               ) : (
@@ -1801,7 +1915,7 @@ export default function App() {
                             </div>
                           </div>
                           <span className="text-xs font-black px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                            In palio: +{item.points} pt
+                            Se confermata: +{item.points} pt
                           </span>
                         </div>
 
@@ -1840,12 +1954,11 @@ export default function App() {
                             <div className="bg-amber-500/15 border border-amber-500/40 rounded-xl p-2.5 text-[11px] text-amber-200 flex items-center gap-2">
                               <Eye className="w-4 h-4 text-amber-400 shrink-0" />
                               <span>
-                                <strong>1° Voto VAR ({varVotesList[0].voterName}):</strong> "{varVotesList[0].reasonLabel}". Serve il 2° voto per far scattare il malus!
+                                <strong>1° Voto VAR ({varVotesList[0].voterName}):</strong> "{varVotesList[0].reasonLabel}". Con il 2° voto scatta solo questo malus e la foto sparisce!
                               </span>
                             </div>
                           )}
 
-                          {/* BLOCCO AUTO-VOTO SE È LA PROPRIA BIRRA */}
                           {isMyBeer ? (
                             <div className="py-2.5 px-3 rounded-xl bg-slate-950 border border-slate-800 text-slate-400 text-[11px] font-bold flex items-center justify-center gap-2">
                               <Clock className="w-4 h-4 text-amber-400 shrink-0" />
@@ -1869,7 +1982,7 @@ export default function App() {
 
                               <button
                                 type="button"
-                                onClick={() => setVarModalBeer(item)}
+                                onClick={() => handleOpenVarModal(item)}
                                 disabled={hasVotedVar || hasApproved}
                                 className={`py-2.5 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border transition ${
                                   hasVotedVar
@@ -1904,19 +2017,19 @@ export default function App() {
                 </div>
 
                 <div className="p-2.5 rounded-xl bg-slate-950 border border-amber-500/30 space-y-1">
-                  <span className="text-[10px] font-black uppercase text-amber-400">2. Bonus Speciali</span>
+                  <span className="text-[10px] font-black uppercase text-amber-400">2. Bonus Speciali (Sincronizzati con Orologio)</span>
                   <div className="flex justify-between"><span>🍻 Bonus "Sempre noi" (in gruppo)</span><strong className="text-emerald-400">x1.3</strong></div>
-                  <div className="flex justify-between"><span>☀️ Trofeo "Goccia d'Oro" (prima delle 12:30)</span><strong className="text-amber-400">+3 pt</strong></div>
-                  <div className="flex justify-between"><span>👑 Il "Capitano" della Serata (1/sett. entro 20:00 Ven/Sab)</span><strong className="text-purple-400">x2 Punti</strong></div>
+                  <div className="flex justify-between"><span>☀️ Trofeo "Goccia d'Oro" (Solo 07:00 - 12:30)</span><strong className="text-amber-400">+3 pt</strong></div>
+                  <div className="flex justify-between"><span>👑 Il "Capitano" della Serata (Ven/Sab entro le 20:00)</span><strong className="text-purple-400">x2 Punti</strong></div>
                   <div className="flex justify-between"><span>⚠️ Malus "Tradimento aspettative" (&lt; 4 birre da Capitano)</span><strong className="text-red-400">-10 pt</strong></div>
                 </div>
 
                 <div className="p-2.5 rounded-xl bg-slate-950 border border-red-500/30 space-y-1">
                   <span className="text-[10px] font-black uppercase text-red-400">3. Giudizio Sala VAR (Gara a 2 Voti)</span>
-                  <div className="flex justify-between"><span>✅ 2 Conferme dagli amici</span><strong className="text-emerald-400">Accredita Punti</strong></div>
-                  <div className="flex justify-between"><span>🟨 Cartellino giallo: birra avanzata</span><strong className="text-yellow-400">-2 pt</strong></div>
-                  <div className="flex justify-between"><span>🚨 Simulazione in area: foto riciclata/vuota</span><strong className="text-red-400">-5 pt</strong></div>
-                  <div className="flex justify-between"><span>🟥 Cartellino rosso: analcolica/radler</span><strong className="text-red-500">-10 pt</strong></div>
+                  <div className="flex justify-between"><span>✅ 2 Conferme dagli amici</span><strong className="text-emerald-400">+Punti Birra</strong></div>
+                  <div className="flex justify-between"><span>🟨 Cartellino giallo: birra avanzata</span><strong className="text-yellow-400">Solo -2 pt</strong></div>
+                  <div className="flex justify-between"><span>🚨 Simulazione in area: foto riciclata/vuota</span><strong className="text-red-400">Solo -5 pt</strong></div>
+                  <div className="flex justify-between"><span>🟥 Cartellino rosso: analcolica/radler</span><strong className="text-red-500">Solo -10 pt</strong></div>
                 </div>
               </div>
             </div>
