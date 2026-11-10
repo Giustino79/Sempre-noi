@@ -3,14 +3,14 @@ import {
   Trophy, PlusCircle, ShieldAlert, Users, Camera, 
   CheckCircle2, Sparkles, LogOut, Plus, UserPlus, Key, User, 
   Beer, Copy, Check, ChevronRight, ArrowLeft, BookOpen, Flag, 
-  XCircle, Share2, RefreshCw, Eye, Sun, Crown
+  XCircle, Share2, RefreshCw, Eye, Sun, Crown, Trash2, Clock
 } from 'lucide-react';
 
 // ============================================================================
 // 🔗 INCOLLA QUI SOTTO IL LINK DEL TUO FIREBASE REALTIME DATABASE:
-// Esempio: "https://sempre-noi-default-rtdb.europe-west1.firebasedatabase.app/"
+// Esempio: "https://sempre-noi-default-rtdb.europe-west1.firebasedatabase.app"
 // ============================================================================
-const CLOUD_DB_URL = "https://sempre-noi-default-rtdb.europe-west1.firebasedatabase.app/"; 
+const CLOUD_DB_URL = ""; 
 
 const cleanDbUrl = CLOUD_DB_URL ? CLOUD_DB_URL.replace(/\/$/, "") : "";
 
@@ -112,7 +112,7 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md' }) {
   );
 }
 
-// --- OPZIONI UFFICIALI DELLA SALA VAR (CON EMOJI 🟨 🚨 🟥 RIPRISTINATI) ---
+// --- OPZIONI UFFICIALI DELLA SALA VAR (CON EMOJI 🟨 🚨 🟥) ---
 const VAR_PENALTY_OPTIONS = [
   {
     id: 'yellow',
@@ -169,24 +169,6 @@ const DEFAULT_LEAGUES = [
           { voterId: 'u3', voterName: 'Andrea', reasonId: 'simulation', reasonLabel: '🚨 Simulazione in area: foto riciclata/vuota -5pt' }
         ],
         status: 'pending_var'
-      },
-      {
-        id: 'b102',
-        playerId: 'u2',
-        playerName: 'Marco',
-        glassType: 'ipa',
-        beerName: 'Double IPA Artigianale',
-        formatLabel: 'Media 50cl (+5pt)',
-        abvLabel: 'Forte > 7,5° (x1.7)',
-        styleLabel: 'Artigianale (+2pt)',
-        points: 27.4,
-        timestamp: '1 ora fa',
-        location: 'Tavolata Sempre Noi',
-        photoUrl: 'https://images.unsplash.com/photo-1566633806327-68e152aaf26d?auto=format&fit=crop&w=600&q=80',
-        bonuses: ['Sempre noi (x1.3)', 'Capitano Serata (x2)'],
-        approvals: ['u1', 'u3'],
-        varVotes: [],
-        status: 'valid'
       }
     ]
   }
@@ -219,7 +201,7 @@ export default function App() {
   const [authPassword, setAuthPassword] = useState(savedCreds.password || '');
   const [rememberMe, setRememberMe] = useState(true);
 
-  // --- 2. STATO LEGHE E SINCRONIZZAZIONE MULTI-DISPOSITIVO ---
+  // --- 2. STATO LEGHE, ELIMINAZIONE E SINCRONIZZAZIONE MULTI-DISPOSITIVO ---
   const [leagues, setLeagues] = useState(() => {
     const saved = localStorage.getItem('sempre_noi_leagues_v3');
     return saved ? JSON.parse(saved) : DEFAULT_LEAGUES;
@@ -228,6 +210,7 @@ export default function App() {
   const [activeLeagueId, setActiveLeagueId] = useState(null);
   const [showCreateLeagueModal, setShowCreateLeagueModal] = useState(false);
   const [showJoinLeagueModal, setShowJoinLeagueModal] = useState(false);
+  const [leagueToDelete, setLeagueToDelete] = useState(null);
   const [newLeagueName, setNewLeagueName] = useState('');
   const [joinLeagueCode, setJoinLeagueCode] = useState('');
   const [joinLeagueCustomName, setJoinLeagueCustomName] = useState('');
@@ -281,17 +264,33 @@ export default function App() {
       if (!res.ok) return null;
       const data = await res.json();
       if (!data) return null;
-      const cloudList = Object.values(data).map(l => ({
-        ...l,
-        members: l.members || [],
-        feed: l.feed || []
-      }));
+
+      const rawValues = Object.values(data);
+      const deletedIds = new Set(rawValues.filter(l => l && l.deleted).map(l => l.id));
+      const cloudList = rawValues
+        .filter(l => l && l.id && !l.deleted)
+        .map(l => ({
+          ...l,
+          members: l.members || [],
+          feed: (l.feed || []).map(item => ({
+            ...item,
+            approvals: item.approvals || [],
+            varVotes: item.varVotes || []
+          }))
+        }));
+
       setLeagues(prev => {
         const mergedMap = new Map();
-        prev.forEach(item => mergedMap.set(item.id, item));
+        prev.forEach(item => {
+          if (!deletedIds.has(item.id)) {
+            mergedMap.set(item.id, item);
+          }
+        });
         cloudList.forEach(item => mergedMap.set(item.id, item));
         return Array.from(mergedMap.values());
       });
+
+      setActiveLeagueId(currentId => (currentId && deletedIds.has(currentId) ? null : currentId));
       return cloudList;
     } catch (e) {
       return null;
@@ -364,6 +363,33 @@ export default function App() {
     }
   }, [activeTab]);
 
+  // --- ELIMINAZIONE LEGA (LOCALE + CLOUD) ---
+  const handleConfirmDeleteLeague = async () => {
+    if (!leagueToDelete) return;
+    const targetId = leagueToDelete.id;
+    const targetName = leagueToDelete.name;
+
+    setLeagues(prev => prev.filter(l => l.id !== targetId));
+    if (activeLeagueId === targetId) {
+      setActiveLeagueId(null);
+    }
+    setLeagueToDelete(null);
+
+    if (cleanDbUrl) {
+      try {
+        await fetch(`${cleanDbUrl}/leagues/${targetId}.json`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: targetId, deleted: true })
+        });
+      } catch (e) {
+        console.error('Errore eliminazione lega dal cloud:', e);
+      }
+    }
+
+    showToast(`🗑️ Lega "${targetName}" eliminata definitivamente.`, 'warning');
+  };
+
   // --- FUNZIONE CHE UNISCE IL GIOCATORE E SINCRONIZZA TUTTI GLI ALTRI TELEFONI ---
   const joinOrCreateSharedLeague = async (rawCode, optionalName = '', optionalHost = '') => {
     const cleanCode = rawCode.trim().toUpperCase();
@@ -386,18 +412,21 @@ export default function App() {
       captainUsedThisWeek: false
     };
 
-    // 1. Controlla prima sul Cloud se la lega esiste già (creata da un altro telefono)
     let targetLeague = null;
     if (cleanDbUrl) {
       try {
         const res = await fetch(`${cleanDbUrl}/leagues/${cleanCode}.json`);
         if (res.ok) {
           const cloudLeague = await res.json();
-          if (cloudLeague && cloudLeague.id) {
+          if (cloudLeague && cloudLeague.id && !cloudLeague.deleted) {
             targetLeague = {
               ...cloudLeague,
               members: cloudLeague.members || [],
-              feed: cloudLeague.feed || []
+              feed: (cloudLeague.feed || []).map(item => ({
+                ...item,
+                approvals: item.approvals || [],
+                varVotes: item.varVotes || []
+              }))
             };
           }
         }
@@ -406,7 +435,6 @@ export default function App() {
       }
     }
 
-    // 2. Altrimenti cerca in memoria locale
     if (!targetLeague) {
       targetLeague = leagues.find(l => l.id.toUpperCase() === cleanCode);
     }
@@ -608,7 +636,7 @@ export default function App() {
       pushLeagueToCloud(updated);
       return updated;
     }));
-    showToast('👑 Fascia da Capitano attivata! Tutte le tue birre di stasera valgono PUNTI DOPPI (x2). Raggiungi almeno 4 birre o scatta il malus -10 pt!', 'success');
+    showToast('👑 Fascia da Capitano attivata! Tutte le tue birre validate stasera valgono PUNTI DOPPI (x2). Raggiungi almeno 4 birre o scatta il malus -10 pt!', 'success');
   };
 
   const handleEndCaptainEvening = () => {
@@ -637,9 +665,9 @@ export default function App() {
     }));
 
     if (failedTarget) {
-      showToast(`🚨 Tradimento delle aspettative! Hai bevuto solo ${beersCount}/4 birre da Capitano: -10 punti di malus applicati!`, 'danger');
+      showToast(`🚨 Tradimento delle aspettative! Hai validato solo ${beersCount}/4 birre da Capitano: -10 punti di malus applicati!`, 'danger');
     } else {
-      showToast(`🏆 Serata da Capitano completata con ${beersCount} birre! Obiettivo 4/4 superato a pieni voti!`, 'success');
+      showToast(`🏆 Serata da Capitano completata con ${beersCount} birre validate! Obiettivo 4/4 superato!`, 'success');
     }
   };
 
@@ -755,7 +783,7 @@ export default function App() {
     };
   }, [format, abvTier, qualityTier, bonusSempreNoi, bonusGocciaDOro, myMemberProfile]);
 
-  // --- INVIO NUOVA BIRRA E SINCRONIZZAZIONE FOTO SUI TELEFONI DEGLI AMICI ---
+  // --- INVIO NUOVA BIRRA (VA IN SALA VAR SENZA DARE PUNTI FINO ALLE 2 CONFERME) ---
   const handleAddBeer = (e) => {
     e.preventDefault();
     if (!capturedPhoto) {
@@ -782,28 +810,16 @@ export default function App() {
       location: bonusSempreNoi ? 'Tavolata "Sempre noi" (x1.3)' : 'Scatto Live Fotocamera',
       photoUrl: capturedPhoto,
       bonuses: activeBonuses,
-      approvals: [currentUser.id],
+      approvals: [], // Parte da 0: servono 2 conferme dagli amici per assegnare i punti
       varVotes: [],
-      status: 'valid'
+      status: 'pending_var'
     };
 
     setLeagues(prev => prev.map(l => {
       if (l.id === activeLeagueId) {
         const updated = {
           ...l,
-          feed: [newBeer, ...(l.feed || [])],
-          members: l.members.map(m => {
-            if (m.id === currentUser.id) {
-              return {
-                ...m,
-                points: Number((m.points + calculatedDrink.total).toFixed(1)),
-                weekendPts: Number((m.weekendPts + calculatedDrink.total).toFixed(1)),
-                beers: m.beers + 1,
-                captainBeers: m.captainActive ? (m.captainBeers || 0) + 1 : (m.captainBeers || 0)
-              };
-            }
-            return m;
-          })
+          feed: [newBeer, ...(l.feed || [])]
         };
         pushLeagueToCloud(updated);
         return updated;
@@ -814,85 +830,111 @@ export default function App() {
     setBeerTitle('');
     setCapturedPhoto(null);
     setBonusSempreNoi(false);
-    showToast(`🍻 Stappata! +${calculatedDrink.total} pt inviati in classifica e in Sala VAR!`, 'success');
-    setActiveTab('classifica');
+    showToast(`📸 Birra inviata in Sala VAR! I +${calculatedDrink.total} pt verranno accreditati appena 2 amici confermeranno la foto.`, 'success');
+    setActiveTab('var');
   };
 
-  // --- SALA VAR: CONFERMA E CHIAMATA VAR SINCRONIZZATE ---
+  // --- SALA VAR: CONFERMA BIRRA (A 2 CONFERME ASSEGNA I PUNTI E RIMUOVE LA FOTO) ---
   const handleApproveBeer = (beerId) => {
+    const targetBeer = (activeLeague?.feed || []).find(item => item.id === beerId);
+    if (!targetBeer) return;
+
+    if (targetBeer.playerId === currentUser.id) {
+      showToast('⚠️ Non puoi confermare la tua stessa birra! Devono votare i tuoi amici.', 'warning');
+      return;
+    }
+
+    const currentApprovals = targetBeer.approvals || [];
+    if (currentApprovals.includes(currentUser.id)) return;
+
+    const newApprovals = [...currentApprovals, currentUser.id];
+    const reachedTwoConfirmations = newApprovals.length >= 2;
+
     setLeagues(prev => prev.map(l => {
       if (l.id !== activeLeagueId) return l;
-      const updated = {
-        ...l,
-        feed: (l.feed || []).map(item => {
-          if (item.id !== beerId) return item;
-          const approvals = item.approvals || [];
-          if (approvals.includes(currentUser.id)) return item;
-          return { ...item, approvals: [...approvals, currentUser.id] };
-        })
-      };
-      pushLeagueToCloud(updated);
-      return updated;
+
+      // Se arriva a 2 conferme, rimuove la foto dalla Sala VAR e accredita i punti in classifica
+      const updatedFeed = reachedTwoConfirmations
+        ? (l.feed || []).filter(item => item.id !== beerId)
+        : (l.feed || []).map(item => item.id === beerId ? { ...item, approvals: newApprovals } : item);
+
+      const updatedMembers = reachedTwoConfirmations
+        ? l.members.map(m => {
+            if (m.id === targetBeer.playerId) {
+              return {
+                ...m,
+                points: Number((m.points + targetBeer.points).toFixed(1)),
+                weekendPts: Number((m.weekendPts + targetBeer.points).toFixed(1)),
+                beers: m.beers + 1,
+                captainBeers: m.captainActive ? (m.captainBeers || 0) + 1 : (m.captainBeers || 0)
+              };
+            }
+            return m;
+          })
+        : l.members;
+
+      const updatedLeague = { ...l, feed: updatedFeed, members: updatedMembers };
+      pushLeagueToCloud(updatedLeague);
+      return updatedLeague;
     }));
-    showToast('✅ Bevuta confermata!', 'success');
+
+    if (reachedTwoConfirmations) {
+      showToast(`🍻 2/2 Conferme raggiunte! +${targetBeer.points} pt assegnati a ${targetBeer.playerName} e foto rimossa dalla Sala VAR!`, 'success');
+    } else {
+      showToast('✅ 1ª Conferma registrata (1/2)! Serve 1 altra conferma per assegnare i punti.', 'success');
+    }
   };
 
+  // --- SALA VAR: CHIAMA VAR (A 2 VOTI APPLICA IL MALUS E RIMUOVE LA FOTO) ---
   const handleConfirmVarCall = () => {
     if (!varModalBeer || !activeLeagueId) return;
+
+    if (varModalBeer.playerId === currentUser.id) {
+      showToast('⚠️ Non puoi segnalare al VAR la tua stessa birra!', 'warning');
+      setVarModalBeer(null);
+      return;
+    }
+
     const chosenOption = VAR_PENALTY_OPTIONS.find(o => o.id === selectedPenaltyId) || VAR_PENALTY_OPTIONS[1];
+    const currentVotes = varModalBeer.varVotes || [];
+    if (currentVotes.some(v => v.voterId === currentUser.id)) {
+      setVarModalBeer(null);
+      return;
+    }
+
+    const newVotes = [
+      ...currentVotes,
+      {
+        voterId: currentUser.id,
+        voterName: currentUser.username,
+        reasonId: chosenOption.id,
+        reasonLabel: chosenOption.label
+      }
+    ];
+    const reachedTwoVarVotes = newVotes.length >= 2;
 
     setLeagues(prev => prev.map(l => {
       if (l.id !== activeLeagueId) return l;
-      let penaltyTriggered = false;
 
-      const updatedFeed = (l.feed || []).map(item => {
-        if (item.id !== varModalBeer.id) return item;
-        const currentVotes = item.varVotes || [];
-        const alreadyVoted = currentVotes.some(v => v.voterId === currentUser.id);
-        if (alreadyVoted) return item;
+      // Se arriva a 2 voti VAR, rimuove la foto dalla Sala VAR e infligge il malus al giocatore
+      const updatedFeed = reachedTwoVarVotes
+        ? (l.feed || []).filter(item => item.id !== varModalBeer.id)
+        : (l.feed || []).map(item => item.id === varModalBeer.id ? { ...item, varVotes: newVotes, status: 'pending_var' } : item);
 
-        const newVotes = [
-          ...currentVotes,
-          {
-            voterId: currentUser.id,
-            voterName: currentUser.username,
-            reasonId: chosenOption.id,
-            reasonLabel: chosenOption.label
-          }
-        ];
-
-        const reachedThreshold = newVotes.length >= 2;
-        if (reachedThreshold && item.status !== 'yellow' && item.status !== 'simulation' && item.status !== 'red') {
-          penaltyTriggered = true;
-        }
-
-        return {
-          ...item,
-          varVotes: newVotes,
-          status: reachedThreshold ? chosenOption.id : 'pending_var'
-        };
-      });
-
-      let updatedMembers = l.members;
-      if (penaltyTriggered) {
-        updatedMembers = l.members.map(m => {
-          if (m.id === varModalBeer.playerId) {
-            const pointsToSubtract = chosenOption.revokeBeer
-              ? (varModalBeer.points + chosenOption.penaltyPts)
-              : chosenOption.penaltyPts;
-
-            return {
-              ...m,
-              points: Number((m.points - pointsToSubtract).toFixed(1)),
-              weekendPts: Number((m.weekendPts - pointsToSubtract).toFixed(1)),
-              beers: chosenOption.revokeBeer ? Math.max(0, m.beers - 1) : m.beers,
-              yellowCards: chosenOption.id === 'yellow' || chosenOption.id === 'simulation' ? m.yellowCards + 1 : m.yellowCards,
-              redCards: chosenOption.id === 'red' ? m.redCards + 1 : m.redCards
-            };
-          }
-          return m;
-        });
-      }
+      const updatedMembers = reachedTwoVarVotes
+        ? l.members.map(m => {
+            if (m.id === varModalBeer.playerId) {
+              return {
+                ...m,
+                points: Number((m.points - chosenOption.penaltyPts).toFixed(1)),
+                weekendPts: Number((m.weekendPts - chosenOption.penaltyPts).toFixed(1)),
+                yellowCards: chosenOption.id === 'yellow' || chosenOption.id === 'simulation' ? m.yellowCards + 1 : m.yellowCards,
+                redCards: chosenOption.id === 'red' ? m.redCards + 1 : m.redCards
+              };
+            }
+            return m;
+          })
+        : l.members;
 
       const updatedLeague = { ...l, feed: updatedFeed, members: updatedMembers };
       pushLeagueToCloud(updatedLeague);
@@ -900,7 +942,11 @@ export default function App() {
     }));
 
     setVarModalBeer(null);
-    showToast('🖥️ Voto registrato in Sala VAR!', 'warning');
+    if (reachedTwoVarVotes) {
+      showToast(`🚨 Sentenza VAR (2/2)! Malus di -${chosenOption.penaltyPts} pt applicato a ${varModalBeer.playerName} e foto rimossa dalla Sala VAR!`, 'danger');
+    } else {
+      showToast('🖥️ 1° Voto VAR registrato (1/2)! Con un altro voto scatterà il malus.', 'warning');
+    }
   };
 
   const handleSelectGlass = (glassId) => {
@@ -1121,16 +1167,60 @@ export default function App() {
                       <p className="text-xs text-slate-400 mt-1 flex items-center gap-2">
                         <span>👥 {(league.members || []).length} Piloti</span>
                         <span>•</span>
-                        <span>🍺 {(league.feed || []).length} Birre a referto</span>
+                        <span>⏳ {(league.feed || []).length} in Sala VAR</span>
                       </p>
                     </div>
-                    <ChevronRight className="w-5 h-5 text-slate-500 group-hover:text-amber-400 transition" />
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setLeagueToDelete(league);
+                        }}
+                        className="p-2 rounded-xl bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 border border-transparent hover:border-red-500/40 transition"
+                        title="Elimina Lega"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                      <ChevronRight className="w-5 h-5 text-slate-500 group-hover:text-amber-400 transition" />
+                    </div>
                   </div>
                 ))}
               </div>
             )}
           </div>
         </div>
+
+        {/* MODALE CONFERMA ELIMINAZIONE LEGA */}
+        {leagueToDelete && (
+          <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-slate-900 border border-red-500/50 rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl text-center">
+              <div className="w-12 h-12 rounded-full bg-red-500/20 border border-red-500/40 flex items-center justify-center mx-auto">
+                <Trash2 className="w-6 h-6 text-red-400" />
+              </div>
+              <h3 className="text-sm font-black uppercase text-red-400">Eliminare la Lega?</h3>
+              <p className="text-xs text-slate-300">
+                Stai per eliminare definitivamente la lega <strong className="text-white">"{leagueToDelete.name}" ({leagueToDelete.id})</strong> e tutta la sua classifica.
+              </p>
+              <div className="grid grid-cols-2 gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setLeagueToDelete(null)}
+                  className="py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold"
+                >
+                  Annulla
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDeleteLeague}
+                  className="py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-black uppercase shadow-lg"
+                >
+                  Sì, Elimina
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* MODALE CREA LEGA */}
         {showCreateLeagueModal && (
@@ -1221,7 +1311,7 @@ export default function App() {
 
       <div className="w-full max-w-md min-h-screen bg-slate-900/70 border-x border-slate-800 flex flex-col justify-between shadow-2xl">
         
-        {/* HEADER LEGA CON LOGO NON STORPIATO */}
+        {/* HEADER LEGA CON LOGO NON STORPIATO + PULSANTE ELIMINA LEGA */}
         <header className="sticky top-0 z-30 bg-slate-950/95 backdrop-blur-md border-b border-amber-500/25 px-3.5 py-3 space-y-2.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
@@ -1241,13 +1331,23 @@ export default function App() {
               </div>
             </div>
 
-            <button
-              onClick={() => setShowGlassPicker(!showGlassPicker)}
-              className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-bold flex items-center gap-1.5 text-amber-300"
-            >
-              <BeerGlassAvatar type={currentUser.glassType || 'weiss'} size="sm" />
-              <span className="text-[10px] uppercase font-black">Calice</span>
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setShowGlassPicker(!showGlassPicker)}
+                className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-bold flex items-center gap-1.5 text-amber-300"
+              >
+                <BeerGlassAvatar type={currentUser.glassType || 'weiss'} size="sm" />
+                <span className="text-[10px] uppercase font-black">Calice</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setLeagueToDelete(activeLeague)}
+                className="p-2 rounded-xl bg-slate-900 hover:bg-red-500/20 border border-slate-800 hover:border-red-500/40 text-slate-400 hover:text-red-400 transition"
+                title="Elimina questa lega"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           {/* Barra Invito Rapido: Codice + Link Diretto */}
@@ -1375,7 +1475,7 @@ export default function App() {
                                 </span>
                               )}
                             </div>
-                            <span className="text-[10px] text-slate-400 block">{member.beers} birre validate</span>
+                            <span className="text-[10px] text-slate-400 block">{member.beers} birre confermate (2/2)</span>
                           </div>
                         </div>
                         <div className="text-right">
@@ -1398,7 +1498,7 @@ export default function App() {
               {/* RIEPILOGO FORMULA PUNTI LIVE */}
               <div className="bg-gradient-to-r from-amber-500/20 to-slate-900 border border-amber-500/40 rounded-2xl p-3.5 flex items-center justify-between">
                 <div>
-                  <span className="text-[10px] font-black uppercase text-amber-400 block">Calcolo Telemetria Bevuta</span>
+                  <span className="text-[10px] font-black uppercase text-amber-400 block">Punti in Palio (Dopo 2 Conferme)</span>
                   <h2 className="text-[11px] font-bold text-white mt-0.5">
                     (({calculatedDrink.base}pt × {calculatedDrink.mult}) + {calculatedDrink.qualityBonus}pt)
                     {bonusSempreNoi ? ' × 1.3' : ''}
@@ -1426,7 +1526,7 @@ export default function App() {
                         Il "Capitano" della Serata (x2 Punti)
                       </span>
                       <span className="text-[10px] text-slate-400 block">
-                        Attivabile 1 volta a settimana entro le 20:00 di Ven/Sab. Raddoppia i punti, ma se non raggiungi <strong>4 birre</strong> scatta il malus <strong>"Tradimento delle aspettative" (-10 pt)</strong>!
+                        Attivabile 1 volta a settimana entro le 20:00 di Ven/Sab. Raddoppia i punti, ma se non raggiungi <strong>4 birre validate</strong> scatta il malus <strong>"Tradimento delle aspettative" (-10 pt)</strong>!
                       </span>
                     </div>
                   </div>
@@ -1651,7 +1751,7 @@ export default function App() {
                 type="submit"
                 className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg"
               >
-                🍻 Stappa e Manda a Referto (+{calculatedDrink.total} PT)
+                🍻 Invia in Sala VAR (+{calculatedDrink.total} PT in palio)
               </button>
             </form>
           )}
@@ -1665,119 +1765,129 @@ export default function App() {
                     <ShieldAlert className="w-4 h-4" /> Sala VAR Centrale
                   </span>
                   <span className="text-[9px] font-mono uppercase bg-red-500/20 text-red-300 px-2 py-0.5 rounded-full font-bold">
-                    Live Monitor
+                    {(activeLeague.feed || []).length} Foto in revisione
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-300">
-                  Conferma le birre regolari oppure apri una contestazione: con <strong>2 chiamate VAR</strong> scatta il malus scelto!
+                  I punti vengono accreditati solo al raggiungimento di <strong>2 Conferme</strong>. Con <strong>2 chiamate VAR</strong> scatta il malus. Una volta raggiunto il verdetto (2/2), la foto sparisce dalla Sala VAR!
                 </p>
               </div>
 
-              <div className="space-y-3.5">
-                {(activeLeague.feed || []).map(item => {
-                  const isPenalized = item.status === 'yellow' || item.status === 'simulation' || item.status === 'red';
-                  const hasApproved = (item.approvals || []).includes(currentUser.id);
-                  const varVotesList = item.varVotes || [];
-                  const hasVotedVar = varVotesList.some(v => v.voterId === currentUser.id);
-                  const lastVarReason = varVotesList[varVotesList.length - 1]?.reasonLabel;
+              {(activeLeague.feed || []).length === 0 ? (
+                <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-8 text-center space-y-2">
+                  <CheckCircle2 className="w-10 h-10 text-emerald-400/70 mx-auto" />
+                  <h3 className="text-xs font-black uppercase text-white">Nessuna foto in attesa di revisione</h3>
+                  <p className="text-[11px] text-slate-400">
+                    Tutte le bevute sono state giudicate (2/2) e i relativi punti o malus sono già stati registrati in Classifica F1!
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3.5">
+                  {(activeLeague.feed || []).map(item => {
+                    const isMyBeer = item.playerId === currentUser.id;
+                    const approvalsList = item.approvals || [];
+                    const varVotesList = item.varVotes || [];
+                    const hasApproved = approvalsList.includes(currentUser.id);
+                    const hasVotedVar = varVotesList.some(v => v.voterId === currentUser.id);
 
-                  return (
-                    <div key={item.id} className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-lg">
-                      <div className="p-3 flex items-center justify-between border-b border-slate-800/80">
-                        <div className="flex items-center gap-2.5">
-                          <BeerGlassAvatar type={item.glassType} size="sm" />
-                          <div>
-                            <span className="text-xs font-black text-white block">{item.playerName}</span>
-                            <span className="text-[10px] text-slate-400">{item.timestamp} • {item.location}</span>
+                    return (
+                      <div key={item.id} className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-lg">
+                        <div className="p-3 flex items-center justify-between border-b border-slate-800/80">
+                          <div className="flex items-center gap-2.5">
+                            <BeerGlassAvatar type={item.glassType} size="sm" />
+                            <div>
+                              <span className="text-xs font-black text-white block">{item.playerName}</span>
+                              <span className="text-[10px] text-slate-400">{item.timestamp} • {item.location}</span>
+                            </div>
                           </div>
-                        </div>
-                        <span className={`text-xs font-black px-2 py-1 rounded-lg ${
-                          isPenalized ? 'bg-red-500/20 text-red-400 line-through' : 'bg-amber-500/20 text-amber-300'
-                        }`}>
-                          +{item.points} pt
-                        </span>
-                      </div>
-
-                      <div className="relative h-52 w-full bg-slate-950">
-                        <img src={item.photoUrl} alt={item.beerName} className="w-full h-full object-cover" />
-                        {isPenalized && (
-                          <div className="absolute inset-0 bg-red-950/90 backdrop-blur-[2px] flex flex-col items-center justify-center p-4 text-center">
-                            <XCircle className="w-11 h-11 text-red-400 mb-1.5" />
-                            <span className="text-xs font-black text-white uppercase bg-red-600 px-3 py-1 rounded-full">
-                              Sanzione Ufficiale VAR (2/2 Voti)
-                            </span>
-                            <p className="text-xs font-bold text-red-200 mt-2">{lastVarReason}</p>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="p-3.5 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h3 className="text-xs font-black text-white">{item.beerName}</h3>
-                            <p className="text-[10px] text-slate-400">
-                              {item.formatLabel} • {item.abvLabel} • {item.styleLabel}
-                            </p>
-                            {item.bonuses?.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {item.bonuses.map((b, i) => (
-                                  <span key={i} className="text-[9px] font-bold bg-amber-500/20 text-amber-300 px-1.5 py-0.2 rounded">
-                                    {b}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                          <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1 shrink-0">
-                            <CheckCircle2 className="w-3.5 h-3.5" /> {(item.approvals || []).length} OK
+                          <span className="text-xs font-black px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                            In palio: +{item.points} pt
                           </span>
                         </div>
 
-                        {varVotesList.length === 1 && !isPenalized && (
-                          <div className="bg-amber-500/15 border border-amber-500/40 rounded-xl p-2.5 text-[11px] text-amber-200 flex items-center gap-2">
-                            <Eye className="w-4 h-4 text-amber-400 shrink-0" />
-                            <span>
-                              <strong>1° Voto VAR ({varVotesList[0].voterName}):</strong> "{varVotesList[0].reasonLabel}". Serve il 2° voto per far scattare il malus!
-                            </span>
-                          </div>
-                        )}
+                        <div className="relative h-52 w-full bg-slate-950">
+                          <img src={item.photoUrl} alt={item.beerName} className="w-full h-full object-cover" />
+                        </div>
 
-                        {!isPenalized && (
-                          <div className="grid grid-cols-2 gap-2 pt-1">
-                            <button
-                              type="button"
-                              onClick={() => handleApproveBeer(item.id)}
-                              disabled={hasApproved}
-                              className={`py-2.5 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border transition ${
-                                hasApproved
-                                  ? 'bg-emerald-950/50 border-emerald-500/40 text-emerald-300'
-                                  : 'bg-emerald-500/15 hover:bg-emerald-500/25 border-emerald-500/40 text-emerald-300'
-                              }`}
-                            >
-                              <Check className="w-4 h-4" />
-                              {hasApproved ? 'Confermata' : 'Conferma Birra'}
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => setVarModalBeer(item)}
-                              disabled={hasVotedVar}
-                              className={`py-2.5 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border transition ${
-                                hasVotedVar
-                                  ? 'bg-red-950/60 border-red-500/40 text-red-300 opacity-75'
-                                  : 'bg-red-500/20 hover:bg-red-500/30 border-red-500/50 text-red-300'
-                              }`}
-                            >
-                              <ShieldAlert className="w-4 h-4" />
-                              {hasVotedVar ? `VAR (${varVotesList.length}/2)` : `Chiama VAR (${varVotesList.length}/2)`}
-                            </button>
+                        <div className="p-3.5 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h3 className="text-xs font-black text-white">{item.beerName}</h3>
+                              <p className="text-[10px] text-slate-400">
+                                {item.formatLabel} • {item.abvLabel} • {item.styleLabel}
+                              </p>
+                              {item.bonuses?.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {item.bonuses.map((b, i) => (
+                                    <span key={i} className="text-[9px] font-bold bg-amber-500/20 text-amber-300 px-1.5 py-0.2 rounded">
+                                      {b}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            <div className="text-right shrink-0 space-y-0.5">
+                              <span className="text-[10px] text-emerald-400 font-black block">
+                                ✅ {approvalsList.length}/2 Conferme
+                              </span>
+                              <span className="text-[10px] text-red-400 font-black block">
+                                🚨 {varVotesList.length}/2 VAR
+                              </span>
+                            </div>
                           </div>
-                        )}
+
+                          {varVotesList.length === 1 && (
+                            <div className="bg-amber-500/15 border border-amber-500/40 rounded-xl p-2.5 text-[11px] text-amber-200 flex items-center gap-2">
+                              <Eye className="w-4 h-4 text-amber-400 shrink-0" />
+                              <span>
+                                <strong>1° Voto VAR ({varVotesList[0].voterName}):</strong> "{varVotesList[0].reasonLabel}". Serve il 2° voto per far scattare il malus!
+                              </span>
+                            </div>
+                          )}
+
+                          {/* BLOCCO AUTO-VOTO SE È LA PROPRIA BIRRA */}
+                          {isMyBeer ? (
+                            <div className="py-2.5 px-3 rounded-xl bg-slate-950 border border-slate-800 text-slate-400 text-[11px] font-bold flex items-center justify-center gap-2">
+                              <Clock className="w-4 h-4 text-amber-400 shrink-0" />
+                              <span>Tua bevuta: in attesa del giudizio di 2 amici della lega</span>
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-2 gap-2 pt-1">
+                              <button
+                                type="button"
+                                onClick={() => handleApproveBeer(item.id)}
+                                disabled={hasApproved || hasVotedVar}
+                                className={`py-2.5 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border transition ${
+                                  hasApproved
+                                    ? 'bg-emerald-950/50 border-emerald-500/40 text-emerald-300 opacity-75'
+                                    : 'bg-emerald-500/15 hover:bg-emerald-500/25 border-emerald-500/40 text-emerald-300'
+                                }`}
+                              >
+                                <Check className="w-4 h-4" />
+                                {hasApproved ? `Confermata (${approvalsList.length}/2)` : `Conferma (${approvalsList.length}/2)`}
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => setVarModalBeer(item)}
+                                disabled={hasVotedVar || hasApproved}
+                                className={`py-2.5 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border transition ${
+                                  hasVotedVar
+                                    ? 'bg-red-950/60 border-red-500/40 text-red-300 opacity-75'
+                                    : 'bg-red-500/20 hover:bg-red-500/30 border-red-500/50 text-red-300'
+                                }`}
+                              >
+                                <ShieldAlert className="w-4 h-4" />
+                                {hasVotedVar ? `VAR (${varVotesList.length}/2)` : `Chiama VAR (${varVotesList.length}/2)`}
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
@@ -1802,16 +1912,48 @@ export default function App() {
                 </div>
 
                 <div className="p-2.5 rounded-xl bg-slate-950 border border-red-500/30 space-y-1">
-                  <span className="text-[10px] font-black uppercase text-red-400">3. Sanzioni Sala VAR (2 Voti)</span>
+                  <span className="text-[10px] font-black uppercase text-red-400">3. Giudizio Sala VAR (Gara a 2 Voti)</span>
+                  <div className="flex justify-between"><span>✅ 2 Conferme dagli amici</span><strong className="text-emerald-400">Accredita Punti</strong></div>
                   <div className="flex justify-between"><span>🟨 Cartellino giallo: birra avanzata</span><strong className="text-yellow-400">-2 pt</strong></div>
-                  <div className="flex justify-between"><span>🚨 Simulazione in area: foto riciclata/vuota</span><strong className="text-red-400">-5 pt + Annullo</strong></div>
-                  <div className="flex justify-between"><span>🟥 Cartellino rosso: analcolica/radler</span><strong className="text-red-500">-10 pt + Annullo</strong></div>
+                  <div className="flex justify-between"><span>🚨 Simulazione in area: foto riciclata/vuota</span><strong className="text-red-400">-5 pt</strong></div>
+                  <div className="flex justify-between"><span>🟥 Cartellino rosso: analcolica/radler</span><strong className="text-red-500">-10 pt</strong></div>
                 </div>
               </div>
             </div>
           )}
 
         </main>
+
+        {/* MODALE CONFERMA ELIMINAZIONE LEGA (DA DENTRO LA LEGA) */}
+        {leagueToDelete && (
+          <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-slate-900 border border-red-500/50 rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl text-center">
+              <div className="w-12 h-12 rounded-full bg-red-500/20 border border-red-500/40 flex items-center justify-center mx-auto">
+                <Trash2 className="w-6 h-6 text-red-400" />
+              </div>
+              <h3 className="text-sm font-black uppercase text-red-400">Eliminare la Lega?</h3>
+              <p className="text-xs text-slate-300">
+                Stai per eliminare definitivamente la lega <strong className="text-white">"{leagueToDelete.name}" ({leagueToDelete.id})</strong> per tutti i partecipanti.
+              </p>
+              <div className="grid grid-cols-2 gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setLeagueToDelete(null)}
+                  className="py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold"
+                >
+                  Annulla
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDeleteLeague}
+                  className="py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-black uppercase shadow-lg"
+                >
+                  Sì, Elimina
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* MODALE DI CHIAMATA AL VAR CON GLI EMOJI 🟨 🚨 🟥 */}
         {varModalBeer && (
@@ -1867,8 +2009,13 @@ export default function App() {
               <PlusCircle className="w-5 h-5" />
               <span className="text-[9px] font-bold mt-1">Stappa!</span>
             </button>
-            <button onClick={() => setActiveTab('var')} className={`flex flex-col items-center py-1 rounded-xl ${activeTab === 'var' ? 'text-amber-400 bg-amber-500/10' : 'text-slate-400'}`}>
+            <button onClick={() => setActiveTab('var')} className={`flex flex-col items-center py-1 rounded-xl relative ${activeTab === 'var' ? 'text-amber-400 bg-amber-500/10' : 'text-slate-400'}`}>
               <ShieldAlert className="w-5 h-5" />
+              {(activeLeague.feed || []).length > 0 && (
+                <span className="absolute top-0.5 right-5 w-4 h-4 rounded-full bg-red-600 text-white text-[9px] font-black flex items-center justify-center">
+                  {(activeLeague.feed || []).length}
+                </span>
+              )}
               <span className="text-[9px] font-bold mt-1">Sala VAR</span>
             </button>
             <button onClick={() => setActiveTab('regole')} className={`flex flex-col items-center py-1 rounded-xl ${activeTab === 'regole' ? 'text-amber-400 bg-amber-500/10' : 'text-slate-400'}`}>
