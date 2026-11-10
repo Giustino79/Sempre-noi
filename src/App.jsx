@@ -7,8 +7,7 @@ import {
 } from 'lucide-react';
 
 // ============================================================================
-// 🔗 INCOLLA QUI SOTTO IL LINK DEL TUO FIREBASE REALTIME DATABASE:
-// Esempio: "https://sempre-noi-default-rtdb.europe-west1.firebasedatabase.app"
+// 🔗 LINK FIREBASE REALTIME DATABASE PRECONFIGURATO
 // ============================================================================
 const CLOUD_DB_URL = "https://sempre-noi-default-rtdb.europe-west1.firebasedatabase.app/"; 
 
@@ -51,13 +50,16 @@ function SempreNoiLogo({ size = "md" }) {
   );
 }
 
-// --- CATALOGO BICCHIERI AVATAR (5 STILI ICONICI) ---
+// --- CATALOGO BICCHIERI AVATAR (8 STILI ICONICI CON COLORI E FORME REALI) ---
 const BEER_GLASS_TYPES = [
-  { id: 'weiss', name: 'Weiss / Weizen', shortDesc: 'Vaso slanciato dorato' },
-  { id: 'triple', name: 'Triple / Belga', shortDesc: 'Calice a coppa trappista' },
-  { id: 'stout', name: 'Stout Irlandese', shortDesc: 'Pinta scura con schiuma beige' },
-  { id: 'ipa', name: 'IPA Artigianale', shortDesc: 'Calice Teku luppolato' },
-  { id: 'lager', name: 'Pils / Lager', shortDesc: 'Boccale classico da pub' }
+  { id: 'weiss', name: 'Weiss / Weizen', shortName: 'Weiss', shortDesc: 'Vaso slanciato dorato' },
+  { id: 'lager', name: 'Lager / Pils', shortName: 'Lager', shortDesc: 'Boccale classico da pub' },
+  { id: 'ipa', name: 'IPA Artigianale', shortName: 'IPA', shortDesc: 'Calice Teku con base' },
+  { id: 'session_ipa', name: 'Session IPA', shortName: 'Session IPA', shortDesc: 'Pinta Nonic chiara' },
+  { id: 'dipa', name: 'DIPA (Double IPA)', shortName: 'DIPA', shortDesc: 'Snifter tulipano ramato' },
+  { id: 'triple', name: 'Triple Belga', shortName: 'Triple', shortDesc: 'Calice a coppa dorato' },
+  { id: 'trappista', name: 'Trappista', shortName: 'Trappista', shortDesc: 'Coppa larga bruno-ambrata' },
+  { id: 'stout', name: 'Stout Irlandese', shortName: 'Stout', shortDesc: 'Pinta scura cremosa' }
 ];
 
 function BeerGlassAvatar({ type = 'weiss', size = 'md' }) {
@@ -69,13 +71,58 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md' }) {
 
   return (
     <div className={`${sizeClasses} aspect-square rounded-2xl bg-slate-900 border border-slate-700 flex items-center justify-center shadow-inner shrink-0 relative`}>
+      {/* 1. WEISS: Vaso alto svasato giallo dorato */}
       {type === 'weiss' && (
         <svg viewBox="0 0 48 48" className="w-full h-full">
           <path d="M16 13C14.5 21 17.5 30 18 41H30C30.5 30 33.5 21 32 13H16Z" fill="#eab308" />
           <path d="M14.5 13.5C14 9.5 17.5 7 20.5 8C22.5 6 26 6 28 8C31 7 34 9.5 33.5 13.5H14.5Z" fill="#ffffff" />
           <path d="M15 11C13.5 20 17 30 17.5 42H30.5C31 30 34.5 20 33 11" stroke="#e2e8f0" strokeWidth="1.8" fill="none" />
+          <path d="M16.5 42.5H31.5" stroke="#cbd5e1" strokeWidth="2.5" strokeLinecap="round" />
         </svg>
       )}
+
+      {/* 2. LAGER: Boccale da pub con manico, giallo brillante */}
+      {type === 'lager' && (
+        <svg viewBox="0 0 48 48" className="w-full h-full">
+          <path d="M33 19H38.5C40.5 19 41.5 20.5 41.5 26C41.5 31.5 40.5 33 38.5 33H33" stroke="#cbd5e1" strokeWidth="2.8" fill="none" />
+          <rect x="12" y="15" width="21" height="26" rx="2.5" fill="#facc15" />
+          <path d="M11 15.5C11 12 13.5 10.5 16.5 11C18.5 8.5 23 8.5 25 11C28.5 10 34 11.5 34 15.5H11Z" fill="#ffffff" />
+          <rect x="12" y="14" width="21" height="27.5" rx="3" stroke="#e2e8f0" strokeWidth="1.8" fill="none" />
+        </svg>
+      )}
+
+      {/* 3. IPA: Calice Teku angolare ambrato CON BASE CORRETTA */}
+      {type === 'ipa' && (
+        <svg viewBox="0 0 48 48" className="w-full h-full">
+          <path d="M15 13L11.5 23.5L24 30L36.5 23.5L33 13H15Z" fill="#ea580c" />
+          <path d="M14.5 13.5C14.5 10.5 18 9.5 24 9.5C30 9.5 33.5 10.5 33.5 13.5H14.5Z" fill="#fff7ed" />
+          <path d="M15 10.5L11 23.5L24 30.5L37 23.5L33 10.5" stroke="#e2e8f0" strokeWidth="1.8" fill="none" />
+          <path d="M24 30.5V41.5" stroke="#cbd5e1" strokeWidth="2.4" />
+          <path d="M15.5 42.5C18 40.8 30 40.8 32.5 42.5" stroke="#e2e8f0" strokeWidth="2.6" strokeLinecap="round" />
+        </svg>
+      )}
+
+      {/* 4. SESSION IPA: Pinta Nonic (con bombatura alta) giallo paglierino chiaro */}
+      {type === 'session_ipa' && (
+        <svg viewBox="0 0 48 48" className="w-full h-full">
+          <path d="M13.5 14L12 19.5L14 23.5L16.5 42H31.5L34 23.5L36 19.5L34.5 14H13.5Z" fill="#fde047" />
+          <path d="M13 14.5C13 11 16 9.5 24 9.5C32 9.5 35 11 35 14.5H13Z" fill="#ffffff" />
+          <path d="M13.5 11L11.8 19.5L14 23.5L16.5 42.5H31.5L34 23.5L36.2 19.5L34.5 11" stroke="#e2e8f0" strokeWidth="1.8" fill="none" />
+        </svg>
+      )}
+
+      {/* 5. DIPA (Double IPA): Calice Snifter/Tulipano panciuto arancio-ramato */}
+      {type === 'dipa' && (
+        <svg viewBox="0 0 48 48" className="w-full h-full">
+          <path d="M14 13C15.5 17 11 22 13 27.5C15 31.5 19.5 33 24 33C28.5 33 33 31.5 35 27.5C37 22 32.5 17 34 13H14Z" fill="#c2410c" />
+          <path d="M13.5 13.5C13.5 10.5 17.5 9.5 24 9.5C30.5 9.5 34.5 10.5 34.5 13.5H13.5Z" fill="#ffedd5" />
+          <path d="M13.5 11C15.5 16 10.5 21.5 12.8 27.5C14.8 32 19.5 33.5 24 33.5C28.5 33.5 33.2 32 35.2 27.5C37.5 21.5 32.5 16 34.5 11" stroke="#e2e8f0" strokeWidth="1.8" fill="none" />
+          <path d="M24 33.5V41.5" stroke="#cbd5e1" strokeWidth="2.6" />
+          <path d="M16 42.5C18.5 41 29.5 41 32 42.5" stroke="#e2e8f0" strokeWidth="2.6" strokeLinecap="round" />
+        </svg>
+      )}
+
+      {/* 6. TRIPLE: Calice a coppa dorato ambrato */}
       {type === 'triple' && (
         <svg viewBox="0 0 48 48" className="w-full h-full">
           <path d="M11 14C11 25 16.5 30 24 30C31.5 30 37 25 37 14H11Z" fill="#d97706" />
@@ -85,27 +132,24 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md' }) {
           <path d="M15 42.5C17 40.5 31 40.5 33 42.5" stroke="#e2e8f0" strokeWidth="2.5" strokeLinecap="round" />
         </svg>
       )}
+
+      {/* 7. TRAPPISTA: Coppa trappista larga e bassa, colore bruno tonaca di frate con bordo dorato */}
+      {type === 'trappista' && (
+        <svg viewBox="0 0 48 48" className="w-full h-full">
+          <path d="M8.5 15C9.5 26.5 15.5 31 24 31C32.5 31 38.5 26.5 39.5 15H8.5Z" fill="#7c2d12" />
+          <path d="M8 15.5C8 12.5 13 11 24 11C35 11 40 12.5 40 15.5H8Z" fill="#fef3c7" />
+          <path d="M8 13.5C9 26.5 15.5 31.5 24 31.5C32.5 31.5 39 26.5 40 13.5" stroke="#fbbf24" strokeWidth="2" fill="none" />
+          <path d="M24 31.5V41" stroke="#cbd5e1" strokeWidth="3.2" />
+          <path d="M14 42.5C17 40.5 31 40.5 34 42.5" stroke="#fbbf24" strokeWidth="2.6" strokeLinecap="round" />
+        </svg>
+      )}
+
+      {/* 8. STOUT: Pinta scura irlandese con schiuma crema */}
       {type === 'stout' && (
         <svg viewBox="0 0 48 48" className="w-full h-full">
           <path d="M13 15L14.5 19L16.5 42H31.5L33.5 19L35 15H13Z" fill="#1c1917" />
           <path d="M13 15.5V11.5C13 10 15 9.5 24 9.5C33 9.5 35 10 35 11.5V15.5H13Z" fill="#f5deb3" />
           <path d="M13 10.5L12 16.5L14.5 20L16.5 42.5H31.5L33.5 20L36 16.5L35 10.5" stroke="#cbd5e1" strokeWidth="1.8" fill="none" />
-        </svg>
-      )}
-      {type === 'ipa' && (
-        <svg viewBox="0 0 48 48" className="w-full h-full">
-          <path d="M15 13L11.5 23.5L24 30L36.5 23.5L33 13H15Z" fill="#ea580c" />
-          <path d="M14.5 13.5C14.5 11 18 10 24 10C30 10 33.5 11 33.5 13.5H14.5Z" fill="#fff7ed" />
-          <path d="M15 10.5L11 23.5L24 30.5L37 23.5L33 10.5" stroke="#e2e8f0" strokeWidth="1.8" fill="none" />
-          <path d="M24 30.5V42" stroke="#cbd5e1" strokeWidth="2.2" />
-        </svg>
-      )}
-      {type === 'lager' && (
-        <svg viewBox="0 0 48 48" className="w-full h-full">
-          <path d="M33 19H38.5C40.5 19 41.5 20.5 41.5 26C41.5 31.5 40.5 33 38.5 33H33" stroke="#cbd5e1" strokeWidth="2.8" fill="none" />
-          <rect x="12" y="15" width="21" height="26" rx="2.5" fill="#facc15" />
-          <path d="M11 15.5C11 12 13.5 10.5 16.5 11C18.5 8.5 23 8.5 25 11C28.5 10 34 11.5 34 15.5H11Z" fill="#ffffff" />
-          <rect x="12" y="14" width="21" height="27.5" rx="3" stroke="#e2e8f0" strokeWidth="1.8" fill="none" />
         </svg>
       )}
     </div>
@@ -135,7 +179,6 @@ const VAR_PENALTY_OPTIONS = [
 ];
 
 // --- CONTROLLI ORARIO E CALENDARIO REAL-TIME ---
-// 1. Goccia d'Oro: consentita SOLO tra le 07:00 e le 12:30
 const checkGocciaWindow = () => {
   const now = new Date();
   const totalMinutes = now.getHours() * 60 + now.getMinutes();
@@ -146,7 +189,6 @@ const checkGocciaWindow = () => {
   return { isOpen, isTooEarly };
 };
 
-// 2. Capitano della Serata: consentito SOLO Venerdì (5) e Sabato (6) prima delle 20:00
 const checkCaptainWindow = () => {
   const now = new Date();
   const day = now.getDay(); // 0=Dom, 1=Lun, ..., 5=Ven, 6=Sab
@@ -165,7 +207,6 @@ const checkCaptainWindow = () => {
   return { isOpen, reason };
 };
 
-// Identificativo settimana corrente (per sbloccare il Capitano ogni nuova settimana)
 const getCurrentWeekKey = () => {
   const now = new Date();
   const startOfYear = new Date(now.getFullYear(), 0, 1);
@@ -181,7 +222,7 @@ const DEFAULT_LEAGUES = [
     name: 'Lega Storica Sempre Noi',
     adminId: 'usr_manolo',
     members: [
-      { id: 'u1', name: 'Manolo', glassType: 'triple', points: 54.5, weekendPts: 21.0, beers: 7, yellowCards: 1, redCards: 0, captainActive: false, captainBeers: 0, captainWeekUsed: null },
+      { id: 'u1', name: 'Manolo', glassType: 'trappista', points: 54.5, weekendPts: 21.0, beers: 7, yellowCards: 1, redCards: 0, captainActive: false, captainBeers: 0, captainWeekUsed: null },
       { id: 'u2', name: 'Marco', glassType: 'ipa', points: 46.0, weekendPts: 17.5, beers: 6, yellowCards: 0, redCards: 0, captainActive: true, captainBeers: 2, captainWeekUsed: '2026-W46' },
       { id: 'u3', name: 'Andrea', glassType: 'stout', points: 38.0, weekendPts: 12.0, beers: 5, yellowCards: 0, redCards: 0, captainActive: false, captainBeers: 0, captainWeekUsed: null },
       { id: 'u4', name: 'Luca', glassType: 'lager', points: 21.5, weekendPts: 6.0, beers: 4, yellowCards: 1, redCards: 1, captainActive: false, captainBeers: 0, captainWeekUsed: null }
@@ -191,7 +232,7 @@ const DEFAULT_LEAGUES = [
         id: 'b101',
         playerId: 'u1',
         playerName: 'Manolo',
-        glassType: 'triple',
+        glassType: 'trappista',
         beerName: 'Keller Non Filtrata',
         formatLabel: 'Media 50cl (+5pt)',
         abvLabel: 'Leggera fino a 5,6° (x1.0)',
@@ -276,7 +317,6 @@ export default function App() {
     setTimeout(() => setToastMessage(null), 4000);
   };
 
-  // Aggiorna l'orologio interno ogni 20 secondi per bloccare in tempo reale le fasce orarie
   useEffect(() => {
     const timer = setInterval(() => {
       setClockTick(Date.now());
@@ -640,7 +680,12 @@ export default function App() {
   const activeLeague = leagues.find(l => l.id === activeLeagueId);
   const myMemberProfile = activeLeague?.members.find(m => m.id === currentUser?.id);
 
-  // Controlla se il giocatore ha già usato il Capitano in QUESTA settimana
+  // Oggetto del bicchiere attualmente selezionato dall'utente (per mostrare il nome della birra nell'header)
+  const currentGlassObj = useMemo(() => {
+    const userGlassId = currentUser?.glassType || 'weiss';
+    return BEER_GLASS_TYPES.find(g => g.id === userGlassId) || BEER_GLASS_TYPES[0];
+  }, [currentUser]);
+
   const hasUsedCaptainThisWeek = Boolean(
     myMemberProfile?.captainWeekUsed === currentWeekKey ||
     (myMemberProfile?.captainUsedThisWeek && !myMemberProfile?.captainWeekUsed)
@@ -660,7 +705,7 @@ export default function App() {
     setTimeout(() => setCopiedType(null), 2500);
   };
 
-  // --- GESTIONE "IL CAPITANO DELLA SERATA" SINCRONIZZATO CON CALENDARIO E ORARIO ---
+  // --- GESTIONE "IL CAPITANO DELLA SERATA" ---
   const handleActivateCaptain = () => {
     if (!activeLeagueId || !myMemberProfile) return;
 
@@ -943,7 +988,6 @@ export default function App() {
     }
   };
 
-  // Apertura modale VAR (pre-seleziona l'eventuale sanzione già scelta dal 1° giudice)
   const handleOpenVarModal = (beerItem) => {
     if (beerItem.playerId === currentUser.id) {
       showToast('⚠️ Non puoi segnalare al VAR la tua stessa birra!', 'warning');
@@ -987,17 +1031,15 @@ export default function App() {
       }
     ];
     const reachedTwoVarVotes = newVotes.length >= 2;
-    const onlyMalusPts = Number(chosenOption.penaltyPts); // SOLO il malus (-2, -5 o -10), MAI sommato ai punti della birra
+    const onlyMalusPts = Number(chosenOption.penaltyPts);
 
     setLeagues(prev => prev.map(l => {
       if (l.id !== activeLeagueId) return l;
 
-      // Al 2° voto VAR la foto sparisce immediatamente dalla Sala VAR
       const updatedFeed = reachedTwoVarVotes
         ? (l.feed || []).filter(item => item.id !== liveBeer.id)
         : (l.feed || []).map(item => item.id === liveBeer.id ? { ...item, varVotes: newVotes, status: 'pending_var' } : item);
 
-      // Applica ESCLUSIVAMENTE il malus (-2, -5 o -10 pt) senza mai sottrarre i punti della birra
       const updatedMembers = reachedTwoVarVotes
         ? l.members.map(m => {
             if (m.id === liveBeer.playerId) {
@@ -1027,6 +1069,7 @@ export default function App() {
   };
 
   const handleSelectGlass = (glassId) => {
+    const selectedObj = BEER_GLASS_TYPES.find(g => g.id === glassId);
     const updatedUser = { ...currentUser, glassType: glassId };
     setCurrentUser(updatedUser);
     setAccounts(prev => prev.map(a => a.id === currentUser.id ? { ...a, glassType: glassId } : a));
@@ -1045,7 +1088,7 @@ export default function App() {
       }));
     }
     setShowGlassPicker(false);
-    showToast('Calice aggiornato!', 'success');
+    showToast(`🍺 Hai scelto ${selectedObj?.shortName || 'il tuo nuovo bicchiere'}!`, 'success');
   };
 
   const sortedMembers = useMemo(() => {
@@ -1388,7 +1431,7 @@ export default function App() {
 
       <div className="w-full max-w-md min-h-screen bg-slate-900/70 border-x border-slate-800 flex flex-col justify-between shadow-2xl">
         
-        {/* HEADER LEGA CON LOGO NON STORPIATO + PULSANTE ELIMINA LEGA */}
+        {/* HEADER LEGA CON NOME DELLA BIRRA SCELTA ACCANTO AL BICCHIERE */}
         <header className="sticky top-0 z-30 bg-slate-950/95 backdrop-blur-md border-b border-amber-500/25 px-3.5 py-3 space-y-2.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
@@ -1411,10 +1454,13 @@ export default function App() {
             <div className="flex items-center gap-1.5">
               <button
                 onClick={() => setShowGlassPicker(!showGlassPicker)}
-                className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-bold flex items-center gap-1.5 text-amber-300"
+                className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-bold flex items-center gap-1.5 text-amber-300 transition"
+                title="Cambia la tua birra e bicchiere avatar"
               >
                 <BeerGlassAvatar type={currentUser.glassType || 'weiss'} size="sm" />
-                <span className="text-[10px] uppercase font-black">Calice</span>
+                <span className="text-[10px] uppercase font-black tracking-tight">
+                  {currentGlassObj.shortName}
+                </span>
               </button>
               <button
                 type="button"
@@ -1451,21 +1497,26 @@ export default function App() {
             </div>
           </div>
 
+          {/* SELETTORE A 8 BICCHIERI E TIPOLOGIE DI BIRRA (GRIGLIA 4x2) */}
           {showGlassPicker && (
             <div className="pt-2 border-t border-slate-800 space-y-2">
-              <span className="text-[10px] uppercase font-black text-amber-400 block">Scegli il tuo Bicchiere Ufficiale:</span>
-              <div className="grid grid-cols-5 gap-1">
+              <span className="text-[10px] uppercase font-black text-amber-400 block">
+                Scegli la tua Birra e Bicchiere Ufficiale:
+              </span>
+              <div className="grid grid-cols-4 gap-1.5">
                 {BEER_GLASS_TYPES.map(g => (
                   <button
                     key={g.id}
                     onClick={() => handleSelectGlass(g.id)}
-                    className={`p-1 rounded-xl border flex flex-col items-center ${
-                      currentUser.glassType === g.id ? 'bg-amber-500/20 border-amber-400' : 'bg-slate-900 border-slate-800'
+                    className={`p-1.5 rounded-xl border flex flex-col items-center transition ${
+                      currentUser.glassType === g.id 
+                        ? 'bg-amber-500/20 border-amber-400 shadow-md shadow-amber-500/10' 
+                        : 'bg-slate-900 border-slate-800 hover:border-slate-700'
                     }`}
                   >
                     <BeerGlassAvatar type={g.id} size="sm" />
-                    <span className="text-[9px] font-bold text-white mt-1 truncate w-full text-center">
-                      {g.name.split(' ')[0]}
+                    <span className="text-[9px] font-black text-white mt-1 truncate w-full text-center">
+                      {g.shortName}
                     </span>
                   </button>
                 ))}
@@ -1589,7 +1640,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* PANNELLO UFFICIALE: IL "CAPITANO" DELLA SERATA (SINCRONIZZATO CON CALENDARIO VEN/SAB < 20:00) */}
+              {/* PANNELLO UFFICIALE: IL "CAPITANO" DELLA SERATA */}
               <div className={`p-3.5 rounded-2xl border transition space-y-2.5 ${
                 myMemberProfile?.captainActive 
                   ? 'bg-purple-950/60 border-purple-400 text-white shadow-lg shadow-purple-500/10' 
@@ -1664,7 +1715,7 @@ export default function App() {
                   type="text"
                   value={beerTitle}
                   onChange={(e) => setBeerTitle(e.target.value)}
-                  placeholder="Es. Keller, Weiss, Pils, IPA..."
+                  placeholder="Es. Keller, Trappista, Session IPA, DIPA..."
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
                 />
               </div>
