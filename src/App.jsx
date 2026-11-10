@@ -840,7 +840,7 @@ export default function App() {
     }
   };
 
-  // --- CALCOLATORE PUNTI COMPLETO ---
+  // --- CALCOLATORE PUNTI COMPLETO (CON PASSAPORTO RUMENO -5 PT) ---
   const calculatedDrink = useMemo(() => {
     const formatMap = {
       piccola33: { pts: 3, label: '33cl (+3pt)' },
@@ -855,7 +855,8 @@ export default function App() {
     const qualityMap = {
       industriale: { bonus: 0, label: 'Industriale (+0pt)' },
       artigianale: { bonus: 2, label: 'Artigianale (+2pt)' },
-      spina: { bonus: 3, label: 'Alla spina (+3pt)' }
+      spina: { bonus: 3, label: 'Alla spina (+3pt)' },
+      rumeno: { bonus: -5, label: 'Passaporto Rumeno (-5pt)' }
     };
 
     const base = formatMap[format].pts;
@@ -896,6 +897,7 @@ export default function App() {
     }
 
     const activeBonuses = [];
+    if (qualityTier === 'rumeno') activeBonuses.push('Passaporto Rumeno (-5pt)');
     if (bonusSempreNoi) activeBonuses.push('Sempre noi (x1.3)');
     if (gocciaStatus.isOpen && bonusGocciaDOro) activeBonuses.push("Goccia d'Oro (+3pt)");
     if (calculatedDrink.isCaptainActive) activeBonuses.push('Capitano Serata (x2)');
@@ -905,7 +907,7 @@ export default function App() {
       playerId: currentUser.id,
       playerName: currentUser.username,
       glassType: currentUser.glassType || 'weiss',
-      beerName: beerTitle.trim() || 'Birra Fresca di Serata',
+      beerName: beerTitle.trim() || (qualityTier === 'rumeno' ? 'Bomba Alcolica da Battaglia' : 'Birra Fresca di Serata'),
       formatLabel: calculatedDrink.formatLabel,
       abvLabel: calculatedDrink.abvLabel,
       styleLabel: calculatedDrink.styleLabel,
@@ -934,7 +936,8 @@ export default function App() {
     setBeerTitle('');
     setCapturedPhoto(null);
     setBonusSempreNoi(false);
-    showToast(`📸 Birra in Sala VAR! (0 pt assegnati per ora: servono 2 Conferme per +${calculatedDrink.total} pt)`, 'success');
+    const signStr = calculatedDrink.total >= 0 ? `+${calculatedDrink.total}` : `${calculatedDrink.total}`;
+    showToast(`📸 Birra in Sala VAR! (0 pt assegnati per ora: servono 2 Conferme per ${signStr} pt)`, 'success');
     setActiveTab('var');
   };
 
@@ -982,7 +985,8 @@ export default function App() {
     }));
 
     if (reachedTwoConfirmations) {
-      showToast(`🍻 2/2 Conferme! +${targetBeer.points} pt accreditati a ${targetBeer.playerName} e foto rimossa dalla Sala VAR!`, 'success');
+      const signStr = targetBeer.points >= 0 ? `+${targetBeer.points}` : `${targetBeer.points}`;
+      showToast(`🍻 2/2 Conferme! ${signStr} pt accreditati a ${targetBeer.playerName} e foto rimossa dalla Sala VAR!`, 'success');
     } else {
       showToast('✅ 1ª Conferma registrata (1/2)! Serve 1 altra conferma per accreditare i punti.', 'success');
     }
@@ -1620,7 +1624,7 @@ export default function App() {
             </div>
           )}
 
-          {/* TAB 2: STAPPA! (CON BLOCCO ORARIO GOCCIA D'ORO E CALENDARIO CAPITANO) */}
+          {/* TAB 2: STAPPA! (CON PASSAPORTO RUMENO, GOCCIA D'ORO E CAPITANO) */}
           {activeTab === 'stappa' && (
             <form onSubmit={handleAddBeer} className="space-y-4">
               {/* RIEPILOGO FORMULA PUNTI LIVE */}
@@ -1628,14 +1632,16 @@ export default function App() {
                 <div>
                   <span className="text-[10px] font-black uppercase text-amber-400 block">Punti in Palio (Dopo 2 Conferme)</span>
                   <h2 className="text-[11px] font-bold text-white mt-0.5">
-                    (({calculatedDrink.base}pt × {calculatedDrink.mult}) + {calculatedDrink.qualityBonus}pt)
+                    (({calculatedDrink.base}pt × {calculatedDrink.mult}) {calculatedDrink.qualityBonus >= 0 ? `+ ${calculatedDrink.qualityBonus}pt` : `${calculatedDrink.qualityBonus}pt`})
                     {bonusSempreNoi ? ' × 1.3' : ''}
                     {gocciaStatus.isOpen && bonusGocciaDOro ? ' + 3pt' : ''}
                     {calculatedDrink.isCaptainActive ? ' × 2 (CAP)' : ''}
                   </h2>
                 </div>
                 <div className="bg-slate-950 px-3 py-1.5 rounded-xl border border-amber-400/40 text-right">
-                  <span className="text-xl font-black text-amber-400">+{calculatedDrink.total}</span>
+                  <span className={`text-xl font-black ${calculatedDrink.total < 0 ? 'text-red-400' : 'text-amber-400'}`}>
+                    {calculatedDrink.total >= 0 ? `+${calculatedDrink.total}` : calculatedDrink.total}
+                  </span>
                   <span className="text-[9px] block text-slate-400 font-bold uppercase">Punti</span>
                 </div>
               </div>
@@ -1715,7 +1721,7 @@ export default function App() {
                   type="text"
                   value={beerTitle}
                   onChange={(e) => setBeerTitle(e.target.value)}
-                  placeholder="Es. Keller, Trappista, Session IPA, DIPA..."
+                  placeholder="Es. Keller, Trappista, Session IPA, Ceres..."
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
                 />
               </div>
@@ -1765,23 +1771,31 @@ export default function App() {
                 </div>
               </div>
 
-              {/* 3. Qualità della Birra */}
+              {/* 3. Qualità della Birra (CON PASSAPORTO RUMENO -5 PT) */}
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2">
                 <label className="block text-[10px] font-bold uppercase text-slate-400">3. Qualità della Birra</label>
-                <div className="grid grid-cols-3 gap-1.5">
+                <div className="grid grid-cols-2 gap-1.5">
                   {[
-                    { id: 'industriale', name: 'Industriale', bonus: '+0 pt' },
-                    { id: 'artigianale', name: 'Artigianale', bonus: '+2 pt' },
-                    { id: 'spina', name: 'Alla spina', bonus: '+3 pt' }
+                    { id: 'industriale', name: 'Industriale', sub: 'Commerciale standard', bonus: '+0 pt' },
+                    { id: 'artigianale', name: 'Artigianale', sub: 'Bottiglia / Lattina craft', bonus: '+2 pt' },
+                    { id: 'spina', name: 'Alla spina', sub: 'Spillata al pub', bonus: '+3 pt' },
+                    { id: 'rumeno', name: 'Passaporto Rumeno', sub: 'Ceres, Tennent\'s, 8.6...', bonus: '-5 pt' }
                   ].map(q => (
                     <button
                       type="button"
                       key={q.id}
                       onClick={() => setQualityTier(q.id)}
-                      className={`p-2.5 rounded-xl border text-center transition ${qualityTier === q.id ? 'bg-amber-500/20 border-amber-400 text-white' : 'bg-slate-950 border-slate-800 text-slate-400'}`}
+                      className={`p-2.5 rounded-xl border text-center transition ${
+                        qualityTier === q.id 
+                          ? (q.id === 'rumeno' ? 'bg-red-500/20 border-red-500 text-white shadow-md shadow-red-500/10' : 'bg-amber-500/20 border-amber-400 text-white') 
+                          : 'bg-slate-950 border-slate-800 text-slate-400'
+                      }`}
                     >
                       <span className="text-xs font-bold block">{q.name}</span>
-                      <span className="text-[10px] text-amber-400 font-black">{q.bonus}</span>
+                      <span className="text-[9px] text-slate-400 block">{q.sub}</span>
+                      <span className={`text-[10px] font-black ${q.id === 'rumeno' ? 'text-red-400' : 'text-amber-400'}`}>
+                        {q.bonus}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -1916,7 +1930,7 @@ export default function App() {
                 type="submit"
                 className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg"
               >
-                🍻 Invia in Sala VAR (+{calculatedDrink.total} PT in palio)
+                🍻 Invia in Sala VAR ({calculatedDrink.total >= 0 ? `+${calculatedDrink.total}` : calculatedDrink.total} PT in palio)
               </button>
             </form>
           )}
@@ -1966,7 +1980,7 @@ export default function App() {
                             </div>
                           </div>
                           <span className="text-xs font-black px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                            Se confermata: +{item.points} pt
+                            Se confermata: {item.points >= 0 ? `+${item.points}` : item.points} pt
                           </span>
                         </div>
 
@@ -2065,6 +2079,7 @@ export default function App() {
                   <div className="flex justify-between"><span>Piccola 33cl / Media 50cl / 1 litro</span><strong className="text-white">+3 / +5 / +8 pt</strong></div>
                   <div className="flex justify-between"><span>Leggera (≤5,6°) / Media / Forte (&gt;7,5°)</span><strong className="text-white">x1.0 / x1.3 / x1.7</strong></div>
                   <div className="flex justify-between"><span>Industriale / Artigianale / Alla spina</span><strong className="text-amber-400">+0 / +2 / +3 pt</strong></div>
+                  <div className="flex justify-between"><span>Passaporto Rumeno (Ceres, Tennent's, 8.6...)</span><strong className="text-red-400">-5 pt</strong></div>
                 </div>
 
                 <div className="p-2.5 rounded-xl bg-slate-950 border border-amber-500/30 space-y-1">
