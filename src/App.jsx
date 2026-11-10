@@ -3,8 +3,16 @@ import {
   Trophy, PlusCircle, ShieldAlert, Users, Camera, 
   CheckCircle2, Sparkles, LogOut, Plus, UserPlus, Key, User, 
   Beer, Copy, Check, ChevronRight, ArrowLeft, BookOpen, Flag, 
-  XCircle, Share2, RefreshCw, Eye, Sun, Crown, AlertTriangle
+  XCircle, Share2, RefreshCw, Eye, Sun, Crown
 } from 'lucide-react';
+
+// ============================================================================
+// 🔗 INCOLLA QUI SOTTO IL LINK DEL TUO FIREBASE REALTIME DATABASE:
+// Esempio: "https://sempre-noi-default-rtdb.europe-west1.firebasedatabase.app/"
+// ============================================================================
+const CLOUD_DB_URL = "https://sempre-noi-default-rtdb.europe-west1.firebasedatabase.app/"; 
+
+const cleanDbUrl = CLOUD_DB_URL ? CLOUD_DB_URL.replace(/\/$/, "") : "";
 
 // --- LOGO UFFICIALE NON DEFORMATO (CARICA /logo.jpg CON FALLBACK PULITO) ---
 function SempreNoiLogo({ size = "md" }) {
@@ -104,25 +112,25 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md' }) {
   );
 }
 
-// --- OPZIONI UFFICIALI DELLA SALA VAR ---
+// --- OPZIONI UFFICIALI DELLA SALA VAR (CON EMOJI 🟨 🚨 🟥 RIPRISTINATI) ---
 const VAR_PENALTY_OPTIONS = [
   {
     id: 'yellow',
-    label: 'Cartellino giallo: birra avanzata -2pt',
+    label: '🟨 Cartellino giallo: birra avanzata -2pt',
     desc: 'Il giocatore ha lasciato il fondo caldo o non ha finito il bicchiere.',
     penaltyPts: 2,
     revokeBeer: false
   },
   {
     id: 'simulation',
-    label: 'Simulazione in area: foto riciclata/vuota -5pt',
+    label: '🚨 Simulazione in area: foto riciclata/vuota -5pt',
     desc: 'Foto vecchia, bicchiere già vuoto o presa in prestito dal vicino di banco.',
     penaltyPts: 5,
     revokeBeer: true
   },
   {
     id: 'red',
-    label: 'Cartellino rosso: birra analcolica/radler -10pt',
+    label: '🟥 Cartellino rosso: birra analcolica/radler -10pt',
     desc: 'Grave violazione del codice etico: birra 0.0% o aromatizzata al limone.',
     penaltyPts: 10,
     revokeBeer: true
@@ -158,7 +166,7 @@ const DEFAULT_LEAGUES = [
         bonuses: [],
         approvals: ['u2'],
         varVotes: [
-          { voterId: 'u3', voterName: 'Andrea', reasonId: 'simulation', reasonLabel: 'Simulazione in area: foto riciclata/vuota -5pt' }
+          { voterId: 'u3', voterName: 'Andrea', reasonId: 'simulation', reasonLabel: '🚨 Simulazione in area: foto riciclata/vuota -5pt' }
         ],
         status: 'pending_var'
       },
@@ -184,18 +192,9 @@ const DEFAULT_LEAGUES = [
   }
 ];
 
-// Controlla se l'orario attuale è prima delle 12:30 (per Goccia d'Oro)
 const isBefore1230 = () => {
   const now = new Date();
   return now.getHours() < 12 || (now.getHours() === 12 && now.getMinutes() <= 30);
-};
-
-// Controlla se siamo nel weekend prima delle 20:00 (Venerdì o Sabato < 20:00)
-const isCaptainWindowOpen = () => {
-  const now = new Date();
-  const day = now.getDay(); // 5 = Venerdì, 6 = Sabato
-  const hour = now.getHours();
-  return (day === 5 || day === 6) && hour < 20;
 };
 
 export default function App() {
@@ -220,7 +219,7 @@ export default function App() {
   const [authPassword, setAuthPassword] = useState(savedCreds.password || '');
   const [rememberMe, setRememberMe] = useState(true);
 
-  // --- 2. STATO LEGHE E GESTIONE INVITI SICURA ---
+  // --- 2. STATO LEGHE E SINCRONIZZAZIONE MULTI-DISPOSITIVO ---
   const [leagues, setLeagues] = useState(() => {
     const saved = localStorage.getItem('sempre_noi_leagues_v3');
     return saved ? JSON.parse(saved) : DEFAULT_LEAGUES;
@@ -260,6 +259,54 @@ export default function App() {
     setToastMessage({ text, type });
     setTimeout(() => setToastMessage(null), 4000);
   };
+
+  // --- FUNZIONI DI SINCRONIZZAZIONE CLOUD (FIREBASE REST) ---
+  const pushLeagueToCloud = async (leagueObj) => {
+    if (!cleanDbUrl || !leagueObj?.id) return;
+    try {
+      await fetch(`${cleanDbUrl}/leagues/${leagueObj.id}.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(leagueObj)
+      });
+    } catch (e) {
+      console.error('Errore invio cloud:', e);
+    }
+  };
+
+  const fetchAllLeaguesFromCloud = async () => {
+    if (!cleanDbUrl) return null;
+    try {
+      const res = await fetch(`${cleanDbUrl}/leagues.json`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (!data) return null;
+      const cloudList = Object.values(data).map(l => ({
+        ...l,
+        members: l.members || [],
+        feed: l.feed || []
+      }));
+      setLeagues(prev => {
+        const mergedMap = new Map();
+        prev.forEach(item => mergedMap.set(item.id, item));
+        cloudList.forEach(item => mergedMap.set(item.id, item));
+        return Array.from(mergedMap.values());
+      });
+      return cloudList;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  // Polling automatico ogni 3 secondi per aggiornare giocatori, punti, foto e VAR su tutti i telefoni
+  useEffect(() => {
+    if (!cleanDbUrl) return;
+    fetchAllLeaguesFromCloud();
+    const interval = setInterval(() => {
+      fetchAllLeaguesFromCloud();
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   // --- SALVATAGGIO AUTOMATICO IN LOCALSTORAGE ---
   useEffect(() => {
@@ -317,15 +364,13 @@ export default function App() {
     }
   }, [activeTab]);
 
-  // --- FUNZIONE UNIVERSALE CHE FA SEMPRE ENTRARE NELLA LEGA ---
-  const joinOrCreateSharedLeague = (rawCode, optionalName = '', optionalHost = '') => {
+  // --- FUNZIONE CHE UNISCE IL GIOCATORE E SINCRONIZZA TUTTI GLI ALTRI TELEFONI ---
+  const joinOrCreateSharedLeague = async (rawCode, optionalName = '', optionalHost = '') => {
     const cleanCode = rawCode.trim().toUpperCase();
     if (!cleanCode) {
       showToast('Inserisci un codice lega valido!', 'danger');
       return;
     }
-
-    const existingLeague = leagues.find(l => l.id.toUpperCase() === cleanCode);
 
     const newMemberObj = {
       id: currentUser.id,
@@ -341,26 +386,54 @@ export default function App() {
       captainUsedThisWeek: false
     };
 
-    if (existingLeague) {
-      const isAlreadyMember = existingLeague.members.some(m => m.id === currentUser.id);
-      if (!isAlreadyMember) {
-        setLeagues(prev => prev.map(l => {
-          if (l.id.toUpperCase() === cleanCode) {
-            return { ...l, members: [...l.members, newMemberObj] };
+    // 1. Controlla prima sul Cloud se la lega esiste già (creata da un altro telefono)
+    let targetLeague = null;
+    if (cleanDbUrl) {
+      try {
+        const res = await fetch(`${cleanDbUrl}/leagues/${cleanCode}.json`);
+        if (res.ok) {
+          const cloudLeague = await res.json();
+          if (cloudLeague && cloudLeague.id) {
+            targetLeague = {
+              ...cloudLeague,
+              members: cloudLeague.members || [],
+              feed: cloudLeague.feed || []
+            };
           }
-          return l;
-        }));
+        }
+      } catch (e) {
+        console.error(e);
       }
-      setActiveLeagueId(existingLeague.id);
+    }
+
+    // 2. Altrimenti cerca in memoria locale
+    if (!targetLeague) {
+      targetLeague = leagues.find(l => l.id.toUpperCase() === cleanCode);
+    }
+
+    if (targetLeague) {
+      const isAlreadyMember = targetLeague.members.some(m => m.id === currentUser.id);
+      const updatedLeague = isAlreadyMember
+        ? targetLeague
+        : { ...targetLeague, members: [...targetLeague.members, newMemberObj] };
+
+      setLeagues(prev => {
+        const exists = prev.some(l => l.id.toUpperCase() === cleanCode);
+        return exists
+          ? prev.map(l => l.id.toUpperCase() === cleanCode ? updatedLeague : l)
+          : [updatedLeague, ...prev];
+      });
+
+      await pushLeagueToCloud(updatedLeague);
+      setActiveLeagueId(updatedLeague.id);
       setShowJoinLeagueModal(false);
       setJoinLeagueCode('');
-      showToast(`🎉 Sei entrato nella lega "${existingLeague.name}"!`, 'success');
+      showToast(`🎉 Sei entrato nella lega "${updatedLeague.name}"! (${updatedLeague.members.length} giocatori)`, 'success');
     } else {
-      // Se la lega è stata creata sul telefono di un amico, la inizializza sul dispositivo corrente così entra subito!
       const leagueTitle = optionalName.trim() || joinLeagueCustomName.trim() || `Lega Sempre Noi (${cleanCode})`;
       const hostMember = optionalHost && optionalHost !== currentUser.username
         ? [{
-            id: 'host_' + cleanCode,
+            id: 'usr_' + optionalHost.toLowerCase().replace(/\s+/g, '_'),
             name: optionalHost,
             glassType: 'lager',
             points: 0,
@@ -383,6 +456,7 @@ export default function App() {
       };
 
       setLeagues(prev => [syncedLeague, ...prev]);
+      await pushLeagueToCloud(syncedLeague);
       setActiveLeagueId(cleanCode);
       setShowJoinLeagueModal(false);
       setJoinLeagueCode('');
@@ -448,8 +522,8 @@ export default function App() {
     showToast('Disconnesso. Username e password sono stati ricordati.', 'warning');
   };
 
-  // --- CREA NUOVA LEGA ---
-  const handleCreateLeague = (e) => {
+  // --- CREA NUOVA LEGA E SALVALA SUL CLOUD ---
+  const handleCreateLeague = async (e) => {
     e.preventDefault();
     if (!newLeagueName.trim()) return;
 
@@ -477,6 +551,7 @@ export default function App() {
     };
 
     setLeagues([newLeague, ...leagues]);
+    await pushLeagueToCloud(newLeague);
     setActiveLeagueId(code);
     setShowCreateLeagueModal(false);
     setNewLeagueName('');
@@ -506,7 +581,7 @@ export default function App() {
     setTimeout(() => setCopiedType(null), 2500);
   };
 
-  // --- GESTIONE "IL CAPITANO DELLA SERATA" (MODIFICATORE SERATA) ---
+  // --- GESTIONE "IL CAPITANO DELLA SERATA" ---
   const handleActivateCaptain = () => {
     if (!activeLeagueId || !myMemberProfile) return;
     if (myMemberProfile.captainUsedThisWeek && !myMemberProfile.captainActive) {
@@ -516,7 +591,7 @@ export default function App() {
 
     setLeagues(prev => prev.map(l => {
       if (l.id !== activeLeagueId) return l;
-      return {
+      const updated = {
         ...l,
         members: l.members.map(m => {
           if (m.id === currentUser.id) {
@@ -530,6 +605,8 @@ export default function App() {
           return m;
         })
       };
+      pushLeagueToCloud(updated);
+      return updated;
     }));
     showToast('👑 Fascia da Capitano attivata! Tutte le tue birre di stasera valgono PUNTI DOPPI (x2). Raggiungi almeno 4 birre o scatta il malus -10 pt!', 'success');
   };
@@ -541,7 +618,7 @@ export default function App() {
 
     setLeagues(prev => prev.map(l => {
       if (l.id !== activeLeagueId) return l;
-      return {
+      const updated = {
         ...l,
         members: l.members.map(m => {
           if (m.id === currentUser.id) {
@@ -555,6 +632,8 @@ export default function App() {
           return m;
         })
       };
+      pushLeagueToCloud(updated);
+      return updated;
     }));
 
     if (failedTarget) {
@@ -564,7 +643,7 @@ export default function App() {
     }
   };
 
-  // --- FOTOCAMERA ISTANTANEA ---
+  // --- FOTOCAMERA ISTANTANEA CON COMPRESSIONE LEGGERA PER IL CLOUD ---
   const startCamera = async () => {
     setCapturedPhoto(null);
     try {
@@ -594,12 +673,15 @@ export default function App() {
 
   const captureInstantPhoto = () => {
     if (!videoRef.current) return;
+    const rawW = videoRef.current.videoWidth || 640;
+    const rawH = videoRef.current.videoHeight || 480;
+    const scale = Math.min(1, 480 / rawW);
     const canvas = document.createElement('canvas');
-    canvas.width = videoRef.current.videoWidth || 640;
-    canvas.height = videoRef.current.videoHeight || 480;
+    canvas.width = Math.round(rawW * scale);
+    canvas.height = Math.round(rawH * scale);
     const ctx = canvas.getContext('2d');
     ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.65);
     setCapturedPhoto(dataUrl);
     stopCameraStream();
     showToast('📸 Foto istantanea acquisita!', 'success');
@@ -608,16 +690,26 @@ export default function App() {
   const handleFallbackCameraCapture = (e) => {
     const file = e.target.files?.[0];
     if (file) {
+      const img = new Image();
       const reader = new FileReader();
-      reader.onload = () => {
-        setCapturedPhoto(reader.result);
-        showToast('📸 Foto istantanea acquisita!', 'success');
+      reader.onload = (ev) => {
+        img.onload = () => {
+          const scale = Math.min(1, 480 / img.width);
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(img.width * scale);
+          canvas.height = Math.round(img.height * scale);
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          setCapturedPhoto(canvas.toDataURL('image/jpeg', 0.65));
+          showToast('📸 Foto istantanea acquisita!', 'success');
+        };
+        img.src = ev.target.result;
       };
       reader.readAsDataURL(file);
     }
   };
 
-  // --- CALCOLATORE PUNTI COMPLETO (CON GOCCIA D'ORO E CAPITANO SERATA) ---
+  // --- CALCOLATORE PUNTI COMPLETO ---
   const calculatedDrink = useMemo(() => {
     const formatMap = {
       piccola33: { pts: 3, label: '33cl (+3pt)' },
@@ -641,7 +733,6 @@ export default function App() {
     const gocciaBonus = bonusGocciaDOro ? 3 : 0;
     const isCaptainActive = Boolean(myMemberProfile?.captainActive);
 
-    // Calcolo: ((Base * ABV) + Qualità) * SempreNoi(x1.3) + GocciaD'Oro(+3pt), tutto raddoppiato se Capitano Serata (x2)
     let subtotal = (base * mult) + qualityBonus;
     if (bonusSempreNoi) {
       subtotal *= 1.3;
@@ -664,7 +755,7 @@ export default function App() {
     };
   }, [format, abvTier, qualityTier, bonusSempreNoi, bonusGocciaDOro, myMemberProfile]);
 
-  // --- INVIO NUOVA BIRRA ---
+  // --- INVIO NUOVA BIRRA E SINCRONIZZAZIONE FOTO SUI TELEFONI DEGLI AMICI ---
   const handleAddBeer = (e) => {
     e.preventDefault();
     if (!capturedPhoto) {
@@ -698,9 +789,9 @@ export default function App() {
 
     setLeagues(prev => prev.map(l => {
       if (l.id === activeLeagueId) {
-        return {
+        const updated = {
           ...l,
-          feed: [newBeer, ...l.feed],
+          feed: [newBeer, ...(l.feed || [])],
           members: l.members.map(m => {
             if (m.id === currentUser.id) {
               return {
@@ -714,6 +805,8 @@ export default function App() {
             return m;
           })
         };
+        pushLeagueToCloud(updated);
+        return updated;
       }
       return l;
     }));
@@ -721,22 +814,25 @@ export default function App() {
     setBeerTitle('');
     setCapturedPhoto(null);
     setBonusSempreNoi(false);
-    showToast(`🍻 Stappata! +${calculatedDrink.total} pt accreditati in classifica!`, 'success');
+    showToast(`🍻 Stappata! +${calculatedDrink.total} pt inviati in classifica e in Sala VAR!`, 'success');
     setActiveTab('classifica');
   };
 
-  // --- SALA VAR ---
+  // --- SALA VAR: CONFERMA E CHIAMATA VAR SINCRONIZZATE ---
   const handleApproveBeer = (beerId) => {
     setLeagues(prev => prev.map(l => {
       if (l.id !== activeLeagueId) return l;
-      return {
+      const updated = {
         ...l,
-        feed: l.feed.map(item => {
+        feed: (l.feed || []).map(item => {
           if (item.id !== beerId) return item;
-          if (item.approvals.includes(currentUser.id)) return item;
-          return { ...item, approvals: [...item.approvals, currentUser.id] };
+          const approvals = item.approvals || [];
+          if (approvals.includes(currentUser.id)) return item;
+          return { ...item, approvals: [...approvals, currentUser.id] };
         })
       };
+      pushLeagueToCloud(updated);
+      return updated;
     }));
     showToast('✅ Bevuta confermata!', 'success');
   };
@@ -749,13 +845,14 @@ export default function App() {
       if (l.id !== activeLeagueId) return l;
       let penaltyTriggered = false;
 
-      const updatedFeed = l.feed.map(item => {
+      const updatedFeed = (l.feed || []).map(item => {
         if (item.id !== varModalBeer.id) return item;
-        const alreadyVoted = item.varVotes.some(v => v.voterId === currentUser.id);
+        const currentVotes = item.varVotes || [];
+        const alreadyVoted = currentVotes.some(v => v.voterId === currentUser.id);
         if (alreadyVoted) return item;
 
         const newVotes = [
-          ...item.varVotes,
+          ...currentVotes,
           {
             voterId: currentUser.id,
             voterName: currentUser.username,
@@ -797,7 +894,9 @@ export default function App() {
         });
       }
 
-      return { ...l, feed: updatedFeed, members: updatedMembers };
+      const updatedLeague = { ...l, feed: updatedFeed, members: updatedMembers };
+      pushLeagueToCloud(updatedLeague);
+      return updatedLeague;
     }));
 
     setVarModalBeer(null);
@@ -812,10 +911,12 @@ export default function App() {
     if (activeLeagueId) {
       setLeagues(prev => prev.map(l => {
         if (l.id === activeLeagueId) {
-          return {
+          const updated = {
             ...l,
             members: l.members.map(m => m.id === currentUser.id ? { ...m, glassType: glassId } : m)
           };
+          pushLeagueToCloud(updated);
+          return updated;
         }
         return l;
       }));
@@ -826,7 +927,7 @@ export default function App() {
 
   const sortedMembers = useMemo(() => {
     if (!activeLeague) return [];
-    return [...activeLeague.members].sort((a, b) => b.points - a.points);
+    return [...(activeLeague.members || [])].sort((a, b) => b.points - a.points);
   }, [activeLeague]);
 
   const leaderPoints = sortedMembers[0]?.points || 0;
@@ -936,7 +1037,7 @@ export default function App() {
   // VISTA 2: HOME DASHBOARD LEGHE
   // =========================================================================
   if (!activeLeagueId) {
-    const userLeagues = leagues.filter(l => l.members.some(m => m.id === currentUser.id));
+    const userLeagues = leagues.filter(l => (l.members || []).some(m => m.id === currentUser.id));
 
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center p-4 pb-12">
@@ -1018,9 +1119,9 @@ export default function App() {
                         </span>
                       </div>
                       <p className="text-xs text-slate-400 mt-1 flex items-center gap-2">
-                        <span>👥 {league.members.length} Piloti</span>
+                        <span>👥 {(league.members || []).length} Piloti</span>
                         <span>•</span>
-                        <span>🍺 {league.feed.length} Birre a referto</span>
+                        <span>🍺 {(league.feed || []).length} Birre a referto</span>
                       </p>
                     </div>
                     <ChevronRight className="w-5 h-5 text-slate-500 group-hover:text-amber-400 transition" />
@@ -1059,7 +1160,7 @@ export default function App() {
           </div>
         )}
 
-        {/* MODALE UNISCITI CON CODICE (SBLOCCATO PER QUALSIASI CODICE AMICO) */}
+        {/* MODALE UNISCITI CON CODICE */}
         {showJoinLeagueModal && (
           <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
             <form onSubmit={handleJoinLeagueSubmit} className="bg-slate-900 border border-amber-500/40 rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
@@ -1134,7 +1235,9 @@ export default function App() {
               <SempreNoiLogo size="sm" />
               <div>
                 <h1 className="text-sm font-black text-white leading-tight">{activeLeague.name}</h1>
-                <span className="text-[10px] text-amber-400 font-bold block">Classifica F1 • Tutti contro Tutti</span>
+                <span className="text-[10px] text-amber-400 font-bold block">
+                  {(activeLeague.members || []).length} Giocatori in Lega • F1 Mode
+                </span>
               </div>
             </div>
 
@@ -1202,7 +1305,7 @@ export default function App() {
             <div className="space-y-4">
               <div className="bg-gradient-to-br from-slate-800 to-slate-950 rounded-2xl p-3.5 border border-amber-500/30 shadow-xl">
                 <span className="text-[10px] font-black uppercase text-amber-400 flex items-center gap-1 mb-2">
-                  <Flag className="w-3.5 h-3.5" /> Podio Gran Premio
+                  <Flag className="w-3.5 h-3.5" /> Podio Gran Premio ({sortedMembers.length} Piloti)
                 </span>
 
                 <div className="grid grid-cols-3 gap-1.5 items-end text-center pt-1">
@@ -1235,7 +1338,7 @@ export default function App() {
 
               <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-lg">
                 <div className="px-3.5 py-2.5 bg-slate-800/70 border-b border-slate-800 flex justify-between text-[10px] font-black text-slate-400 uppercase">
-                  <span>Pos / Pilota</span>
+                  <span>Pos / Pilota ({sortedMembers.length})</span>
                   <span>Distacco F1 / Totale</span>
                 </div>
                 <div className="divide-y divide-slate-800">
@@ -1571,11 +1674,12 @@ export default function App() {
               </div>
 
               <div className="space-y-3.5">
-                {activeLeague.feed.map(item => {
+                {(activeLeague.feed || []).map(item => {
                   const isPenalized = item.status === 'yellow' || item.status === 'simulation' || item.status === 'red';
-                  const hasApproved = item.approvals?.includes(currentUser.id);
-                  const hasVotedVar = item.varVotes?.some(v => v.voterId === currentUser.id);
-                  const lastVarReason = item.varVotes?.[item.varVotes.length - 1]?.reasonLabel;
+                  const hasApproved = (item.approvals || []).includes(currentUser.id);
+                  const varVotesList = item.varVotes || [];
+                  const hasVotedVar = varVotesList.some(v => v.voterId === currentUser.id);
+                  const lastVarReason = varVotesList[varVotesList.length - 1]?.reasonLabel;
 
                   return (
                     <div key={item.id} className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-lg">
@@ -1625,15 +1729,15 @@ export default function App() {
                             )}
                           </div>
                           <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1 shrink-0">
-                            <CheckCircle2 className="w-3.5 h-3.5" /> {item.approvals?.length || 0} OK
+                            <CheckCircle2 className="w-3.5 h-3.5" /> {(item.approvals || []).length} OK
                           </span>
                         </div>
 
-                        {item.varVotes?.length === 1 && !isPenalized && (
+                        {varVotesList.length === 1 && !isPenalized && (
                           <div className="bg-amber-500/15 border border-amber-500/40 rounded-xl p-2.5 text-[11px] text-amber-200 flex items-center gap-2">
                             <Eye className="w-4 h-4 text-amber-400 shrink-0" />
                             <span>
-                              <strong>1° Voto VAR ({item.varVotes[0].voterName}):</strong> "{item.varVotes[0].reasonLabel}". Serve il 2° voto per far scattare il malus!
+                              <strong>1° Voto VAR ({varVotesList[0].voterName}):</strong> "{varVotesList[0].reasonLabel}". Serve il 2° voto per far scattare il malus!
                             </span>
                           </div>
                         )}
@@ -1665,7 +1769,7 @@ export default function App() {
                               }`}
                             >
                               <ShieldAlert className="w-4 h-4" />
-                              {hasVotedVar ? `VAR (${item.varVotes.length}/2)` : `Chiama VAR (${item.varVotes.length}/2)`}
+                              {hasVotedVar ? `VAR (${varVotesList.length}/2)` : `Chiama VAR (${varVotesList.length}/2)`}
                             </button>
                           </div>
                         )}
@@ -1709,7 +1813,7 @@ export default function App() {
 
         </main>
 
-        {/* MODALE DI CHIAMATA AL VAR */}
+        {/* MODALE DI CHIAMATA AL VAR CON GLI EMOJI 🟨 🚨 🟥 */}
         {varModalBeer && (
           <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="bg-slate-900 border border-red-500/50 rounded-2xl max-w-sm w-full p-4 space-y-3.5 shadow-2xl">
@@ -1718,7 +1822,7 @@ export default function App() {
                   <ShieldAlert className="w-4 h-4" /> Chiamata VAR: {varModalBeer.playerName}
                 </h3>
                 <span className="text-[10px] font-mono bg-red-500/20 text-red-300 px-2 py-0.5 rounded">
-                  Voto {varModalBeer.varVotes.length + 1} di 2
+                  Voto {(varModalBeer.varVotes || []).length + 1} di 2
                 </span>
               </div>
 
