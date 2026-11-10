@@ -10,7 +10,7 @@ import {
 // 🔗 INCOLLA QUI SOTTO IL LINK DEL TUO FIREBASE REALTIME DATABASE:
 // Esempio: "https://sempre-noi-default-rtdb.europe-west1.firebasedatabase.app"
 // ============================================================================
-const CLOUD_DB_URL = ""; 
+const CLOUD_DB_URL = "https://sempre-noi-default-rtdb.europe-west1.firebasedatabase.app/"; 
 
 const cleanDbUrl = CLOUD_DB_URL ? CLOUD_DB_URL.replace(/\/$/, "") : "";
 
