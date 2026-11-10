@@ -1,40 +1,45 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
-  Trophy, PlusCircle, ShieldAlert, Flame, Users, Camera, 
-  CheckCircle2, AlertTriangle, MapPin, Clock, Sparkles,
-  LogOut, Plus, UserPlus, Key, User, Beer, Copy, Check, ChevronRight,
-  ArrowLeft, BookOpen, Flag, XCircle, Share2, RefreshCw, Eye
+  Trophy, PlusCircle, ShieldAlert, Users, Camera, 
+  CheckCircle2, Sparkles, LogOut, Plus, UserPlus, Key, User, 
+  Beer, Copy, Check, ChevronRight, ArrowLeft, BookOpen, Flag, 
+  XCircle, Share2, RefreshCw, Eye, Sun, Crown, AlertTriangle
 } from 'lucide-react';
 
-// --- LOGO SVG VETTORIALE MINIMALISTA "SEMPRE NOI" ---
-function SempreNoiToastLogo({ className = "w-10 h-10" }) {
+// --- LOGO UFFICIALE NON DEFORMATO (CARICA /logo.jpg CON FALLBACK PULITO) ---
+function SempreNoiLogo({ size = "md" }) {
+  const [imgError, setImgError] = useState(false);
+  const sizeClasses = {
+    sm: "w-10 h-10",
+    md: "w-12 h-12",
+    lg: "w-20 h-20"
+  }[size] || "w-12 h-12";
+
   return (
-    <svg viewBox="0 0 64 64" fill="none" className={className} xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="bgBadge" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#1e293b" />
-          <stop offset="100%" stopColor="#0f172a" />
-        </linearGradient>
-        <linearGradient id="beerGold" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#fbbf24" />
-          <stop offset="100%" stopColor="#d97706" />
-        </linearGradient>
-      </defs>
-      <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#bgBadge)" stroke="#f59e0b" strokeWidth="2.5" />
-      <path d="M32 7V13M25 10L28 14M39 10L36 14" stroke="#fbbf24" strokeWidth="2.2" strokeLinecap="round" />
-      <g transform="rotate(14 22 36)">
-        <path d="M4 50L14 40" stroke="#f59e0b" strokeWidth="6" strokeLinecap="round" />
-        <path d="M16 29H12C10.5 29 10 30.5 10 32.5C10 34.5 10.5 36 12 36H16" stroke="#cbd5e1" strokeWidth="2.2" fill="none" />
-        <rect x="15" y="24" width="13" height="18" rx="2.5" fill="url(#beerGold)" stroke="#f8fafc" strokeWidth="1.8" />
-        <path d="M14 24C14 21.5 16 20 18 20.5C19.5 19 22.5 19 24 20.5C26.5 20 29 21.5 29 24H14Z" fill="#ffffff" />
-      </g>
-      <g transform="rotate(-14 42 36)">
-        <path d="M60 50L50 40" stroke="#f59e0b" strokeWidth="6" strokeLinecap="round" />
-        <path d="M48 29H52C53.5 29 54 30.5 54 32.5C54 34.5 53.5 36 52 36H48" stroke="#cbd5e1" strokeWidth="2.2" fill="none" />
-        <rect x="36" y="24" width="13" height="18" rx="2.5" fill="url(#beerGold)" stroke="#f8fafc" strokeWidth="1.8" />
-        <path d="M35 24C35 21.5 37.5 20 39.5 20.5C41 19 44 19 45.5 20.5C48 20 50 21.5 50 24H35Z" fill="#ffffff" />
-      </g>
-    </svg>
+    <div className={`${sizeClasses} aspect-square rounded-full overflow-hidden border-2 border-amber-400 bg-slate-900 flex items-center justify-center shadow-lg shadow-amber-500/20 shrink-0`}>
+      {!imgError ? (
+        <img
+          src="/logo.jpg"
+          alt="Sempre Noi Logo"
+          className="w-full h-full object-cover aspect-square"
+          onError={() => setImgError(true)}
+        />
+      ) : (
+        <svg viewBox="0 0 64 64" className="w-full h-full p-1.5" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M32 6V12M24 9L27 14M40 9L37 14" stroke="#FBBF24" strokeWidth="2.5" strokeLinecap="round"/>
+          <g transform="rotate(-10 22 32)">
+            <rect x="13" y="20" width="15" height="22" rx="3" fill="#F59E0B" stroke="#FEF3C7" strokeWidth="2"/>
+            <path d="M13 24H9C7.5 24 7 25.5 7 27.5V34.5C7 36.5 7.5 38 9 38H13" stroke="#FEF3C7" strokeWidth="2.5"/>
+            <path d="M12 20C12 16 15.5 14 20.5 14C25.5 14 29 16 29 20H12Z" fill="#FFFBEB"/>
+          </g>
+          <g transform="rotate(10 42 32)">
+            <rect x="36" y="20" width="15" height="22" rx="3" fill="#F59E0B" stroke="#FEF3C7" strokeWidth="2"/>
+            <path d="M51 24H55C56.5 24 57 25.5 57 27.5V34.5C57 36.5 56.5 38 55 38H51" stroke="#FEF3C7" strokeWidth="2.5"/>
+            <path d="M35 20C35 16 38.5 14 43.5 14C48.5 14 52 16 52 20H35Z" fill="#FFFBEB"/>
+          </g>
+        </svg>
+      )}
+    </div>
   );
 }
 
@@ -55,7 +60,7 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md' }) {
   }[size] || 'w-11 h-11 p-1.5';
 
   return (
-    <div className={`${sizeClasses} rounded-2xl bg-slate-900 border border-slate-700 flex items-center justify-center shadow-inner shrink-0 relative`}>
+    <div className={`${sizeClasses} aspect-square rounded-2xl bg-slate-900 border border-slate-700 flex items-center justify-center shadow-inner shrink-0 relative`}>
       {type === 'weiss' && (
         <svg viewBox="0 0 48 48" className="w-full h-full">
           <path d="M16 13C14.5 21 17.5 30 18 41H30C30.5 30 33.5 21 32 13H16Z" fill="#eab308" />
@@ -104,7 +109,6 @@ const VAR_PENALTY_OPTIONS = [
   {
     id: 'yellow',
     label: 'Cartellino giallo: birra avanzata -2pt',
-    shortTitle: '🟨 Cartellino Giallo (-2pt)',
     desc: 'Il giocatore ha lasciato il fondo caldo o non ha finito il bicchiere.',
     penaltyPts: 2,
     revokeBeer: false
@@ -112,7 +116,6 @@ const VAR_PENALTY_OPTIONS = [
   {
     id: 'simulation',
     label: 'Simulazione in area: foto riciclata/vuota -5pt',
-    shortTitle: '🚨 Simulazione in Area (-5pt)',
     desc: 'Foto vecchia, bicchiere già vuoto o presa in prestito dal vicino di banco.',
     penaltyPts: 5,
     revokeBeer: true
@@ -120,7 +123,6 @@ const VAR_PENALTY_OPTIONS = [
   {
     id: 'red',
     label: 'Cartellino rosso: birra analcolica/radler -10pt',
-    shortTitle: '🟥 Cartellino Rosso Diretto (-10pt)',
     desc: 'Grave violazione del codice etico: birra 0.0% o aromatizzata al limone.',
     penaltyPts: 10,
     revokeBeer: true
@@ -134,10 +136,10 @@ const DEFAULT_LEAGUES = [
     name: 'Lega Storica Sempre Noi',
     adminId: 'usr_manolo',
     members: [
-      { id: 'u1', name: 'Manolo', glassType: 'triple', points: 54.5, weekendPts: 21.0, beers: 7, yellowCards: 1, redCards: 0 },
-      { id: 'u2', name: 'Marco', glassType: 'ipa', points: 46.0, weekendPts: 17.5, beers: 6, yellowCards: 0, redCards: 0 },
-      { id: 'u3', name: 'Andrea', glassType: 'stout', points: 38.0, weekendPts: 12.0, beers: 5, yellowCards: 0, redCards: 0 },
-      { id: 'u4', name: 'Luca', glassType: 'lager', points: 21.5, weekendPts: 6.0, beers: 4, yellowCards: 1, redCards: 1 }
+      { id: 'u1', name: 'Manolo', glassType: 'triple', points: 54.5, weekendPts: 21.0, beers: 7, yellowCards: 1, redCards: 0, captainActive: false, captainBeers: 0, captainUsedThisWeek: false },
+      { id: 'u2', name: 'Marco', glassType: 'ipa', points: 46.0, weekendPts: 17.5, beers: 6, yellowCards: 0, redCards: 0, captainActive: true, captainBeers: 2, captainUsedThisWeek: true },
+      { id: 'u3', name: 'Andrea', glassType: 'stout', points: 38.0, weekendPts: 12.0, beers: 5, yellowCards: 0, redCards: 0, captainActive: false, captainBeers: 0, captainUsedThisWeek: false },
+      { id: 'u4', name: 'Luca', glassType: 'lager', points: 21.5, weekendPts: 6.0, beers: 4, yellowCards: 1, redCards: 1, captainActive: false, captainBeers: 0, captainUsedThisWeek: false }
     ],
     feed: [
       {
@@ -158,7 +160,7 @@ const DEFAULT_LEAGUES = [
         varVotes: [
           { voterId: 'u3', voterName: 'Andrea', reasonId: 'simulation', reasonLabel: 'Simulazione in area: foto riciclata/vuota -5pt' }
         ],
-        status: 'pending_var' // 'valid' | 'pending_var' | 'yellow' | 'simulation' | 'red'
+        status: 'pending_var'
       },
       {
         id: 'b102',
@@ -169,11 +171,11 @@ const DEFAULT_LEAGUES = [
         formatLabel: 'Media 50cl (+5pt)',
         abvLabel: 'Forte > 7,5° (x1.7)',
         styleLabel: 'Artigianale (+2pt)',
-        points: 13.7,
+        points: 27.4,
         timestamp: '1 ora fa',
         location: 'Tavolata Sempre Noi',
         photoUrl: 'https://images.unsplash.com/photo-1566633806327-68e152aaf26d?auto=format&fit=crop&w=600&q=80',
-        bonuses: ['Sempre noi (x1.3)'],
+        bonuses: ['Sempre noi (x1.3)', 'Capitano Serata (x2)'],
         approvals: ['u1', 'u3'],
         varVotes: [],
         status: 'valid'
@@ -181,6 +183,20 @@ const DEFAULT_LEAGUES = [
     ]
   }
 ];
+
+// Controlla se l'orario attuale è prima delle 12:30 (per Goccia d'Oro)
+const isBefore1230 = () => {
+  const now = new Date();
+  return now.getHours() < 12 || (now.getHours() === 12 && now.getMinutes() <= 30);
+};
+
+// Controlla se siamo nel weekend prima delle 20:00 (Venerdì o Sabato < 20:00)
+const isCaptainWindowOpen = () => {
+  const now = new Date();
+  const day = now.getDay(); // 5 = Venerdì, 6 = Sabato
+  const hour = now.getHours();
+  return (day === 5 || day === 6) && hour < 20;
+};
 
 export default function App() {
   // --- 1. DATABASE ACCOUNT & CREDENZIALI SALVATE ---
@@ -194,20 +210,19 @@ export default function App() {
     return saved ? JSON.parse(saved) : null;
   });
 
-  // Pre-compila username e password ricordati per gli accessi successivi
   const [savedCreds, setSavedCreds] = useState(() => {
     const saved = localStorage.getItem('sempre_noi_remembered_creds');
     return saved ? JSON.parse(saved) : { username: '', password: '' };
   });
 
-  const [authMode, setAuthMode] = useState('login'); // 'login' | 'register'
+  const [authMode, setAuthMode] = useState('login');
   const [authUsername, setAuthUsername] = useState(savedCreds.username || '');
   const [authPassword, setAuthPassword] = useState(savedCreds.password || '');
   const [rememberMe, setRememberMe] = useState(true);
 
-  // --- 2. STATO LEGHE E INVITI TRAMITE LINK/CODICE ---
+  // --- 2. STATO LEGHE E GESTIONE INVITI SICURA ---
   const [leagues, setLeagues] = useState(() => {
-    const saved = localStorage.getItem('sempre_noi_leagues_v2');
+    const saved = localStorage.getItem('sempre_noi_leagues_v3');
     return saved ? JSON.parse(saved) : DEFAULT_LEAGUES;
   });
 
@@ -216,19 +231,21 @@ export default function App() {
   const [showJoinLeagueModal, setShowJoinLeagueModal] = useState(false);
   const [newLeagueName, setNewLeagueName] = useState('');
   const [joinLeagueCode, setJoinLeagueCode] = useState('');
-  const [copiedType, setCopiedType] = useState(null); // 'code' | 'link'
+  const [joinLeagueCustomName, setJoinLeagueCustomName] = useState('');
+  const [copiedType, setCopiedType] = useState(null);
 
   // --- 3. STATO NAVIGAZIONE E GIOCO ---
   const [activeTab, setActiveTab] = useState('classifica');
   const [toastMessage, setToastMessage] = useState(null);
   const [showGlassPicker, setShowGlassPicker] = useState(false);
 
-  // --- 4. STATO FOTOCAMERA ISTANTANEA (SOLO SCATTO LIVE) ---
+  // --- 4. STATO SEZIONE "STAPPA!" + GOCCIA D'ORO + CAPITANO ---
   const [beerTitle, setBeerTitle] = useState('');
-  const [format, setFormat] = useState('spina50'); // 'piccola33' | 'spina50' | 'litro'
-  const [abvTier, setAbvTier] = useState('leggera'); // 'leggera' | 'media' | 'forte'
-  const [qualityTier, setQualityTier] = useState('spina'); // 'industriale' | 'artigianale' | 'spina'
+  const [format, setFormat] = useState('spina50');
+  const [abvTier, setAbvTier] = useState('leggera');
+  const [qualityTier, setQualityTier] = useState('spina');
   const [bonusSempreNoi, setBonusSempreNoi] = useState(false);
+  const [bonusGocciaDOro, setBonusGocciaDOro] = useState(() => isBefore1230());
   const [capturedPhoto, setCapturedPhoto] = useState(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const videoRef = useRef(null);
@@ -239,7 +256,12 @@ export default function App() {
   const [varModalBeer, setVarModalBeer] = useState(null);
   const [selectedPenaltyId, setSelectedPenaltyId] = useState('simulation');
 
-  // --- PERSISTENZA DATI ---
+  const showToast = (text, type = 'success') => {
+    setToastMessage({ text, type });
+    setTimeout(() => setToastMessage(null), 4000);
+  };
+
+  // --- SALVATAGGIO AUTOMATICO IN LOCALSTORAGE ---
   useEffect(() => {
     localStorage.setItem('sempre_noi_accounts_db', JSON.stringify(accounts));
   }, [accounts]);
@@ -253,33 +275,123 @@ export default function App() {
   }, [currentUser]);
 
   useEffect(() => {
-    localStorage.setItem('sempre_noi_leagues_v2', JSON.stringify(leagues));
+    localStorage.setItem('sempre_noi_leagues_v3', JSON.stringify(leagues));
   }, [leagues]);
 
-  // Controlla se l'utente ha aperto un Link di Invito (?join=CODICE)
+  // --- CATTURA LINK DI INVITO ANCHE PRIMA DEL LOGIN ---
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const inviteCode = params.get('join');
-    if (inviteCode && currentUser) {
-      setJoinLeagueCode(inviteCode.toUpperCase());
-      setShowJoinLeagueModal(true);
+    const inviteName = params.get('name');
+    const inviteHost = params.get('host');
+
+    if (inviteCode) {
+      const pendingData = {
+        code: inviteCode.trim().toUpperCase(),
+        name: inviteName ? decodeURIComponent(inviteName) : `Lega ${inviteCode.toUpperCase()}`,
+        host: inviteHost ? decodeURIComponent(inviteHost) : 'Amico'
+      };
+      localStorage.setItem('sempre_noi_pending_invite', JSON.stringify(pendingData));
       window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
+  // --- SE C'È UN INVITO IN SOSPESO E L'UTENTE È LOGGATO, UNISCILO SUBITO! ---
+  useEffect(() => {
+    if (!currentUser) return;
+    const savedInvite = localStorage.getItem('sempre_noi_pending_invite');
+    if (savedInvite) {
+      try {
+        const { code, name, host } = JSON.parse(savedInvite);
+        localStorage.removeItem('sempre_noi_pending_invite');
+        joinOrCreateSharedLeague(code, name, host);
+      } catch (e) {
+        localStorage.removeItem('sempre_noi_pending_invite');
+      }
     }
   }, [currentUser]);
 
-  // Ferma lo stream fotocamera quando si cambia scheda
   useEffect(() => {
     if (activeTab !== 'stappa') {
       stopCameraStream();
     }
   }, [activeTab]);
 
-  const showToast = (text, type = 'success') => {
-    setToastMessage({ text, type });
-    setTimeout(() => setToastMessage(null), 3500);
+  // --- FUNZIONE UNIVERSALE CHE FA SEMPRE ENTRARE NELLA LEGA ---
+  const joinOrCreateSharedLeague = (rawCode, optionalName = '', optionalHost = '') => {
+    const cleanCode = rawCode.trim().toUpperCase();
+    if (!cleanCode) {
+      showToast('Inserisci un codice lega valido!', 'danger');
+      return;
+    }
+
+    const existingLeague = leagues.find(l => l.id.toUpperCase() === cleanCode);
+
+    const newMemberObj = {
+      id: currentUser.id,
+      name: currentUser.username,
+      glassType: currentUser.glassType || 'weiss',
+      points: 0,
+      weekendPts: 0,
+      beers: 0,
+      yellowCards: 0,
+      redCards: 0,
+      captainActive: false,
+      captainBeers: 0,
+      captainUsedThisWeek: false
+    };
+
+    if (existingLeague) {
+      const isAlreadyMember = existingLeague.members.some(m => m.id === currentUser.id);
+      if (!isAlreadyMember) {
+        setLeagues(prev => prev.map(l => {
+          if (l.id.toUpperCase() === cleanCode) {
+            return { ...l, members: [...l.members, newMemberObj] };
+          }
+          return l;
+        }));
+      }
+      setActiveLeagueId(existingLeague.id);
+      setShowJoinLeagueModal(false);
+      setJoinLeagueCode('');
+      showToast(`🎉 Sei entrato nella lega "${existingLeague.name}"!`, 'success');
+    } else {
+      // Se la lega è stata creata sul telefono di un amico, la inizializza sul dispositivo corrente così entra subito!
+      const leagueTitle = optionalName.trim() || joinLeagueCustomName.trim() || `Lega Sempre Noi (${cleanCode})`;
+      const hostMember = optionalHost && optionalHost !== currentUser.username
+        ? [{
+            id: 'host_' + cleanCode,
+            name: optionalHost,
+            glassType: 'lager',
+            points: 0,
+            weekendPts: 0,
+            beers: 0,
+            yellowCards: 0,
+            redCards: 0,
+            captainActive: false,
+            captainBeers: 0,
+            captainUsedThisWeek: false
+          }]
+        : [];
+
+      const syncedLeague = {
+        id: cleanCode,
+        name: leagueTitle,
+        adminId: currentUser.id,
+        members: [...hostMember, newMemberObj],
+        feed: []
+      };
+
+      setLeagues(prev => [syncedLeague, ...prev]);
+      setActiveLeagueId(cleanCode);
+      setShowJoinLeagueModal(false);
+      setJoinLeagueCode('');
+      setJoinLeagueCustomName('');
+      showToast(`🍻 Sei entrato nella lega "${leagueTitle}" (${cleanCode})!`, 'success');
+    }
   };
 
-  // --- FUNZIONI AUTENTICAZIONE CON MEMORIA CREDENZIALI ---
+  // --- LOGIN / REGISTRAZIONE ---
   const handleAuthSubmit = (e) => {
     e.preventDefault();
     const cleanUser = authUsername.trim();
@@ -307,9 +419,8 @@ export default function App() {
         setSavedCreds(creds);
         localStorage.setItem('sempre_noi_remembered_creds', JSON.stringify(creds));
       }
-      showToast(`Account creato! Benvenuto al bancone, ${cleanUser} 🍺`, 'success');
+      showToast(`Account creato! Benvenuto ${cleanUser} 🍺`, 'success');
     } else {
-      // Modalità Login
       if (existingAccount && existingAccount.password !== cleanPass) {
         showToast('Password errata per questo username!', 'danger');
         return;
@@ -324,7 +435,7 @@ export default function App() {
         setSavedCreds(creds);
         localStorage.setItem('sempre_noi_remembered_creds', JSON.stringify(creds));
       }
-      showToast(`Bentornato ${loggedUser.username}! Credenziali salvate.`, 'success');
+      showToast(`Bentornato ${loggedUser.username}!`, 'success');
     }
   };
 
@@ -332,13 +443,12 @@ export default function App() {
     stopCameraStream();
     setCurrentUser(null);
     setActiveLeagueId(null);
-    // Ricarica in automatico le credenziali salvate nei campi
     setAuthUsername(savedCreds.username || '');
     setAuthPassword(savedCreds.password || '');
-    showToast('Sei uscito. Le tue credenziali sono pronte per il prossimo accesso.', 'warning');
+    showToast('Disconnesso. Username e password sono stati ricordati.', 'warning');
   };
 
-  // --- FUNZIONI LEGHE & INVITI ---
+  // --- CREA NUOVA LEGA ---
   const handleCreateLeague = (e) => {
     e.preventDefault();
     if (!newLeagueName.trim()) return;
@@ -357,7 +467,10 @@ export default function App() {
           weekendPts: 0,
           beers: 0,
           yellowCards: 0,
-          redCards: 0
+          redCards: 0,
+          captainActive: false,
+          captainBeers: 0,
+          captainUsedThisWeek: false
         }
       ],
       feed: []
@@ -370,62 +483,88 @@ export default function App() {
     showToast(`Lega "${newLeague.name}" creata! Codice: ${code}`, 'success');
   };
 
-  const handleJoinLeague = (e) => {
+  const handleJoinLeagueSubmit = (e) => {
     e.preventDefault();
-    const cleanCode = joinLeagueCode.trim().toUpperCase();
-    const foundLeague = leagues.find(l => l.id.toUpperCase() === cleanCode);
-
-    if (!foundLeague) {
-      showToast('Codice non trovato! Controlla il codice mandato dal tuo amico.', 'danger');
-      return;
-    }
-
-    const isAlreadyMember = foundLeague.members.some(m => m.id === currentUser.id);
-    if (!isAlreadyMember) {
-      setLeagues(prev => prev.map(l => {
-        if (l.id === foundLeague.id) {
-          return {
-            ...l,
-            members: [
-              ...l.members,
-              {
-                id: currentUser.id,
-                name: currentUser.username,
-                glassType: currentUser.glassType || 'weiss',
-                points: 0,
-                weekendPts: 0,
-                beers: 0,
-                yellowCards: 0,
-                redCards: 0
-              }
-            ]
-          };
-        }
-        return l;
-      }));
-    }
-
-    setActiveLeagueId(foundLeague.id);
-    setShowJoinLeagueModal(false);
-    setJoinLeagueCode('');
-    showToast(`Sei entrato nella lega "${foundLeague.name}"!`, 'success');
+    joinOrCreateSharedLeague(joinLeagueCode, joinLeagueCustomName);
   };
 
-  const handleCopyInvite = (code, type) => {
-    const shareUrl = `${window.location.origin}${window.location.pathname}?join=${code}`;
+  const activeLeague = leagues.find(l => l.id === activeLeagueId);
+  const myMemberProfile = activeLeague?.members.find(m => m.id === currentUser?.id);
+
+  // Copia Link d'invito completo di nome lega e host
+  const handleCopyInvite = (leagueObj, type) => {
+    const shareUrl = `${window.location.origin}${window.location.pathname}?join=${encodeURIComponent(leagueObj.id)}&name=${encodeURIComponent(leagueObj.name)}&host=${encodeURIComponent(currentUser.username)}`;
     const textToCopy = type === 'link' 
-      ? `🍺 Entra nella nostra lega "${activeLeague?.name || 'Sempre Noi'}"! Clicca qui: ${shareUrl} oppure inserisci il codice: ${code}`
-      : code;
+      ? `🍺 Entra nella nostra lega "${leagueObj.name}" su Sempre Noi! Clicca sul link diretto: ${shareUrl} (oppure usa il codice: ${leagueObj.id})`
+      : leagueObj.id;
 
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(textToCopy);
     }
     setCopiedType(type);
-    showToast(type === 'link' ? 'Link di invito copiato! Incollalo su WhatsApp.' : `Codice ${code} copiato!`, 'success');
+    showToast(type === 'link' ? 'Link d\'invito copiato! Mandalo su WhatsApp.' : `Codice ${leagueObj.id} copiato!`, 'success');
     setTimeout(() => setCopiedType(null), 2500);
   };
 
-  // --- FOTOCAMERA ISTANTANEA IN-APP (SOLO SCATTO SUL MOMENTO) ---
+  // --- GESTIONE "IL CAPITANO DELLA SERATA" (MODIFICATORE SERATA) ---
+  const handleActivateCaptain = () => {
+    if (!activeLeagueId || !myMemberProfile) return;
+    if (myMemberProfile.captainUsedThisWeek && !myMemberProfile.captainActive) {
+      showToast('Hai già usato il Bonus Capitano questa settimana!', 'warning');
+      return;
+    }
+
+    setLeagues(prev => prev.map(l => {
+      if (l.id !== activeLeagueId) return l;
+      return {
+        ...l,
+        members: l.members.map(m => {
+          if (m.id === currentUser.id) {
+            return {
+              ...m,
+              captainActive: true,
+              captainBeers: 0,
+              captainUsedThisWeek: true
+            };
+          }
+          return m;
+        })
+      };
+    }));
+    showToast('👑 Fascia da Capitano attivata! Tutte le tue birre di stasera valgono PUNTI DOPPI (x2). Raggiungi almeno 4 birre o scatta il malus -10 pt!', 'success');
+  };
+
+  const handleEndCaptainEvening = () => {
+    if (!activeLeagueId || !myMemberProfile || !myMemberProfile.captainActive) return;
+    const beersCount = myMemberProfile.captainBeers || 0;
+    const failedTarget = beersCount < 4;
+
+    setLeagues(prev => prev.map(l => {
+      if (l.id !== activeLeagueId) return l;
+      return {
+        ...l,
+        members: l.members.map(m => {
+          if (m.id === currentUser.id) {
+            return {
+              ...m,
+              captainActive: false,
+              points: failedTarget ? Number((m.points - 10).toFixed(1)) : m.points,
+              weekendPts: failedTarget ? Number((m.weekendPts - 10).toFixed(1)) : m.weekendPts
+            };
+          }
+          return m;
+        })
+      };
+    }));
+
+    if (failedTarget) {
+      showToast(`🚨 Tradimento delle aspettative! Hai bevuto solo ${beersCount}/4 birre da Capitano: -10 punti di malus applicati!`, 'danger');
+    } else {
+      showToast(`🏆 Serata da Capitano completata con ${beersCount} birre! Obiettivo 4/4 superato a pieni voti!`, 'success');
+    }
+  };
+
+  // --- FOTOCAMERA ISTANTANEA ---
   const startCamera = async () => {
     setCapturedPhoto(null);
     try {
@@ -441,7 +580,6 @@ export default function App() {
         }
       }, 100);
     } catch (err) {
-      // Se il browser richiede l'input nativo della fotocamera mobile
       fallbackCameraInputRef.current?.click();
     }
   };
@@ -464,7 +602,7 @@ export default function App() {
     const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
     setCapturedPhoto(dataUrl);
     stopCameraStream();
-    showToast('📸 Scatto istantaneo certificato per il VAR!', 'success');
+    showToast('📸 Foto istantanea acquisita!', 'success');
   };
 
   const handleFallbackCameraCapture = (e) => {
@@ -479,7 +617,7 @@ export default function App() {
     }
   };
 
-  // --- CALCOLATORE PUNTI SECONDO LE NUOVE REGOLE ---
+  // --- CALCOLATORE PUNTI COMPLETO (CON GOCCIA D'ORO E CAPITANO SERATA) ---
   const calculatedDrink = useMemo(() => {
     const formatMap = {
       piccola33: { pts: 3, label: '33cl (+3pt)' },
@@ -500,10 +638,17 @@ export default function App() {
     const base = formatMap[format].pts;
     const mult = abvMap[abvTier].mult;
     const qualityBonus = qualityMap[qualityTier].bonus;
+    const gocciaBonus = bonusGocciaDOro ? 3 : 0;
+    const isCaptainActive = Boolean(myMemberProfile?.captainActive);
 
+    // Calcolo: ((Base * ABV) + Qualità) * SempreNoi(x1.3) + GocciaD'Oro(+3pt), tutto raddoppiato se Capitano Serata (x2)
     let subtotal = (base * mult) + qualityBonus;
     if (bonusSempreNoi) {
-      subtotal *= 1.3; // Nuovo moltiplicatore "Sempre noi" x1.3
+      subtotal *= 1.3;
+    }
+    subtotal += gocciaBonus;
+    if (isCaptainActive) {
+      subtotal *= 2;
     }
 
     return {
@@ -511,19 +656,26 @@ export default function App() {
       base,
       mult,
       qualityBonus,
+      gocciaBonus,
+      isCaptainActive,
       formatLabel: formatMap[format].label,
       abvLabel: abvMap[abvTier].label,
       styleLabel: qualityMap[qualityTier].label
     };
-  }, [format, abvTier, qualityTier, bonusSempreNoi]);
+  }, [format, abvTier, qualityTier, bonusSempreNoi, bonusGocciaDOro, myMemberProfile]);
 
   // --- INVIO NUOVA BIRRA ---
   const handleAddBeer = (e) => {
     e.preventDefault();
     if (!capturedPhoto) {
-      showToast('⚠️ Obbligatorio: devi scattare la foto sul momento con la fotocamera!', 'danger');
+      showToast('⚠️ Devi scattare la foto sul momento con la fotocamera prima di confermare!', 'danger');
       return;
     }
+
+    const activeBonuses = [];
+    if (bonusSempreNoi) activeBonuses.push('Sempre noi (x1.3)');
+    if (bonusGocciaDOro) activeBonuses.push("Goccia d'Oro (+3pt)");
+    if (calculatedDrink.isCaptainActive) activeBonuses.push('Capitano Serata (x2)');
 
     const newBeer = {
       id: 'b_' + Date.now(),
@@ -538,7 +690,7 @@ export default function App() {
       timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
       location: bonusSempreNoi ? 'Tavolata "Sempre noi" (x1.3)' : 'Scatto Live Fotocamera',
       photoUrl: capturedPhoto,
-      bonuses: bonusSempreNoi ? ['Sempre noi (x1.3)'] : [],
+      bonuses: activeBonuses,
       approvals: [currentUser.id],
       varVotes: [],
       status: 'valid'
@@ -555,7 +707,8 @@ export default function App() {
                 ...m,
                 points: Number((m.points + calculatedDrink.total).toFixed(1)),
                 weekendPts: Number((m.weekendPts + calculatedDrink.total).toFixed(1)),
-                beers: m.beers + 1
+                beers: m.beers + 1,
+                captainBeers: m.captainActive ? (m.captainBeers || 0) + 1 : (m.captainBeers || 0)
               };
             }
             return m;
@@ -568,11 +721,11 @@ export default function App() {
     setBeerTitle('');
     setCapturedPhoto(null);
     setBonusSempreNoi(false);
-    showToast(`🍻 Stappata! +${calculatedDrink.total} pt accreditati (Silent Check VAR attivo)`, 'success');
+    showToast(`🍻 Stappata! +${calculatedDrink.total} pt accreditati in classifica!`, 'success');
     setActiveTab('classifica');
   };
 
-  // --- SALA VAR: CONFERMA BIRRA (TUTTO REGOLARE) ---
+  // --- SALA VAR ---
   const handleApproveBeer = (beerId) => {
     setLeagues(prev => prev.map(l => {
       if (l.id !== activeLeagueId) return l;
@@ -581,25 +734,19 @@ export default function App() {
         feed: l.feed.map(item => {
           if (item.id !== beerId) return item;
           if (item.approvals.includes(currentUser.id)) return item;
-          return {
-            ...item,
-            approvals: [...item.approvals, currentUser.id]
-          };
+          return { ...item, approvals: [...item.approvals, currentUser.id] };
         })
       };
     }));
-    showToast('✅ Hai confermato la regolarità della bevuta! Tutto buono per Lissone.', 'success');
+    showToast('✅ Bevuta confermata!', 'success');
   };
 
-  // --- SALA VAR: CHIAMA VAR (CON 2 VOTI SCATTA IL MALUS) ---
   const handleConfirmVarCall = () => {
     if (!varModalBeer || !activeLeagueId) return;
-
     const chosenOption = VAR_PENALTY_OPTIONS.find(o => o.id === selectedPenaltyId) || VAR_PENALTY_OPTIONS[1];
 
     setLeagues(prev => prev.map(l => {
       if (l.id !== activeLeagueId) return l;
-
       let penaltyTriggered = false;
 
       const updatedFeed = l.feed.map(item => {
@@ -633,8 +780,6 @@ export default function App() {
       if (penaltyTriggered) {
         updatedMembers = l.members.map(m => {
           if (m.id === varModalBeer.playerId) {
-            // Se è Simulazione (-5) o Cartellino Rosso (-10), toglie anche i punti della birra falsa + il malus!
-            // Se è Cartellino Giallo (-2), la birra resta ma prende -2pt di penalità.
             const pointsToSubtract = chosenOption.revokeBeer
               ? (varModalBeer.points + chosenOption.penaltyPts)
               : chosenOption.penaltyPts;
@@ -656,10 +801,9 @@ export default function App() {
     }));
 
     setVarModalBeer(null);
-    showToast('🖥️ Segnalazione inviata in Sala VAR a Lissone!', 'warning');
+    showToast('🖥️ Voto registrato in Sala VAR!', 'warning');
   };
 
-  // Cambio Calice Avatar
   const handleSelectGlass = (glassId) => {
     const updatedUser = { ...currentUser, glassType: glassId };
     setCurrentUser(updatedUser);
@@ -677,10 +821,8 @@ export default function App() {
       }));
     }
     setShowGlassPicker(false);
-    showToast('Calice ufficiale aggiornato!', 'success');
+    showToast('Calice aggiornato!', 'success');
   };
-
-  const activeLeague = leagues.find(l => l.id === activeLeagueId);
 
   const sortedMembers = useMemo(() => {
     if (!activeLeague) return [];
@@ -690,22 +832,22 @@ export default function App() {
   const leaderPoints = sortedMembers[0]?.points || 0;
 
   // =========================================================================
-  // VISTA 1: LOGIN E REGISTRAZIONE CON MEMORIA CREDENZIALI
+  // VISTA 1: LOGIN E REGISTRAZIONE
   // =========================================================================
   if (!currentUser) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-4">
         {toastMessage && (
-          <div className="fixed top-4 z-50 max-w-sm w-11/12 px-4 py-3 rounded-2xl bg-amber-950 border border-amber-400 text-amber-100 text-xs font-bold flex items-center gap-2 shadow-2xl">
+          <div className="fixed top-4 z-[100] max-w-sm w-11/12 px-4 py-3 rounded-2xl bg-amber-950 border border-amber-400 text-amber-100 text-xs font-bold flex items-center gap-2 shadow-2xl">
             <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
             <span>{toastMessage.text}</span>
           </div>
         )}
 
         <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-5">
-          <div className="text-center space-y-2">
-            <SempreNoiToastLogo className="w-16 h-16 mx-auto drop-shadow-lg" />
-            <h1 className="text-2xl font-black uppercase tracking-wider text-amber-400">
+          <div className="flex flex-col items-center text-center space-y-2">
+            <SempreNoiLogo size="lg" />
+            <h1 className="text-2xl font-black uppercase tracking-wider text-amber-400 pt-1">
               Sempre Noi
             </h1>
             <p className="text-xs text-slate-400">
@@ -713,7 +855,6 @@ export default function App() {
             </p>
           </div>
 
-          {/* Selettore Tab Accedi / Registrati */}
           <div className="grid grid-cols-2 bg-slate-950 p-1 rounded-2xl border border-slate-800">
             <button
               type="button"
@@ -792,7 +933,7 @@ export default function App() {
   }
 
   // =========================================================================
-  // VISTA 2: HOME DASHBOARD LEGHE (LE TUE LEGHE / CREA / UNISCITI)
+  // VISTA 2: HOME DASHBOARD LEGHE
   // =========================================================================
   if (!activeLeagueId) {
     const userLeagues = leagues.filter(l => l.members.some(m => m.id === currentUser.id));
@@ -800,19 +941,18 @@ export default function App() {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center p-4 pb-12">
         {toastMessage && (
-          <div className="fixed top-4 z-50 max-w-sm w-11/12 px-4 py-3 rounded-2xl bg-emerald-950 border border-emerald-400 text-emerald-100 text-xs font-bold flex items-center gap-2 shadow-2xl">
+          <div className="fixed top-4 z-[100] max-w-sm w-11/12 px-4 py-3 rounded-2xl bg-emerald-950 border border-emerald-400 text-emerald-100 text-xs font-bold flex items-center gap-2 shadow-2xl">
             <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
             <span>{toastMessage.text}</span>
           </div>
         )}
 
         <div className="w-full max-w-md space-y-6">
-          {/* Header Utente */}
           <div className="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg">
             <div className="flex items-center gap-3">
-              <SempreNoiToastLogo className="w-11 h-11" />
+              <SempreNoiLogo size="md" />
               <div>
-                <span className="text-[11px] text-amber-400 font-bold uppercase block">Dashboard Pilota</span>
+                <span className="text-[11px] text-amber-400 font-bold uppercase block">Pilota Ufficiale</span>
                 <span className="text-base font-black text-white">{currentUser.username}</span>
               </div>
             </div>
@@ -824,7 +964,6 @@ export default function App() {
             </button>
           </div>
 
-          {/* Pulsanti Azione Principali: Crea o Unisciti */}
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => setShowCreateLeagueModal(true)}
@@ -843,7 +982,6 @@ export default function App() {
             </button>
           </div>
 
-          {/* Lista Leghe Esistenti dell'Utente */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-xs font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
@@ -856,10 +994,10 @@ export default function App() {
               <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-6 text-center space-y-3">
                 <Beer className="w-9 h-9 text-amber-400/60 mx-auto" />
                 <p className="text-xs text-slate-300 font-semibold">
-                  Non sei ancora iscritto a nessuna lega!
+                  Non sei ancora dentro nessuna lega!
                 </p>
                 <p className="text-[11px] text-slate-400">
-                  Clicca su <strong>"Crea una Lega"</strong> per fondare il campionato con i tuoi amici, oppure prova la lega demo inserendo il codice <strong className="text-amber-400">SN-2026</strong> in "Unisciti a una Lega".
+                  Clicca su <strong>"Crea una Lega"</strong> oppure su <strong>"Unisciti a una Lega"</strong> inserendo il codice mandato dal tuo amico (es. <strong className="text-amber-400">SN-2026</strong>).
                 </p>
               </div>
             ) : (
@@ -899,13 +1037,13 @@ export default function App() {
             <form onSubmit={handleCreateLeague} className="bg-slate-900 border border-amber-500/40 rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
               <h3 className="text-sm font-black uppercase text-amber-400">Fonda una Nuova Lega</h3>
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-400 mb-1">Nome Ufficiale della Lega</label>
+                <label className="block text-xs font-bold uppercase text-slate-400 mb-1">Nome della Lega</label>
                 <input
                   type="text"
                   required
                   value={newLeagueName}
                   onChange={(e) => setNewLeagueName(e.target.value)}
-                  placeholder="Es. GP del Luppolo"
+                  placeholder="Es. Sempre Noi GP"
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500"
                 />
               </div>
@@ -921,11 +1059,11 @@ export default function App() {
           </div>
         )}
 
-        {/* MODALE UNISCITI CON CODICE */}
+        {/* MODALE UNISCITI CON CODICE (SBLOCCATO PER QUALSIASI CODICE AMICO) */}
         {showJoinLeagueModal && (
           <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-            <form onSubmit={handleJoinLeague} className="bg-slate-900 border border-amber-500/40 rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
-              <h3 className="text-sm font-black uppercase text-amber-400">Unisciti a una Lega</h3>
+            <form onSubmit={handleJoinLeagueSubmit} className="bg-slate-900 border border-amber-500/40 rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
+              <h3 className="text-sm font-black uppercase text-amber-400">Entra nella Lega degli Amici</h3>
               <div>
                 <label className="block text-xs font-bold uppercase text-slate-400 mb-1">Codice Lega (Es. SN-2026)</label>
                 <input
@@ -933,15 +1071,27 @@ export default function App() {
                   required
                   value={joinLeagueCode}
                   onChange={(e) => setJoinLeagueCode(e.target.value)}
-                  placeholder="SN-2026"
+                  placeholder="Inserisci il codice (es. SN-4821)"
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-white uppercase font-mono focus:outline-none focus:border-amber-500"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold uppercase text-slate-400 mb-1">
+                  Nome della Lega (Opzionale)
+                </label>
+                <input
+                  type="text"
+                  value={joinLeagueCustomName}
+                  onChange={(e) => setJoinLeagueCustomName(e.target.value)}
+                  placeholder="Es. Fantabirra del Sabato"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
                 />
               </div>
               <div className="grid grid-cols-2 gap-2 pt-2">
                 <button type="button" onClick={() => setShowJoinLeagueModal(false)} className="py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold">
                   Annulla
                 </button>
-                <button type="submit" className="py-2.5 rounded-xl bg-amber-500 text-slate-950 text-xs font-black uppercase">
+                <button type="submit" className="py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black uppercase shadow-lg">
                   Entra in Lega
                 </button>
               </div>
@@ -953,12 +1103,12 @@ export default function App() {
   }
 
   // =========================================================================
-  // VISTA 3: DENTRO LA LEGA (CLASSIFICA F1, STAPPA CON FOTOCAMERA, SALA VAR)
+  // VISTA 3: DENTRO LA LEGA
   // =========================================================================
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center pb-24 font-sans select-none">
       {toastMessage && (
-        <div className={`fixed top-4 z-50 max-w-sm w-11/12 px-4 py-3 rounded-2xl shadow-2xl border flex items-center gap-3 ${
+        <div className={`fixed top-4 z-[100] max-w-sm w-11/12 px-4 py-3 rounded-2xl shadow-2xl border flex items-center gap-3 ${
           toastMessage.type === 'danger' ? 'bg-red-950/95 border-red-500 text-red-100' :
           toastMessage.type === 'warning' ? 'bg-amber-950/95 border-amber-400 text-amber-100' :
           'bg-emerald-950/95 border-emerald-400 text-emerald-100'
@@ -970,20 +1120,21 @@ export default function App() {
 
       <div className="w-full max-w-md min-h-screen bg-slate-900/70 border-x border-slate-800 flex flex-col justify-between shadow-2xl">
         
-        {/* HEADER LEGA + INVITO CODICE E LINK */}
+        {/* HEADER LEGA CON LOGO NON STORPIATO */}
         <header className="sticky top-0 z-30 bg-slate-950/95 backdrop-blur-md border-b border-amber-500/25 px-3.5 py-3 space-y-2.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <button
                 onClick={() => setActiveLeagueId(null)}
                 className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-amber-400"
-                title="Torna alla Dashboard Leghe"
+                title="Torna alle Leghe"
               >
                 <ArrowLeft className="w-4 h-4" />
               </button>
+              <SempreNoiLogo size="sm" />
               <div>
-                <h1 className="text-base font-black text-white leading-none">{activeLeague.name}</h1>
-                <span className="text-[10px] text-slate-400">Campionato Formula 1 • Tutti contro Tutti</span>
+                <h1 className="text-sm font-black text-white leading-tight">{activeLeague.name}</h1>
+                <span className="text-[10px] text-amber-400 font-bold block">Classifica F1 • Tutti contro Tutti</span>
               </div>
             </div>
 
@@ -996,22 +1147,22 @@ export default function App() {
             </button>
           </div>
 
-          {/* Barra Invito Amici: Codice + Link Diretto */}
+          {/* Barra Invito Rapido: Codice + Link Diretto */}
           <div className="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5">
             <div className="text-[11px]">
-              <span className="text-slate-400">Codice Lega: </span>
+              <span className="text-slate-400">Codice Invito: </span>
               <span className="font-mono font-black text-amber-400">{activeLeague.id}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <button
-                onClick={() => handleCopyInvite(activeLeague.id, 'code')}
+                onClick={() => handleCopyInvite(activeLeague, 'code')}
                 className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[10px] font-bold text-slate-200 flex items-center gap-1"
               >
                 <Copy className="w-3 h-3 text-amber-400" />
                 {copiedType === 'code' ? 'Copiato!' : 'Codice'}
               </button>
               <button
-                onClick={() => handleCopyInvite(activeLeague.id, 'link')}
+                onClick={() => handleCopyInvite(activeLeague, 'link')}
                 className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-[10px] font-black text-amber-300 flex items-center gap-1"
               >
                 <Share2 className="w-3 h-3" />
@@ -1049,7 +1200,6 @@ export default function App() {
           {/* TAB 1: CLASSIFICA FORMULA 1 */}
           {activeTab === 'classifica' && (
             <div className="space-y-4">
-              {/* PODIO F1 */}
               <div className="bg-gradient-to-br from-slate-800 to-slate-950 rounded-2xl p-3.5 border border-amber-500/30 shadow-xl">
                 <span className="text-[10px] font-black uppercase text-amber-400 flex items-center gap-1 mb-2">
                   <Flag className="w-3.5 h-3.5" /> Podio Gran Premio
@@ -1083,7 +1233,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* TABELLA PILOTI */}
               <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-lg">
                 <div className="px-3.5 py-2.5 bg-slate-800/70 border-b border-slate-800 flex justify-between text-[10px] font-black text-slate-400 uppercase">
                   <span>Pos / Pilota</span>
@@ -1107,13 +1256,18 @@ export default function App() {
                               <span className={`text-xs font-bold ${isMe ? 'text-amber-300' : 'text-white'}`}>
                                 {member.name}
                               </span>
+                              {member.captainActive && (
+                                <span className="px-1.5 py-0.2 bg-purple-500/20 border border-purple-400 text-purple-300 rounded text-[9px] font-black">
+                                  👑 CAP ({member.captainBeers || 0}/4)
+                                </span>
+                              )}
                               {member.yellowCards > 0 && (
-                                <span title="Cartellini Gialli" className="px-1 bg-yellow-400 text-slate-950 rounded-sm text-[9px] font-black">
+                                <span className="px-1 bg-yellow-400 text-slate-950 rounded-sm text-[9px] font-black">
                                   {member.yellowCards}
                                 </span>
                               )}
                               {member.redCards > 0 && (
-                                <span title="Cartellini Rossi" className="px-1 bg-red-600 text-white rounded-sm text-[9px] font-black">
+                                <span className="px-1 bg-red-600 text-white rounded-sm text-[9px] font-black">
                                   {member.redCards}
                                 </span>
                               )}
@@ -1135,14 +1289,18 @@ export default function App() {
             </div>
           )}
 
-          {/* TAB 2: STAPPA! (NUOVI PUNTEGGI + SOLO FOTOCAMERA ISTANTANEA) */}
+          {/* TAB 2: STAPPA! (CON GOCCIA D'ORO E IL CAPITANO DELLA SERATA) */}
           {activeTab === 'stappa' && (
             <form onSubmit={handleAddBeer} className="space-y-4">
+              {/* RIEPILOGO FORMULA PUNTI LIVE */}
               <div className="bg-gradient-to-r from-amber-500/20 to-slate-900 border border-amber-500/40 rounded-2xl p-3.5 flex items-center justify-between">
                 <div>
                   <span className="text-[10px] font-black uppercase text-amber-400 block">Calcolo Telemetria Bevuta</span>
-                  <h2 className="text-xs font-bold text-white mt-0.5">
-                    (({calculatedDrink.base}pt × {calculatedDrink.mult}) + {calculatedDrink.qualityBonus}pt) {bonusSempreNoi ? '× 1.3' : ''}
+                  <h2 className="text-[11px] font-bold text-white mt-0.5">
+                    (({calculatedDrink.base}pt × {calculatedDrink.mult}) + {calculatedDrink.qualityBonus}pt)
+                    {bonusSempreNoi ? ' × 1.3' : ''}
+                    {bonusGocciaDOro ? ' + 3pt' : ''}
+                    {calculatedDrink.isCaptainActive ? ' × 2 (CAP)' : ''}
                   </h2>
                 </div>
                 <div className="bg-slate-950 px-3 py-1.5 rounded-xl border border-amber-400/40 text-right">
@@ -1151,6 +1309,73 @@ export default function App() {
                 </div>
               </div>
 
+              {/* PANNELLO UFFICIALE: IL "CAPITANO" DELLA SERATA (x2 Punti / Minimo 4 Birre / -10pt Malus) */}
+              <div className={`p-3.5 rounded-2xl border transition space-y-2.5 ${
+                myMemberProfile?.captainActive 
+                  ? 'bg-purple-950/60 border-purple-400 text-white shadow-lg shadow-purple-500/10' 
+                  : 'bg-slate-900 border-slate-800 text-slate-300'
+              }`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Crown className={`w-5 h-5 shrink-0 ${myMemberProfile?.captainActive ? 'text-amber-400' : 'text-purple-400'}`} />
+                    <div>
+                      <span className="text-xs font-black uppercase text-white block">
+                        Il "Capitano" della Serata (x2 Punti)
+                      </span>
+                      <span className="text-[10px] text-slate-400 block">
+                        Attivabile 1 volta a settimana entro le 20:00 di Ven/Sab. Raddoppia i punti, ma se non raggiungi <strong>4 birre</strong> scatta il malus <strong>"Tradimento delle aspettative" (-10 pt)</strong>!
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {myMemberProfile?.captainActive ? (
+                  <div className="space-y-2 pt-1 border-t border-purple-500/30">
+                    <div className="flex items-center justify-between text-xs font-bold">
+                      <span className="text-purple-200">Progresso Serata Capitano:</span>
+                      <span className={`font-black ${
+                        (myMemberProfile.captainBeers || 0) >= 4 ? 'text-emerald-400' : 'text-amber-400'
+                      }`}>
+                        {myMemberProfile.captainBeers || 0} / 4 Birre
+                      </span>
+                    </div>
+                    <div className="w-full h-2 bg-slate-950 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full transition-all ${
+                          (myMemberProfile.captainBeers || 0) >= 4 ? 'bg-emerald-400' : 'bg-amber-400'
+                        }`}
+                        style={{ width: `${Math.min(100, ((myMemberProfile.captainBeers || 0) / 4) * 100)}%` }}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleEndCaptainEvening}
+                      className="w-full py-2 rounded-xl bg-slate-950 hover:bg-slate-900 border border-purple-400/50 text-[11px] font-black uppercase text-purple-200"
+                    >
+                      {(myMemberProfile.captainBeers || 0) >= 4 
+                        ? '✅ Chiudi Serata Capitano (Obiettivo 4/4 Raggiunto!)' 
+                        : `⚠️ Chiudi Serata Capitano (Attenzione: < 4 birre = -10 pt)`}
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleActivateCaptain}
+                    disabled={myMemberProfile?.captainUsedThisWeek}
+                    className={`w-full py-2.5 rounded-xl text-xs font-black uppercase transition ${
+                      myMemberProfile?.captainUsedThisWeek
+                        ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                        : 'bg-purple-600 hover:bg-purple-500 text-white shadow-md'
+                    }`}
+                  >
+                    {myMemberProfile?.captainUsedThisWeek 
+                      ? 'Bonus Capitano già usato questa settimana' 
+                      : `👑 Dichiara "Capitano della Serata" (x2 Punti)`}
+                  </button>
+                )}
+              </div>
+
+              {/* Nome Birra */}
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3">
                 <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Nome o Stile della Birra</label>
                 <input
@@ -1162,7 +1387,7 @@ export default function App() {
                 />
               </div>
 
-              {/* 1. Formato (1 litro = +8pt) */}
+              {/* 1. Formato */}
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2">
                 <label className="block text-[10px] font-bold uppercase text-slate-400">1. Formato</label>
                 <div className="grid grid-cols-3 gap-1.5">
@@ -1184,7 +1409,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* 2. Grado Alcolico (fino a 5,6° | 5,6° - 7,5° | > 7,5°) */}
+              {/* 2. Grado Alcolico */}
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2">
                 <label className="block text-[10px] font-bold uppercase text-slate-400">2. Grado Alcolico</label>
                 <div className="grid grid-cols-3 gap-1.5">
@@ -1207,7 +1432,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* 3. Qualità della Birra (Industriale +0 | Artigianale +2 | Alla spina +3) */}
+              {/* 3. Qualità della Birra */}
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2">
                 <label className="block text-[10px] font-bold uppercase text-slate-400">3. Qualità della Birra</label>
                 <div className="grid grid-cols-3 gap-1.5">
@@ -1229,7 +1454,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Bonus "Sempre noi" x1.3 */}
+              {/* BONUS 1: "Sempre noi" (x1.3) */}
               <div 
                 onClick={() => setBonusSempreNoi(!bonusSempreNoi)}
                 className={`p-3.5 rounded-2xl border flex items-center justify-between cursor-pointer transition ${
@@ -1246,11 +1471,28 @@ export default function App() {
                 <span className="text-sm font-black text-emerald-400">x1,3</span>
               </div>
 
+              {/* BONUS 2: Trofeo "Goccia d'Oro" (+3 pt prima delle 12:30) */}
+              <div 
+                onClick={() => setBonusGocciaDOro(!bonusGocciaDOro)}
+                className={`p-3.5 rounded-2xl border flex items-center justify-between cursor-pointer transition ${
+                  bonusGocciaDOro ? 'bg-amber-950/60 border-amber-400 text-white' : 'bg-slate-900 border-slate-800 text-slate-400'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Sun className={`w-5 h-5 ${bonusGocciaDOro ? 'text-amber-400' : 'text-slate-500'}`} />
+                  <div>
+                    <span className="text-xs font-bold block">Trofeo "Goccia d'Oro"</span>
+                    <span className="text-[10px] text-slate-400">Prima birra della giornata bevuta prima delle 12:30</span>
+                  </div>
+                </div>
+                <span className="text-sm font-black text-amber-400">+3 pt</span>
+              </div>
+
               {/* FOTOCAMERA ISTANTANEA OBBLIGATORIA */}
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2.5">
                 <div className="flex items-center justify-between">
                   <label className="text-[10px] font-bold uppercase text-amber-400 flex items-center gap-1">
-                    <Camera className="w-3.5 h-3.5" /> Fotocamera Live Anti-Frode (No Galleria)
+                    <Camera className="w-3.5 h-3.5" /> Fotocamera Istantanea (No Galleria)
                   </label>
                   <span className="text-[9px] text-slate-400 uppercase font-bold">Obbligatoria</span>
                 </div>
@@ -1261,18 +1503,10 @@ export default function App() {
                       <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
                     </div>
                     <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={stopCameraStream}
-                        className="py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold"
-                      >
+                      <button type="button" onClick={stopCameraStream} className="py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold">
                         Annulla
                       </button>
-                      <button
-                        type="button"
-                        onClick={captureInstantPhoto}
-                        className="py-2.5 rounded-xl bg-amber-500 text-slate-950 text-xs font-black uppercase flex items-center justify-center gap-1.5"
-                      >
+                      <button type="button" onClick={captureInstantPhoto} className="py-2.5 rounded-xl bg-amber-500 text-slate-950 text-xs font-black uppercase flex items-center justify-center gap-1.5">
                         <Camera className="w-4 h-4" /> Scatta Ora!
                       </button>
                     </div>
@@ -1300,7 +1534,6 @@ export default function App() {
                   </button>
                 )}
 
-                {/* Input nativo con capture="environment" come fallback per smartphone */}
                 <input
                   ref={fallbackCameraInputRef}
                   type="file"
@@ -1320,20 +1553,20 @@ export default function App() {
             </form>
           )}
 
-          {/* TAB 3: SALA VAR DI LISSONE */}
+          {/* TAB 3: SALA VAR */}
           {activeTab === 'var' && (
             <div className="space-y-4">
               <div className="bg-gradient-to-r from-red-950/70 to-slate-900 border border-red-500/40 rounded-2xl p-3.5 space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-black uppercase text-red-400 flex items-center gap-1.5">
-                    <ShieldAlert className="w-4 h-4" /> Sala VAR Centrale di Lissone
+                    <ShieldAlert className="w-4 h-4" /> Sala VAR Centrale
                   </span>
                   <span className="text-[9px] font-mono uppercase bg-red-500/20 text-red-300 px-2 py-0.5 rounded-full font-bold">
                     Live Monitor
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-300">
-                  Ispeziona le foto della lega: puoi <strong>Confermare la regolarità</strong> oppure aprire una <strong>On-Field Review</strong>. Con <strong>2 chiamate VAR</strong> scatta il malus ufficiale in classifica!
+                  Conferma le birre regolari oppure apri una contestazione: con <strong>2 chiamate VAR</strong> scatta il malus scelto!
                 </p>
               </div>
 
@@ -1354,28 +1587,22 @@ export default function App() {
                             <span className="text-[10px] text-slate-400">{item.timestamp} • {item.location}</span>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <span className={`text-xs font-black px-2 py-1 rounded-lg ${
-                            isPenalized ? 'bg-red-500/20 text-red-400 line-through' : 'bg-amber-500/20 text-amber-300'
-                          }`}>
-                            +{item.points} pt
-                          </span>
-                        </div>
+                        <span className={`text-xs font-black px-2 py-1 rounded-lg ${
+                          isPenalized ? 'bg-red-500/20 text-red-400 line-through' : 'bg-amber-500/20 text-amber-300'
+                        }`}>
+                          +{item.points} pt
+                        </span>
                       </div>
 
                       <div className="relative h-52 w-full bg-slate-950">
                         <img src={item.photoUrl} alt={item.beerName} className="w-full h-full object-cover" />
-                        
-                        {/* Overlay Decisione Ufficiale VAR dopo 2 voti */}
                         {isPenalized && (
                           <div className="absolute inset-0 bg-red-950/90 backdrop-blur-[2px] flex flex-col items-center justify-center p-4 text-center">
                             <XCircle className="w-11 h-11 text-red-400 mb-1.5" />
-                            <span className="text-xs font-black text-white uppercase bg-red-600 px-3 py-1 rounded-full tracking-wider">
-                              Sentenza Ufficiale VAR (2/2 Voti)
+                            <span className="text-xs font-black text-white uppercase bg-red-600 px-3 py-1 rounded-full">
+                              Sanzione Ufficiale VAR (2/2 Voti)
                             </span>
-                            <p className="text-xs font-bold text-red-200 mt-2">
-                              {lastVarReason}
-                            </p>
+                            <p className="text-xs font-bold text-red-200 mt-2">{lastVarReason}</p>
                           </div>
                         )}
                       </div>
@@ -1387,23 +1614,30 @@ export default function App() {
                             <p className="text-[10px] text-slate-400">
                               {item.formatLabel} • {item.abvLabel} • {item.styleLabel}
                             </p>
+                            {item.bonuses?.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {item.bonuses.map((b, i) => (
+                                  <span key={i} className="text-[9px] font-bold bg-amber-500/20 text-amber-300 px-1.5 py-0.2 rounded">
+                                    {b}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
-                          <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
-                            <CheckCircle2 className="w-3.5 h-3.5" /> {item.approvals?.length || 0} Conferme
+                          <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1 shrink-0">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> {item.approvals?.length || 0} OK
                           </span>
                         </div>
 
-                        {/* Avviso se c'è 1 chiamata VAR in attesa del 2° giudice */}
                         {item.varVotes?.length === 1 && !isPenalized && (
                           <div className="bg-amber-500/15 border border-amber-500/40 rounded-xl p-2.5 text-[11px] text-amber-200 flex items-center gap-2">
                             <Eye className="w-4 h-4 text-amber-400 shrink-0" />
                             <span>
-                              <strong>Check VAR aperto da {item.varVotes[0].voterName}:</strong> "{item.varVotes[0].reasonLabel}". Serve 1 altro voto per applicare il malus!
+                              <strong>1° Voto VAR ({item.varVotes[0].voterName}):</strong> "{item.varVotes[0].reasonLabel}". Serve il 2° voto per far scattare il malus!
                             </span>
                           </div>
                         )}
 
-                        {/* Pulsanti Azione Sala VAR: Conferma Birra + Chiama VAR */}
                         {!isPenalized && (
                           <div className="grid grid-cols-2 gap-2 pt-1">
                             <button
@@ -1417,7 +1651,7 @@ export default function App() {
                               }`}
                             >
                               <Check className="w-4 h-4" />
-                              {hasApproved ? 'Birra Confermata' : 'Conferma Birra'}
+                              {hasApproved ? 'Confermata' : 'Conferma Birra'}
                             </button>
 
                             <button
@@ -1431,7 +1665,7 @@ export default function App() {
                               }`}
                             >
                               <ShieldAlert className="w-4 h-4" />
-                              {hasVotedVar ? `VAR Chiamato (${item.varVotes.length}/2)` : `Chiama VAR (${item.varVotes.length}/2)`}
+                              {hasVotedVar ? `VAR (${item.varVotes.length}/2)` : `Chiama VAR (${item.varVotes.length}/2)`}
                             </button>
                           </div>
                         )}
@@ -1443,32 +1677,30 @@ export default function App() {
             </div>
           )}
 
-          {/* TAB 4: REGOLAMENTO AGGIORNATO */}
+          {/* TAB 4: REGOLE */}
           {activeTab === 'regole' && (
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3 text-xs text-slate-300">
               <h3 className="text-xs font-black uppercase text-amber-400">Regolamento Ufficiale "Sempre Noi"</h3>
               <div className="space-y-2">
                 <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
-                  <span className="text-[10px] font-black uppercase text-amber-400">1. Formati Base</span>
-                  <div className="flex justify-between"><span>Piccola (33cl)</span><strong className="text-white">+3 pt</strong></div>
-                  <div className="flex justify-between"><span>Media (50cl)</span><strong className="text-white">+5 pt</strong></div>
-                  <div className="flex justify-between"><span>1 litro</span><strong className="text-amber-400">+8 pt</strong></div>
+                  <span className="text-[10px] font-black uppercase text-amber-400">1. Formati, Gradi e Qualità</span>
+                  <div className="flex justify-between"><span>Piccola 33cl / Media 50cl / 1 litro</span><strong className="text-white">+3 / +5 / +8 pt</strong></div>
+                  <div className="flex justify-between"><span>Leggera (≤5,6°) / Media / Forte (&gt;7,5°)</span><strong className="text-white">x1.0 / x1.3 / x1.7</strong></div>
+                  <div className="flex justify-between"><span>Industriale / Artigianale / Alla spina</span><strong className="text-amber-400">+0 / +2 / +3 pt</strong></div>
                 </div>
 
-                <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
-                  <span className="text-[10px] font-black uppercase text-amber-400">2. Grado Alcolico & Qualità</span>
-                  <div className="flex justify-between"><span>Leggera (fino a 5,6°)</span><strong className="text-white">x1.0</strong></div>
-                  <div className="flex justify-between"><span>Media (da 5,6° a 7,5°)</span><strong className="text-white">x1.3</strong></div>
-                  <div className="flex justify-between"><span>Forte (oltre 7,5°)</span><strong className="text-white">x1.7</strong></div>
-                  <div className="flex justify-between pt-1 border-t border-slate-800"><span>Qualità Alla spina</span><strong className="text-amber-400">+3 pt</strong></div>
-                  <div className="flex justify-between"><span>Qualità Artigianale</span><strong className="text-amber-400">+2 pt</strong></div>
-                  <div className="flex justify-between"><span>Bonus "Sempre noi"</span><strong className="text-emerald-400">x1.3</strong></div>
+                <div className="p-2.5 rounded-xl bg-slate-950 border border-amber-500/30 space-y-1">
+                  <span className="text-[10px] font-black uppercase text-amber-400">2. Bonus Speciali</span>
+                  <div className="flex justify-between"><span>🍻 Bonus "Sempre noi" (in gruppo)</span><strong className="text-emerald-400">x1.3</strong></div>
+                  <div className="flex justify-between"><span>☀️ Trofeo "Goccia d'Oro" (prima delle 12:30)</span><strong className="text-amber-400">+3 pt</strong></div>
+                  <div className="flex justify-between"><span>👑 Il "Capitano" della Serata (1/sett. entro 20:00 Ven/Sab)</span><strong className="text-purple-400">x2 Punti</strong></div>
+                  <div className="flex justify-between"><span>⚠️ Malus "Tradimento aspettative" (&lt; 4 birre da Capitano)</span><strong className="text-red-400">-10 pt</strong></div>
                 </div>
 
                 <div className="p-2.5 rounded-xl bg-slate-950 border border-red-500/30 space-y-1">
-                  <span className="text-[10px] font-black uppercase text-red-400">3. Codice Disciplinare Sala VAR (2 Voti)</span>
+                  <span className="text-[10px] font-black uppercase text-red-400">3. Sanzioni Sala VAR (2 Voti)</span>
                   <div className="flex justify-between"><span>🟨 Cartellino giallo: birra avanzata</span><strong className="text-yellow-400">-2 pt</strong></div>
-                  <div className="flex justify-between"><span>🚨 Simulazione: foto riciclata/vuota</span><strong className="text-red-400">-5 pt + Annullo</strong></div>
+                  <div className="flex justify-between"><span>🚨 Simulazione in area: foto riciclata/vuota</span><strong className="text-red-400">-5 pt + Annullo</strong></div>
                   <div className="flex justify-between"><span>🟥 Cartellino rosso: analcolica/radler</span><strong className="text-red-500">-10 pt + Annullo</strong></div>
                 </div>
               </div>
@@ -1477,22 +1709,18 @@ export default function App() {
 
         </main>
 
-        {/* MODALE DI CHIAMATA AL VAR CON LE 3 SANZIONI */}
+        {/* MODALE DI CHIAMATA AL VAR */}
         {varModalBeer && (
           <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="bg-slate-900 border border-red-500/50 rounded-2xl max-w-sm w-full p-4 space-y-3.5 shadow-2xl">
               <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
                 <h3 className="text-xs font-black uppercase text-red-400 flex items-center gap-1.5">
-                  <ShieldAlert className="w-4 h-4" /> On-Field Review: {varModalBeer.playerName}
+                  <ShieldAlert className="w-4 h-4" /> Chiamata VAR: {varModalBeer.playerName}
                 </h3>
                 <span className="text-[10px] font-mono bg-red-500/20 text-red-300 px-2 py-0.5 rounded">
                   Voto {varModalBeer.varVotes.length + 1} di 2
                 </span>
               </div>
-
-              <p className="text-[11px] text-slate-300">
-                Seleziona l'infrazione rilevata al monitor. Al 2° voto concorde la penalità verrà applicata in Classifica F1:
-              </p>
 
               <div className="space-y-2">
                 {VAR_PENALTY_OPTIONS.map(opt => (
@@ -1513,19 +1741,11 @@ export default function App() {
               </div>
 
               <div className="grid grid-cols-2 gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setVarModalBeer(null)}
-                  className="py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold"
-                >
-                  Chiudi Monitor
+                <button type="button" onClick={() => setVarModalBeer(null)} className="py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold">
+                  Annulla
                 </button>
-                <button
-                  type="button"
-                  onClick={handleConfirmVarCall}
-                  className="py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-black uppercase shadow-lg shadow-red-600/30"
-                >
-                  Invia Voto VAR
+                <button type="button" onClick={handleConfirmVarCall} className="py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-black uppercase">
+                  Conferma VAR
                 </button>
               </div>
             </div>
