@@ -3,7 +3,7 @@ import {
   Trophy, PlusCircle, ShieldAlert, Users, Camera, 
   CheckCircle2, Sparkles, LogOut, Plus, UserPlus, Key, User, 
   Beer, Copy, Check, ChevronRight, ArrowLeft, BookOpen, Flag, 
-  XCircle, Share2, RefreshCw, Eye, Sun, Crown, Trash2, Clock, Lock
+  XCircle, Share2, RefreshCw, Eye, Sun, Crown, Trash2, Clock, Lock, Award
 } from 'lucide-react';
 
 // ============================================================================
@@ -50,7 +50,7 @@ function SempreNoiLogo({ size = "md" }) {
   );
 }
 
-// --- CATALOGO BICCHIERI AVATAR (8 STILI ICONICI CON COLORI E FORME REALI) ---
+// --- CATALOGO BICCHIERI AVATAR (8 STILI ICONICI + LATTINA AMMACCATA PENITENZA 24H) ---
 const BEER_GLASS_TYPES = [
   { id: 'weiss', name: 'Weiss / Weizen', shortName: 'Weiss', shortDesc: 'Vaso slanciato dorato' },
   { id: 'lager', name: 'Lager / Pils', shortName: 'Lager', shortDesc: 'Boccale classico da pub' },
@@ -62,7 +62,13 @@ const BEER_GLASS_TYPES = [
   { id: 'stout', name: 'Stout Irlandese', shortName: 'Stout', shortDesc: 'Pinta scura cremosa' }
 ];
 
-function BeerGlassAvatar({ type = 'weiss', size = 'md' }) {
+// Verifica se un giocatore ha la penitenza grafica "Lattina Ammaccata" attiva (24 ore)
+const isCrushedCanActive = (member) => {
+  return Boolean(member?.rumenoUntil && Number(member.rumenoUntil) > Date.now());
+};
+
+function BeerGlassAvatar({ type = 'weiss', size = 'md', crushed = false }) {
+  const effectiveType = crushed ? 'crushed_can' : type;
   const sizeClasses = {
     sm: 'w-8 h-8 p-1',
     md: 'w-11 h-11 p-1.5',
@@ -70,9 +76,26 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md' }) {
   }[size] || 'w-11 h-11 p-1.5';
 
   return (
-    <div className={`${sizeClasses} aspect-square rounded-2xl bg-slate-900 border border-slate-700 flex items-center justify-center shadow-inner shrink-0 relative`}>
-      {/* 1. WEISS: Vaso alto svasato giallo dorato */}
-      {type === 'weiss' && (
+    <div className={`${sizeClasses} aspect-square rounded-2xl ${effectiveType === 'crushed_can' ? 'bg-red-950/80 border-red-500/70' : 'bg-slate-900 border-slate-700'} border flex items-center justify-center shadow-inner shrink-0 relative`}>
+      {/* LATTINA AMMACCATA (PENITENZA PASSAPORTO RUMENO 24H) */}
+      {effectiveType === 'crushed_can' && (
+        <svg viewBox="0 0 48 48" className="w-full h-full">
+          {/* Corpo lattina piegato e ammaccato al centro */}
+          <path d="M14 10L34 10L35 17L28 24L35 31L33 40L15 40L13 31L20 23L13 17Z" fill="#15803d" stroke="#cbd5e1" strokeWidth="1.6" strokeLinejoin="round" />
+          {/* Coperchio e base in alluminio */}
+          <ellipse cx="24" cy="10" rx="10" ry="2.5" fill="#e2e8f0" stroke="#94a3b8" strokeWidth="1.2" />
+          <path d="M15 40C15 41.5 33 41.5 33 40" stroke="#e2e8f0" strokeWidth="2.2" strokeLinecap="round" />
+          {/* Linguetta storta */}
+          <circle cx="24" cy="10" r="2" fill="#475569" />
+          <path d="M24 10L27 7" stroke="#f8fafc" strokeWidth="1.6" strokeLinecap="round" />
+          {/* Pieghe dell'ammaccatura + simbolo % */}
+          <path d="M16 19L27 23M20 26L31 29" stroke="#facc15" strokeWidth="1.6" strokeLinecap="round" />
+          <text x="24" y="36" textAnchor="middle" fill="#fef08a" fontSize="6.5" fontWeight="900">9%</text>
+        </svg>
+      )}
+
+      {/* 1. WEISS */}
+      {effectiveType === 'weiss' && (
         <svg viewBox="0 0 48 48" className="w-full h-full">
           <path d="M16 13C14.5 21 17.5 30 18 41H30C30.5 30 33.5 21 32 13H16Z" fill="#eab308" />
           <path d="M14.5 13.5C14 9.5 17.5 7 20.5 8C22.5 6 26 6 28 8C31 7 34 9.5 33.5 13.5H14.5Z" fill="#ffffff" />
@@ -81,8 +104,8 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md' }) {
         </svg>
       )}
 
-      {/* 2. LAGER: Boccale da pub con manico, giallo brillante */}
-      {type === 'lager' && (
+      {/* 2. LAGER */}
+      {effectiveType === 'lager' && (
         <svg viewBox="0 0 48 48" className="w-full h-full">
           <path d="M33 19H38.5C40.5 19 41.5 20.5 41.5 26C41.5 31.5 40.5 33 38.5 33H33" stroke="#cbd5e1" strokeWidth="2.8" fill="none" />
           <rect x="12" y="15" width="21" height="26" rx="2.5" fill="#facc15" />
@@ -91,8 +114,8 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md' }) {
         </svg>
       )}
 
-      {/* 3. IPA: Calice Teku angolare ambrato CON BASE CORRETTA */}
-      {type === 'ipa' && (
+      {/* 3. IPA CON BASE */}
+      {effectiveType === 'ipa' && (
         <svg viewBox="0 0 48 48" className="w-full h-full">
           <path d="M15 13L11.5 23.5L24 30L36.5 23.5L33 13H15Z" fill="#ea580c" />
           <path d="M14.5 13.5C14.5 10.5 18 9.5 24 9.5C30 9.5 33.5 10.5 33.5 13.5H14.5Z" fill="#fff7ed" />
@@ -102,8 +125,8 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md' }) {
         </svg>
       )}
 
-      {/* 4. SESSION IPA: Pinta Nonic (con bombatura alta) giallo paglierino chiaro */}
-      {type === 'session_ipa' && (
+      {/* 4. SESSION IPA */}
+      {effectiveType === 'session_ipa' && (
         <svg viewBox="0 0 48 48" className="w-full h-full">
           <path d="M13.5 14L12 19.5L14 23.5L16.5 42H31.5L34 23.5L36 19.5L34.5 14H13.5Z" fill="#fde047" />
           <path d="M13 14.5C13 11 16 9.5 24 9.5C32 9.5 35 11 35 14.5H13Z" fill="#ffffff" />
@@ -111,8 +134,8 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md' }) {
         </svg>
       )}
 
-      {/* 5. DIPA (Double IPA): Calice Snifter/Tulipano panciuto arancio-ramato */}
-      {type === 'dipa' && (
+      {/* 5. DIPA */}
+      {effectiveType === 'dipa' && (
         <svg viewBox="0 0 48 48" className="w-full h-full">
           <path d="M14 13C15.5 17 11 22 13 27.5C15 31.5 19.5 33 24 33C28.5 33 33 31.5 35 27.5C37 22 32.5 17 34 13H14Z" fill="#c2410c" />
           <path d="M13.5 13.5C13.5 10.5 17.5 9.5 24 9.5C30.5 9.5 34.5 10.5 34.5 13.5H13.5Z" fill="#ffedd5" />
@@ -122,8 +145,8 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md' }) {
         </svg>
       )}
 
-      {/* 6. TRIPLE: Calice a coppa dorato ambrato */}
-      {type === 'triple' && (
+      {/* 6. TRIPLE */}
+      {effectiveType === 'triple' && (
         <svg viewBox="0 0 48 48" className="w-full h-full">
           <path d="M11 14C11 25 16.5 30 24 30C31.5 30 37 25 37 14H11Z" fill="#d97706" />
           <path d="M10.5 14.5C10.5 11.5 14 10 17.5 11C20 9.5 28 9.5 30.5 11C34 10 37.5 11.5 37.5 14.5H10.5Z" fill="#fffbeb" />
@@ -133,8 +156,8 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md' }) {
         </svg>
       )}
 
-      {/* 7. TRAPPISTA: Coppa trappista larga e bassa, colore bruno tonaca di frate con bordo dorato */}
-      {type === 'trappista' && (
+      {/* 7. TRAPPISTA */}
+      {effectiveType === 'trappista' && (
         <svg viewBox="0 0 48 48" className="w-full h-full">
           <path d="M8.5 15C9.5 26.5 15.5 31 24 31C32.5 31 38.5 26.5 39.5 15H8.5Z" fill="#7c2d12" />
           <path d="M8 15.5C8 12.5 13 11 24 11C35 11 40 12.5 40 15.5H8Z" fill="#fef3c7" />
@@ -144,8 +167,8 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md' }) {
         </svg>
       )}
 
-      {/* 8. STOUT: Pinta scura irlandese con schiuma crema */}
-      {type === 'stout' && (
+      {/* 8. STOUT */}
+      {effectiveType === 'stout' && (
         <svg viewBox="0 0 48 48" className="w-full h-full">
           <path d="M13 15L14.5 19L16.5 42H31.5L33.5 19L35 15H13Z" fill="#1c1917" />
           <path d="M13 15.5V11.5C13 10 15 9.5 24 9.5C33 9.5 35 10 35 11.5V15.5H13Z" fill="#f5deb3" />
@@ -156,7 +179,41 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md' }) {
   );
 }
 
-// --- OPZIONI UFFICIALI DELLA SALA VAR (SOLO MALUS PURO SENZA SOMMARE I PUNTI BIRRA) ---
+// --- DISEGNI PERSONALIZZATI PER LE 4 CATEGORIE DELL'ALBO D'ORO ---
+function AlboDrawing({ type }) {
+  if (type === 'goat') {
+    return (
+      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500/30 to-yellow-900/40 border-2 border-amber-400 flex flex-col items-center justify-center shadow-lg shrink-0 relative">
+        <span className="text-2xl leading-none">🐐</span>
+        <span className="text-[8px] font-black uppercase bg-amber-400 text-slate-950 px-1.5 rounded-full mt-0.5">GOAT</span>
+      </div>
+    );
+  }
+  if (type === 'lemans') {
+    return (
+      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-sky-500/30 to-blue-950/50 border-2 border-sky-400 flex flex-col items-center justify-center shadow-lg shrink-0 relative">
+        <span className="text-2xl leading-none">⏱️</span>
+        <span className="text-[8px] font-black uppercase bg-sky-400 text-slate-950 px-1.5 rounded-full mt-0.5">24H</span>
+      </div>
+    );
+  }
+  if (type === 'idrovora') {
+    return (
+      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500/30 to-teal-950/50 border-2 border-emerald-400 flex flex-col items-center justify-center shadow-lg shrink-0 relative">
+        <span className="text-2xl leading-none">⛽</span>
+        <span className="text-[8px] font-black uppercase bg-emerald-400 text-slate-950 px-1.5 rounded-full mt-0.5">MAX L</span>
+      </div>
+    );
+  }
+  return (
+    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-pink-500/25 to-purple-950/50 border-2 border-pink-400/80 flex flex-col items-center justify-center shadow-lg shrink-0 relative">
+      <span className="text-2xl leading-none">🍼</span>
+      <span className="text-[8px] font-black uppercase bg-pink-400 text-slate-950 px-1.5 rounded-full mt-0.5">GOYIM</span>
+    </div>
+  );
+}
+
+// --- OPZIONI UFFICIALI DELLA SALA VAR ---
 const VAR_PENALTY_OPTIONS = [
   {
     id: 'yellow',
@@ -222,11 +279,12 @@ const DEFAULT_LEAGUES = [
     name: 'Lega Storica Sempre Noi',
     adminId: 'usr_manolo',
     members: [
-      { id: 'u1', name: 'Manolo', glassType: 'trappista', points: 54.5, weekendPts: 21.0, beers: 7, yellowCards: 1, redCards: 0, captainActive: false, captainBeers: 0, captainWeekUsed: null },
-      { id: 'u2', name: 'Marco', glassType: 'ipa', points: 46.0, weekendPts: 17.5, beers: 6, yellowCards: 0, redCards: 0, captainActive: true, captainBeers: 2, captainWeekUsed: '2026-W46' },
-      { id: 'u3', name: 'Andrea', glassType: 'stout', points: 38.0, weekendPts: 12.0, beers: 5, yellowCards: 0, redCards: 0, captainActive: false, captainBeers: 0, captainWeekUsed: null },
-      { id: 'u4', name: 'Luca', glassType: 'lager', points: 21.5, weekendPts: 6.0, beers: 4, yellowCards: 1, redCards: 1, captainActive: false, captainBeers: 0, captainWeekUsed: null }
+      { id: 'u1', name: 'Manolo', glassType: 'trappista', points: 54.5, weekendPts: 21.0, beers: 7, liters: 3.8, yellowCards: 1, redCards: 0, captainActive: false, captainBeers: 0, captainWeekUsed: null, rumenoUntil: null },
+      { id: 'u2', name: 'Marco', glassType: 'ipa', points: 46.0, weekendPts: 17.5, beers: 6, liters: 3.0, yellowCards: 0, redCards: 0, captainActive: true, captainBeers: 2, captainWeekUsed: '2026-W46', rumenoUntil: null },
+      { id: 'u3', name: 'Andrea', glassType: 'stout', points: 38.0, weekendPts: 12.0, beers: 5, liters: 2.5, yellowCards: 0, redCards: 0, captainActive: false, captainBeers: 0, captainWeekUsed: null, rumenoUntil: null },
+      { id: 'u4', name: 'Luca', glassType: 'lager', points: 21.5, weekendPts: 6.0, beers: 4, liters: 1.6, yellowCards: 1, redCards: 1, captainActive: false, captainBeers: 0, captainWeekUsed: null, rumenoUntil: null }
     ],
+    history: [],
     feed: [
       {
         id: 'b101',
@@ -234,9 +292,12 @@ const DEFAULT_LEAGUES = [
         playerName: 'Manolo',
         glassType: 'trappista',
         beerName: 'Keller Non Filtrata',
+        formatId: 'spina50',
+        liters: 0.5,
         formatLabel: 'Media 50cl (+5pt)',
         abvLabel: 'Leggera fino a 5,6° (x1.0)',
         styleLabel: 'Alla spina (+3pt)',
+        isRumeno: false,
         points: 8.0,
         timestamp: '18 min fa',
         location: 'Scatto Live Verificato',
@@ -290,7 +351,7 @@ export default function App() {
   const [copiedType, setCopiedType] = useState(null);
 
   // --- 3. STATO NAVIGAZIONE, OROLOGIO LIVE E GIOCO ---
-  const [activeTab, setActiveTab] = useState('classifica');
+  const [activeTab, setActiveTab] = useState('classifica'); // 'classifica' | 'stappa' | 'var' | 'albo' | 'regole'
   const [toastMessage, setToastMessage] = useState(null);
   const [showGlassPicker, setShowGlassPicker] = useState(false);
   const [clockTick, setClockTick] = useState(Date.now());
@@ -360,6 +421,7 @@ export default function App() {
         .map(l => ({
           ...l,
           members: l.members || [],
+          history: l.history || [],
           feed: (l.feed || []).map(item => ({
             ...item,
             approvals: item.approvals || [],
@@ -491,11 +553,13 @@ export default function App() {
       points: 0,
       weekendPts: 0,
       beers: 0,
+      liters: 0,
       yellowCards: 0,
       redCards: 0,
       captainActive: false,
       captainBeers: 0,
-      captainWeekUsed: null
+      captainWeekUsed: null,
+      rumenoUntil: null
     };
 
     let targetLeague = null;
@@ -508,6 +572,7 @@ export default function App() {
             targetLeague = {
               ...cloudLeague,
               members: cloudLeague.members || [],
+              history: cloudLeague.history || [],
               feed: (cloudLeague.feed || []).map(item => ({
                 ...item,
                 approvals: item.approvals || [],
@@ -553,11 +618,13 @@ export default function App() {
             points: 0,
             weekendPts: 0,
             beers: 0,
+            liters: 0,
             yellowCards: 0,
             redCards: 0,
             captainActive: false,
             captainBeers: 0,
-            captainWeekUsed: null
+            captainWeekUsed: null,
+            rumenoUntil: null
           }]
         : [];
 
@@ -566,6 +633,7 @@ export default function App() {
         name: leagueTitle,
         adminId: currentUser.id,
         members: [...hostMember, newMemberObj],
+        history: [],
         feed: []
       };
 
@@ -654,13 +722,16 @@ export default function App() {
           points: 0,
           weekendPts: 0,
           beers: 0,
+          liters: 0,
           yellowCards: 0,
           redCards: 0,
           captainActive: false,
           captainBeers: 0,
-          captainWeekUsed: null
+          captainWeekUsed: null,
+          rumenoUntil: null
         }
       ],
+      history: [],
       feed: []
     };
 
@@ -679,8 +750,8 @@ export default function App() {
 
   const activeLeague = leagues.find(l => l.id === activeLeagueId);
   const myMemberProfile = activeLeague?.members.find(m => m.id === currentUser?.id);
+  const myCrushedCanActive = isCrushedCanActive(myMemberProfile);
 
-  // Oggetto del bicchiere attualmente selezionato dall'utente (per mostrare il nome della birra nell'header)
   const currentGlassObj = useMemo(() => {
     const userGlassId = currentUser?.glassType || 'weiss';
     return BEER_GLASS_TYPES.find(g => g.id === userGlassId) || BEER_GLASS_TYPES[0];
@@ -843,9 +914,9 @@ export default function App() {
   // --- CALCOLATORE PUNTI COMPLETO (CON PASSAPORTO RUMENO -5 PT) ---
   const calculatedDrink = useMemo(() => {
     const formatMap = {
-      piccola33: { pts: 3, label: '33cl (+3pt)' },
-      spina50: { pts: 5, label: 'Media 50cl (+5pt)' },
-      litro: { pts: 8, label: '1 litro (+8pt)' }
+      piccola33: { pts: 3, liters: 0.33, label: '33cl (+3pt)' },
+      spina50: { pts: 5, liters: 0.5, label: 'Media 50cl (+5pt)' },
+      litro: { pts: 8, liters: 1.0, label: '1 litro (+8pt)' }
     };
     const abvMap = {
       leggera: { mult: 1.0, label: 'Leggera fino a 5,6° (x1.0)' },
@@ -860,6 +931,7 @@ export default function App() {
     };
 
     const base = formatMap[format].pts;
+    const liters = formatMap[format].liters;
     const mult = abvMap[abvTier].mult;
     const qualityBonus = qualityMap[qualityTier].bonus;
     const isGocciaValidNow = gocciaStatus.isOpen && bonusGocciaDOro;
@@ -878,6 +950,7 @@ export default function App() {
     return {
       total: Number(subtotal.toFixed(1)),
       base,
+      liters,
       mult,
       qualityBonus,
       gocciaBonus,
@@ -888,7 +961,7 @@ export default function App() {
     };
   }, [format, abvTier, qualityTier, bonusSempreNoi, bonusGocciaDOro, gocciaStatus.isOpen, myMemberProfile]);
 
-  // --- INVIO NUOVA BIRRA (VA IN SALA VAR SENZA AGGIUNGERE PUNTI FINO ALLE 2 CONFERME) ---
+  // --- INVIO NUOVA BIRRA (SE È PASSAPORTO RUMENO ATTIVA SUBITO LA LATTINA AMMACCATA PER 24H) ---
   const handleAddBeer = (e) => {
     e.preventDefault();
     if (!capturedPhoto) {
@@ -896,8 +969,11 @@ export default function App() {
       return;
     }
 
+    const isRumenoSelected = qualityTier === 'rumeno';
+    const rumenoExpiry = isRumenoSelected ? Date.now() + 24 * 60 * 60 * 1000 : null;
+
     const activeBonuses = [];
-    if (qualityTier === 'rumeno') activeBonuses.push('Passaporto Rumeno (-5pt)');
+    if (isRumenoSelected) activeBonuses.push('Passaporto Rumeno (-5pt • Lattina 24h)');
     if (bonusSempreNoi) activeBonuses.push('Sempre noi (x1.3)');
     if (gocciaStatus.isOpen && bonusGocciaDOro) activeBonuses.push("Goccia d'Oro (+3pt)");
     if (calculatedDrink.isCaptainActive) activeBonuses.push('Capitano Serata (x2)');
@@ -907,12 +983,16 @@ export default function App() {
       playerId: currentUser.id,
       playerName: currentUser.username,
       glassType: currentUser.glassType || 'weiss',
-      beerName: beerTitle.trim() || (qualityTier === 'rumeno' ? 'Bomba Alcolica da Battaglia' : 'Birra Fresca di Serata'),
+      beerName: beerTitle.trim() || (isRumenoSelected ? 'Lattina da Battaglia (Ceres/Tennent\'s/Faxe)' : 'Birra Fresca di Serata'),
+      formatId: format,
+      liters: calculatedDrink.liters,
       formatLabel: calculatedDrink.formatLabel,
       abvLabel: calculatedDrink.abvLabel,
       styleLabel: calculatedDrink.styleLabel,
+      isRumeno: isRumenoSelected,
       points: calculatedDrink.total,
       timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
+      createdAtMs: Date.now(),
       location: bonusSempreNoi ? 'Tavolata "Sempre noi" (x1.3)' : 'Scatto Live Fotocamera',
       photoUrl: capturedPhoto,
       bonuses: activeBonuses,
@@ -925,7 +1005,13 @@ export default function App() {
       if (l.id === activeLeagueId) {
         const updated = {
           ...l,
-          feed: [newBeer, ...(l.feed || [])]
+          feed: [newBeer, ...(l.feed || [])],
+          members: l.members.map(m => {
+            if (m.id === currentUser.id && isRumenoSelected) {
+              return { ...m, rumenoUntil: rumenoExpiry };
+            }
+            return m;
+          })
         };
         pushLeagueToCloud(updated);
         return updated;
@@ -937,11 +1023,16 @@ export default function App() {
     setCapturedPhoto(null);
     setBonusSempreNoi(false);
     const signStr = calculatedDrink.total >= 0 ? `+${calculatedDrink.total}` : `${calculatedDrink.total}`;
-    showToast(`📸 Birra in Sala VAR! (0 pt assegnati per ora: servono 2 Conferme per ${signStr} pt)`, 'success');
+    showToast(
+      isRumenoSelected
+        ? `🥫 Passaporto Rumeno attivato! Per 24 ore avrai la Lattina Ammaccata! Birra inviata in Sala VAR (${signStr} pt)`
+        : `📸 Birra in Sala VAR! (0 pt assegnati per ora: servono 2 Conferme per ${signStr} pt)`,
+      isRumenoSelected ? 'warning' : 'success'
+    );
     setActiveTab('var');
   };
 
-  // --- SALA VAR: CONFERMA BIRRA (A 2 CONFERME ASSEGNA I PUNTI DELLA BIRRA E RIMUOVE LA FOTO) ---
+  // --- SALA VAR: CONFERMA BIRRA (A 2 CONFERME ASSEGNA PUNTI, SALVA NELL'ALBO D'ORO E RIMUOVE FOTO) ---
   const handleApproveBeer = (beerId) => {
     const targetBeer = (activeLeague?.feed || []).find(item => item.id === beerId);
     if (!targetBeer) return;
@@ -964,6 +1055,8 @@ export default function App() {
         ? (l.feed || []).filter(item => item.id !== beerId)
         : (l.feed || []).map(item => item.id === beerId ? { ...item, approvals: newApprovals } : item);
 
+      const drinkLiters = Number(targetBeer.liters || 0.5);
+
       const updatedMembers = reachedTwoConfirmations
         ? l.members.map(m => {
             if (m.id === targetBeer.playerId) {
@@ -972,14 +1065,31 @@ export default function App() {
                 points: Number((m.points + targetBeer.points).toFixed(1)),
                 weekendPts: Number((m.weekendPts + targetBeer.points).toFixed(1)),
                 beers: m.beers + 1,
-                captainBeers: m.captainActive ? (m.captainBeers || 0) + 1 : (m.captainBeers || 0)
+                liters: Number(((m.liters || m.beers * 0.5) + drinkLiters).toFixed(2)),
+                captainBeers: m.captainActive ? (m.captainBeers || 0) + 1 : (m.captainBeers || 0),
+                rumenoUntil: targetBeer.isRumeno ? (Date.now() + 24 * 60 * 60 * 1000) : (m.rumenoUntil || null)
               };
             }
             return m;
           })
         : l.members;
 
-      const updatedLeague = { ...l, feed: updatedFeed, members: updatedMembers };
+      // Salva il micro-scontrino senza foto per calcolare l'Albo d'Oro (MVP Mensile, 24h Le Mans, Idrovora)
+      const updatedHistory = reachedTwoConfirmations
+        ? [
+            {
+              id: targetBeer.id,
+              playerId: targetBeer.playerId,
+              playerName: targetBeer.playerName,
+              points: targetBeer.points,
+              liters: drinkLiters,
+              timestampMs: targetBeer.createdAtMs || Date.now()
+            },
+            ...(l.history || [])
+          ]
+        : (l.history || []);
+
+      const updatedLeague = { ...l, feed: updatedFeed, members: updatedMembers, history: updatedHistory };
       pushLeagueToCloud(updatedLeague);
       return updatedLeague;
     }));
@@ -1101,6 +1211,126 @@ export default function App() {
   }, [activeLeague]);
 
   const leaderPoints = sortedMembers[0]?.points || 0;
+
+  // --- CALCOLO LIVE DEI 4 TITOLI DELL'ALBO D'ORO ---
+  const alboRecords = useMemo(() => {
+    const members = activeLeague?.members || [];
+    const history = activeLeague?.history || [];
+    if (members.length === 0) return null;
+
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    // 1. MVP MENSILE (GOAT 🐐): Più punti/birre nel mese corrente
+    const monthlyStats = {};
+    history.forEach(h => {
+      const d = new Date(h.timestampMs || Date.now());
+      if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+        if (!monthlyStats[h.playerId]) monthlyStats[h.playerId] = { pts: 0, beers: 0 };
+        monthlyStats[h.playerId].pts += Number(h.points || 0);
+        monthlyStats[h.playerId].beers += 1;
+      }
+    });
+
+    let mvpMember = [...members].sort((a, b) => {
+      const aPts = monthlyStats[a.id]?.pts ?? a.points;
+      const bPts = monthlyStats[b.id]?.pts ?? b.points;
+      return bPts - aPts;
+    })[0];
+    const mvpValue = monthlyStats[mvpMember.id]
+      ? `${monthlyStats[mvpMember.id].pts.toFixed(1)} pt (${monthlyStats[mvpMember.id].beers} birre nel mese)`
+      : `${mvpMember.points} pt (${mvpMember.beers} birre nel mese)`;
+
+    // 2. 24 ORE DI LE MANS (⏱️): Massimo numero di birre bevute in una finestra di 24 ore
+    let leMansMember = [...members].sort((a, b) => (b.weekendPts || b.points) - (a.weekendPts || a.points))[0];
+    let leMansRecordBeers = Math.max(1, Math.min(leMansMember.beers || 0, Math.ceil((leMansMember.beers || 1) / 2)));
+
+    if (history.length > 0) {
+      let bestCount = 0;
+      let bestPlayerId = null;
+      members.forEach(m => {
+        const playerDrinks = history
+          .filter(h => h.playerId === m.id)
+          .map(h => h.timestampMs)
+          .sort((a, b) => a - b);
+
+        for (let i = 0; i < playerDrinks.length; i++) {
+          let count = 1;
+          for (let j = i + 1; j < playerDrinks.length; j++) {
+            if (playerDrinks[j] - playerDrinks[i] <= 24 * 60 * 60 * 1000) {
+              count++;
+            }
+          }
+          if (count > bestCount) {
+            bestCount = count;
+            bestPlayerId = m.id;
+          }
+        }
+      });
+      if (bestPlayerId) {
+        leMansMember = members.find(m => m.id === bestPlayerId) || leMansMember;
+        leMansRecordBeers = bestCount;
+      }
+    }
+    const leMansValue = `${leMansRecordBeers} birre in 24h`;
+
+    // 3. L'IDROVORA (⛽): Chi ha bevuto più birre e litri totali finora
+    const idrovoraMember = [...members].sort((a, b) => {
+      const aLiters = a.liters ?? (a.beers * 0.5);
+      const bLiters = b.liters ?? (b.beers * 0.5);
+      if (b.beers !== a.beers) return b.beers - a.beers;
+      return bLiters - aLiters;
+    })[0];
+    const idrovoraLiters = (idrovoraMember.liters ?? (idrovoraMember.beers * 0.5)).toFixed(1);
+    const idrovoraValue = `${idrovoraMember.beers} birre (${idrovoraLiters} Litri scolati)`;
+
+    // 4. RE GOYIM (🍼): Il cucchiaio di legno per chi ha bevuto di meno
+    const reGoyimMember = [...members].sort((a, b) => {
+      if (a.beers !== b.beers) return a.beers - b.beers;
+      return a.points - b.points;
+    })[0];
+    const reGoyimValue = `${reGoyimMember.beers} birre (${reGoyimMember.points} pt totali)`;
+
+    return [
+      {
+        id: 'mvp',
+        title: 'MVP Mensile',
+        subtitle: 'Il GOAT assoluto del mese in corso',
+        drawingType: 'goat',
+        member: mvpMember,
+        statBadge: mvpValue,
+        accent: 'border-amber-400/50 bg-gradient-to-r from-amber-500/15 to-slate-900'
+      },
+      {
+        id: 'lemans',
+        title: '24 Ore di Le Mans',
+        subtitle: 'Record di birre stappate in 24 ore',
+        drawingType: 'lemans',
+        member: leMansMember,
+        statBadge: leMansValue,
+        accent: 'border-sky-400/50 bg-gradient-to-r from-sky-500/15 to-slate-900'
+      },
+      {
+        id: 'idrovora',
+        title: "L'Idrovora",
+        subtitle: 'Primato assoluto di birre e litri scolati',
+        drawingType: 'idrovora',
+        member: idrovoraMember,
+        statBadge: idrovoraValue,
+        accent: 'border-emerald-400/50 bg-gradient-to-r from-emerald-500/15 to-slate-900'
+      },
+      {
+        id: 'regoyim',
+        title: 'Re Goyim',
+        subtitle: 'Cucchiaio di legno: chi ha bevuto di meno',
+        drawingType: 'regoyim',
+        member: reGoyimMember,
+        statBadge: reGoyimValue,
+        accent: 'border-pink-400/50 bg-gradient-to-r from-pink-500/15 to-slate-900'
+      }
+    ];
+  }, [activeLeague, clockTick]);
 
   // =========================================================================
   // VISTA 1: LOGIN E REGISTRAZIONE
@@ -1435,7 +1665,7 @@ export default function App() {
 
       <div className="w-full max-w-md min-h-screen bg-slate-900/70 border-x border-slate-800 flex flex-col justify-between shadow-2xl">
         
-        {/* HEADER LEGA CON NOME DELLA BIRRA SCELTA ACCANTO AL BICCHIERE */}
+        {/* HEADER LEGA CON NOME BIRRA (O LATTINA AMMACCATA SE PENITENZA ATTIVA) */}
         <header className="sticky top-0 z-30 bg-slate-950/95 backdrop-blur-md border-b border-amber-500/25 px-3.5 py-3 space-y-2.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
@@ -1458,12 +1688,14 @@ export default function App() {
             <div className="flex items-center gap-1.5">
               <button
                 onClick={() => setShowGlassPicker(!showGlassPicker)}
-                className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-bold flex items-center gap-1.5 text-amber-300 transition"
+                className={`px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border text-xs font-bold flex items-center gap-1.5 transition ${
+                  myCrushedCanActive ? 'border-red-500/60 text-red-300' : 'border-slate-700 text-amber-300'
+                }`}
                 title="Cambia la tua birra e bicchiere avatar"
               >
-                <BeerGlassAvatar type={currentUser.glassType || 'weiss'} size="sm" />
+                <BeerGlassAvatar type={currentUser.glassType || 'weiss'} size="sm" crushed={myCrushedCanActive} />
                 <span className="text-[10px] uppercase font-black tracking-tight">
-                  {currentGlassObj.shortName}
+                  {myCrushedCanActive ? '🥫 Lattina 24h' : currentGlassObj.shortName}
                 </span>
               </button>
               <button
@@ -1501,11 +1733,13 @@ export default function App() {
             </div>
           </div>
 
-          {/* SELETTORE A 8 BICCHIERI E TIPOLOGIE DI BIRRA (GRIGLIA 4x2) */}
+          {/* SELETTORE A 8 BICCHIERI E TIPOLOGIE DI BIRRA */}
           {showGlassPicker && (
             <div className="pt-2 border-t border-slate-800 space-y-2">
               <span className="text-[10px] uppercase font-black text-amber-400 block">
-                Scegli la tua Birra e Bicchiere Ufficiale:
+                {myCrushedCanActive
+                  ? '⚠️ Penitenza Passaporto Rumeno attiva (Lattina Ammaccata per 24h):'
+                  : 'Scegli la tua Birra e Bicchiere Ufficiale:'}
               </span>
               <div className="grid grid-cols-4 gap-1.5">
                 {BEER_GLASS_TYPES.map(g => (
@@ -1544,7 +1778,7 @@ export default function App() {
                   {sortedMembers[1] && (
                     <div className="bg-slate-900/90 border border-slate-700 rounded-xl p-2 flex flex-col items-center">
                       <span className="text-[9px] font-black bg-slate-300 text-slate-950 px-1.5 rounded mb-1">P2</span>
-                      <BeerGlassAvatar type={sortedMembers[1].glassType} size="sm" />
+                      <BeerGlassAvatar type={sortedMembers[1].glassType} size="sm" crushed={isCrushedCanActive(sortedMembers[1])} />
                       <span className="text-xs font-bold text-white truncate max-w-full mt-1">{sortedMembers[1].name}</span>
                       <span className="text-xs font-black text-amber-400">{sortedMembers[1].points} pt</span>
                     </div>
@@ -1552,7 +1786,7 @@ export default function App() {
                   {sortedMembers[0] && (
                     <div className="bg-amber-500/15 border-2 border-amber-400 rounded-xl p-2.5 flex flex-col items-center -translate-y-1 shadow-lg">
                       <span className="text-[9px] font-black bg-amber-400 text-slate-950 px-2 rounded mb-1">LEADER</span>
-                      <BeerGlassAvatar type={sortedMembers[0].glassType} size="md" />
+                      <BeerGlassAvatar type={sortedMembers[0].glassType} size="md" crushed={isCrushedCanActive(sortedMembers[0])} />
                       <span className="text-xs font-black text-white truncate max-w-full mt-1">{sortedMembers[0].name}</span>
                       <span className="text-sm font-black text-amber-300">{sortedMembers[0].points} pt</span>
                     </div>
@@ -1560,7 +1794,7 @@ export default function App() {
                   {sortedMembers[2] && (
                     <div className="bg-slate-900/90 border border-amber-700/50 rounded-xl p-2 flex flex-col items-center">
                       <span className="text-[9px] font-black bg-amber-700 text-white px-1.5 rounded mb-1">P3</span>
-                      <BeerGlassAvatar type={sortedMembers[2].glassType} size="sm" />
+                      <BeerGlassAvatar type={sortedMembers[2].glassType} size="sm" crushed={isCrushedCanActive(sortedMembers[2])} />
                       <span className="text-xs font-bold text-white truncate max-w-full mt-1">{sortedMembers[2].name}</span>
                       <span className="text-xs font-black text-amber-500">{sortedMembers[2].points} pt</span>
                     </div>
@@ -1578,6 +1812,7 @@ export default function App() {
                     const isLeader = idx === 0;
                     const gap = isLeader ? 'POLE' : `-${(leaderPoints - member.points).toFixed(1)} pt`;
                     const isMe = member.id === currentUser.id;
+                    const hasCanPenalty = isCrushedCanActive(member);
 
                     return (
                       <div key={member.id} className={`px-3 py-2.5 flex items-center justify-between ${isMe ? 'bg-amber-500/10' : ''}`}>
@@ -1585,12 +1820,17 @@ export default function App() {
                           <span className={`w-5 text-center text-xs font-black ${isLeader ? 'text-amber-400' : 'text-slate-500'}`}>
                             {idx + 1}
                           </span>
-                          <BeerGlassAvatar type={member.glassType} size="sm" />
+                          <BeerGlassAvatar type={member.glassType} size="sm" crushed={hasCanPenalty} />
                           <div>
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-1.5 flex-wrap">
                               <span className={`text-xs font-bold ${isMe ? 'text-amber-300' : 'text-white'}`}>
                                 {member.name}
                               </span>
+                              {hasCanPenalty && (
+                                <span className="px-1.5 py-0.2 bg-red-500/20 border border-red-500/50 text-red-300 rounded text-[9px] font-black">
+                                  🥫 24h
+                                </span>
+                              )}
                               {member.captainActive && (
                                 <span className="px-1.5 py-0.2 bg-purple-500/20 border border-purple-400 text-purple-300 rounded text-[9px] font-black">
                                   👑 CAP ({member.captainBeers || 0}/4)
@@ -1624,7 +1864,7 @@ export default function App() {
             </div>
           )}
 
-          {/* TAB 2: STAPPA! (CON PASSAPORTO RUMENO, GOCCIA D'ORO E CAPITANO) */}
+          {/* TAB 2: STAPPA! (CON PASSAPORTO RUMENO -> CERES, TENNENT'S, FAXE... + LATTINA 24H) */}
           {activeTab === 'stappa' && (
             <form onSubmit={handleAddBeer} className="space-y-4">
               {/* RIEPILOGO FORMULA PUNTI LIVE */}
@@ -1721,7 +1961,7 @@ export default function App() {
                   type="text"
                   value={beerTitle}
                   onChange={(e) => setBeerTitle(e.target.value)}
-                  placeholder="Es. Keller, Trappista, Session IPA, Ceres..."
+                  placeholder="Es. Keller, Trappista, Session IPA, Faxe..."
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
                 />
               </div>
@@ -1771,7 +2011,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* 3. Qualità della Birra (CON PASSAPORTO RUMENO -5 PT) */}
+              {/* 3. Qualità della Birra (PASSAPORTO RUMENO CON CERES, TENNENT'S, FAXE... E LATTINA 24H) */}
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2">
                 <label className="block text-[10px] font-bold uppercase text-slate-400">3. Qualità della Birra</label>
                 <div className="grid grid-cols-2 gap-1.5">
@@ -1779,7 +2019,7 @@ export default function App() {
                     { id: 'industriale', name: 'Industriale', sub: 'Commerciale standard', bonus: '+0 pt' },
                     { id: 'artigianale', name: 'Artigianale', sub: 'Bottiglia / Lattina craft', bonus: '+2 pt' },
                     { id: 'spina', name: 'Alla spina', sub: 'Spillata al pub', bonus: '+3 pt' },
-                    { id: 'rumeno', name: 'Passaporto Rumeno', sub: 'Ceres, Tennent\'s, 8.6...', bonus: '-5 pt' }
+                    { id: 'rumeno', name: 'Passaporto Rumeno', sub: 'Ceres, Tennent\'s, Faxe...', bonus: '-5 pt • 🥫 24h' }
                   ].map(q => (
                     <button
                       type="button"
@@ -1973,7 +2213,7 @@ export default function App() {
                       <div key={item.id} className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-lg">
                         <div className="p-3 flex items-center justify-between border-b border-slate-800/80">
                           <div className="flex items-center gap-2.5">
-                            <BeerGlassAvatar type={item.glassType} size="sm" />
+                            <BeerGlassAvatar type={item.glassType} size="sm" crushed={item.isRumeno} />
                             <div>
                               <span className="text-xs font-black text-white block">{item.playerName}</span>
                               <span className="text-[10px] text-slate-400">{item.timestamp} • {item.location}</span>
@@ -2069,7 +2309,64 @@ export default function App() {
             </div>
           )}
 
-          {/* TAB 4: REGOLE */}
+          {/* TAB 4: ALBO D'ORO (MVP MENSILE 🐐, 24 ORE DI LE MANS ⏱️, L'IDROVORA ⛽, RE GOYIM 🍼) */}
+          {activeTab === 'albo' && (
+            <div className="space-y-4">
+              <div className="bg-gradient-to-r from-amber-500/20 via-slate-900 to-slate-950 border border-amber-500/40 rounded-2xl p-3.5 space-y-1 shadow-xl">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase text-amber-400 flex items-center gap-1.5">
+                    <Award className="w-4 h-4" /> Albo d'Oro Ufficiale della Lega
+                  </span>
+                  <span className="text-[9px] font-mono uppercase bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full font-bold">
+                    Hall of Fame
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-300">
+                  I 4 titoli onorifici aggiornati in tempo reale in base alle bevute confermate nella lega!
+                </p>
+              </div>
+
+              {alboRecords && (
+                <div className="space-y-3">
+                  {alboRecords.map(rec => (
+                    <div
+                      key={rec.id}
+                      className={`p-4 rounded-2xl border ${rec.accent} shadow-lg flex items-center justify-between gap-3`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <AlboDrawing type={rec.drawingType} />
+                        <div className="min-w-0">
+                          <span className="text-xs font-black uppercase tracking-wider text-white block">
+                            {rec.title}
+                          </span>
+                          <span className="text-[10px] text-slate-400 block">
+                            {rec.subtitle}
+                          </span>
+                          <div className="mt-2 flex items-center gap-2">
+                            <BeerGlassAvatar
+                              type={rec.member.glassType}
+                              size="sm"
+                              crushed={isCrushedCanActive(rec.member)}
+                            />
+                            <div className="truncate">
+                              <span className="text-sm font-black text-amber-300 block truncate">
+                                {rec.member.name}
+                              </span>
+                              <span className="text-[10px] font-bold text-slate-200 bg-slate-950/80 border border-slate-700 px-2 py-0.5 rounded-lg inline-block mt-0.5">
+                                {rec.statBadge}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 5: REGOLE */}
           {activeTab === 'regole' && (
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3 text-xs text-slate-300">
               <h3 className="text-xs font-black uppercase text-amber-400">Regolamento Ufficiale "Sempre Noi"</h3>
@@ -2079,7 +2376,7 @@ export default function App() {
                   <div className="flex justify-between"><span>Piccola 33cl / Media 50cl / 1 litro</span><strong className="text-white">+3 / +5 / +8 pt</strong></div>
                   <div className="flex justify-between"><span>Leggera (≤5,6°) / Media / Forte (&gt;7,5°)</span><strong className="text-white">x1.0 / x1.3 / x1.7</strong></div>
                   <div className="flex justify-between"><span>Industriale / Artigianale / Alla spina</span><strong className="text-amber-400">+0 / +2 / +3 pt</strong></div>
-                  <div className="flex justify-between"><span>Passaporto Rumeno (Ceres, Tennent's, 8.6...)</span><strong className="text-red-400">-5 pt</strong></div>
+                  <div className="flex justify-between"><span>Passaporto Rumeno (Ceres, Tennent's, Faxe...)</span><strong className="text-red-400">-5 pt + 🥫 24h</strong></div>
                 </div>
 
                 <div className="p-2.5 rounded-xl bg-slate-950 border border-amber-500/30 space-y-1">
@@ -2177,9 +2474,9 @@ export default function App() {
           </div>
         )}
 
-        {/* BARRA NAVIGAZIONE INFERIORE */}
-        <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-slate-950/95 backdrop-blur-md border-t border-slate-800 px-3 py-2 z-40">
-          <div className="grid grid-cols-4 gap-1">
+        {/* BARRA NAVIGAZIONE INFERIORE A 5 SCHEDE */}
+        <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-slate-950/95 backdrop-blur-md border-t border-slate-800 px-2 py-2 z-40">
+          <div className="grid grid-cols-5 gap-1">
             <button onClick={() => setActiveTab('classifica')} className={`flex flex-col items-center py-1 rounded-xl ${activeTab === 'classifica' ? 'text-amber-400 bg-amber-500/10' : 'text-slate-400'}`}>
               <Trophy className="w-5 h-5" />
               <span className="text-[9px] font-bold mt-1">Classifica</span>
@@ -2191,11 +2488,15 @@ export default function App() {
             <button onClick={() => setActiveTab('var')} className={`flex flex-col items-center py-1 rounded-xl relative ${activeTab === 'var' ? 'text-amber-400 bg-amber-500/10' : 'text-slate-400'}`}>
               <ShieldAlert className="w-5 h-5" />
               {(activeLeague.feed || []).length > 0 && (
-                <span className="absolute top-0.5 right-5 w-4 h-4 rounded-full bg-red-600 text-white text-[9px] font-black flex items-center justify-center">
+                <span className="absolute top-0.5 right-3 w-4 h-4 rounded-full bg-red-600 text-white text-[9px] font-black flex items-center justify-center">
                   {(activeLeague.feed || []).length}
                 </span>
               )}
               <span className="text-[9px] font-bold mt-1">Sala VAR</span>
+            </button>
+            <button onClick={() => setActiveTab('albo')} className={`flex flex-col items-center py-1 rounded-xl ${activeTab === 'albo' ? 'text-amber-400 bg-amber-500/10' : 'text-slate-400'}`}>
+              <Award className="w-5 h-5" />
+              <span className="text-[9px] font-bold mt-1">Albo d'Oro</span>
             </button>
             <button onClick={() => setActiveTab('regole')} className={`flex flex-col items-center py-1 rounded-xl ${activeTab === 'regole' ? 'text-amber-400 bg-amber-500/10' : 'text-slate-400'}`}>
               <BookOpen className="w-5 h-5" />
