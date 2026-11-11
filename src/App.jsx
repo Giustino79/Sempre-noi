@@ -15,10 +15,10 @@ const CLOUD_DB_URL = "https://sempre-noi-default-rtdb.europe-west1.firebasedatab
 
 const cleanDbUrl = CLOUD_DB_URL ? CLOUD_DB_URL.replace(/\/$/, "") : "";
 
-// Durata massima di ogni notizia della Gazzetta: 24 ore
+// Durata massima delle notizie: 24 ore
 const GAZZETTA_EXPIRY_MS = 24 * 60 * 60 * 1000;
 
-// Filtra solo le notizie delle ultime 24 ore (max 30)
+// Filtra solo le notizie uscite nelle ultime 24 ore (massimo 30)
 const filterActiveGazzettaNews = (newsList, nowMs = Date.now()) => {
   return (newsList || [])
     .filter(n => n && n.createdAtMs && (nowMs - Number(n.createdAtMs)) < GAZZETTA_EXPIRY_MS)
@@ -97,7 +97,6 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md', crushed = false }) {
 
   return (
     <div className={`${sizeClasses} aspect-square rounded-2xl ${effectiveType === 'crushed_can' ? 'bg-red-950/80 border-red-500/70' : 'bg-slate-900 border-slate-700'} border flex items-center justify-center shadow-inner shrink-0 relative`}>
-      {/* LATTINA AMMACCATA (24H PASSAPORTO RUMENO) */}
       {effectiveType === 'crushed_can' && (
         <svg viewBox="0 0 48 48" className="w-full h-full">
           <path d="M14 10L34 10L35 17L28 24L35 31L33 40L15 40L13 31L20 23L13 17Z" fill="#15803d" stroke="#cbd5e1" strokeWidth="1.6" strokeLinejoin="round" />
@@ -110,7 +109,6 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md', crushed = false }) {
         </svg>
       )}
 
-      {/* 1. WEISS */}
       {effectiveType === 'weiss' && (
         <svg viewBox="0 0 48 48" className="w-full h-full">
           <path d="M16 13C14.5 21 17.5 30 18 41H30C30.5 30 33.5 21 32 13H16Z" fill="#eab308" />
@@ -120,7 +118,6 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md', crushed = false }) {
         </svg>
       )}
 
-      {/* 2. LAGER */}
       {effectiveType === 'lager' && (
         <svg viewBox="0 0 48 48" className="w-full h-full">
           <path d="M33 19H38.5C40.5 19 41.5 20.5 41.5 26C41.5 31.5 40.5 33 38.5 33H33" stroke="#cbd5e1" strokeWidth="2.8" fill="none" />
@@ -130,7 +127,6 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md', crushed = false }) {
         </svg>
       )}
 
-      {/* 3. IPA CON BASE COMPLETA */}
       {effectiveType === 'ipa' && (
         <svg viewBox="0 0 48 48" className="w-full h-full">
           <path d="M15 13L11.5 23.5L24 30L36.5 23.5L33 13H15Z" fill="#ea580c" />
@@ -141,7 +137,6 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md', crushed = false }) {
         </svg>
       )}
 
-      {/* 4. SESSION IPA */}
       {effectiveType === 'session_ipa' && (
         <svg viewBox="0 0 48 48" className="w-full h-full">
           <path d="M13.5 14L12 19.5L14 23.5L16.5 42H31.5L34 23.5L36 19.5L34.5 14H13.5Z" fill="#fde047" />
@@ -150,7 +145,6 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md', crushed = false }) {
         </svg>
       )}
 
-      {/* 5. DIPA */}
       {effectiveType === 'dipa' && (
         <svg viewBox="0 0 48 48" className="w-full h-full">
           <path d="M14 13C15.5 17 11 22 13 27.5C15 31.5 19.5 33 24 33C28.5 33 33 31.5 35 27.5C37 22 32.5 17 34 13H14Z" fill="#c2410c" />
@@ -161,7 +155,6 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md', crushed = false }) {
         </svg>
       )}
 
-      {/* 6. TRIPLE */}
       {effectiveType === 'triple' && (
         <svg viewBox="0 0 48 48" className="w-full h-full">
           <path d="M11 14C11 25 16.5 30 24 30C31.5 30 37 25 37 14H11Z" fill="#d97706" />
@@ -172,7 +165,6 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md', crushed = false }) {
         </svg>
       )}
 
-      {/* 7. TRAPPISTA */}
       {effectiveType === 'trappista' && (
         <svg viewBox="0 0 48 48" className="w-full h-full">
           <path d="M8.5 15C9.5 26.5 15.5 31 24 31C32.5 31 38.5 26.5 39.5 15H8.5Z" fill="#7c2d12" />
@@ -183,7 +175,6 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md', crushed = false }) {
         </svg>
       )}
 
-      {/* 8. STOUT */}
       {effectiveType === 'stout' && (
         <svg viewBox="0 0 48 48" className="w-full h-full">
           <path d="M13 15L14.5 19L16.5 42H31.5L33.5 19L35 15H13Z" fill="#1c1917" />
@@ -229,7 +220,7 @@ function AlboDrawing({ type }) {
   );
 }
 
-// --- DISCLAIMER PERSONALI DEL GIORNO (1ª, 2ª, 3ª BIRRA) ---
+// --- CONFIGURAZIONE DISCLAIMER PERSONALI DEL GIORNO ---
 const PERSONAL_DISCLAIMERS = {
   1: {
     badge: '1ª Birra del Giorno',
@@ -279,7 +270,7 @@ const VAR_PENALTY_OPTIONS = [
   }
 ];
 
-// --- ORARI E CONTROLLI TEMPORALI LIVE ---
+// --- ORARI E CONTROLLI LIVE ---
 const checkGocciaWindow = () => {
   const now = new Date();
   const totalMinutes = now.getHours() * 60 + now.getMinutes();
@@ -941,6 +932,28 @@ export default function App() {
     showToast('📸 Foto acquisita!', 'success');
   };
 
+  const handleFallbackCameraCapture = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const img = new Image();
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        img.onload = () => {
+          const scale = Math.min(1, 480 / img.width);
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(img.width * scale);
+          canvas.height = Math.round(img.height * scale);
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          setCapturedPhoto(canvas.toDataURL('image/jpeg', 0.65));
+          showToast('📸 Foto acquisita!', 'success');
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const calculatedDrink = useMemo(() => {
     const fMap = { piccola33: { pts: 3, liters: 0.33, label: '33cl (+3pt)' }, spina50: { pts: 5, liters: 0.5, label: 'Media 50cl (+5pt)' }, litro: { pts: 8, liters: 1.0, label: '1 litro (+8pt)' } };
     const aMap = { leggera: { mult: 1.0, label: 'Leggera fino a 5,6° (x1.0)' }, media: { mult: 1.3, label: 'Media 5,6° - 7,5° (x1.3)' }, forte: { mult: 1.7, label: 'Forte > 7,5° (x1.7)' } };
@@ -1105,6 +1118,13 @@ export default function App() {
     }
   };
 
+  const handleOpenVarModal = (beerItem) => {
+    if (beerItem.playerId === currentUser.id) return showToast('⚠️ Non puoi segnalare al VAR la tua stessa birra!', 'warning');
+    const existingFirstVote = (beerItem.varVotes || [])[0];
+    setSelectedPenaltyId(existingFirstVote?.reasonId || 'simulation');
+    setVarModalBeer(beerItem);
+  };
+
   const handleConfirmVarCall = () => {
     if (!varModalBeer || !activeLeagueId) return;
     const opt = VAR_PENALTY_OPTIONS.find(o => o.id === selectedPenaltyId) || VAR_PENALTY_OPTIONS[1];
@@ -1165,8 +1185,7 @@ export default function App() {
     ];
   }, [activeLeague, clockTick]);
 
-// === FINE PARTE 1: INCOLLA QUESTA PARTE E RISPONDI "CONTINUA" PER LA PARTE 2 ===
-// =========================================================================
+  // =========================================================================
   // VISTA 1: LOGIN E REGISTRAZIONE
   // =========================================================================
   if (!currentUser) {
