@@ -3,7 +3,8 @@ import {
   Trophy, PlusCircle, ShieldAlert, Users, Camera, 
   CheckCircle2, Sparkles, LogOut, Plus, UserPlus, Key, User, 
   Beer, Copy, Check, ChevronRight, ArrowLeft, BookOpen, Flag, 
-  XCircle, Share2, RefreshCw, Eye, Sun, Crown, Trash2, Clock, Lock, Award
+  XCircle, Share2, RefreshCw, Eye, Sun, Crown, Trash2, Clock, Lock, Award,
+  Newspaper, Flame
 } from 'lucide-react';
 
 // ============================================================================
@@ -80,15 +81,11 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md', crushed = false }) {
       {/* LATTINA AMMACCATA (PENITENZA PASSAPORTO RUMENO 24H) */}
       {effectiveType === 'crushed_can' && (
         <svg viewBox="0 0 48 48" className="w-full h-full">
-          {/* Corpo lattina piegato e ammaccato al centro */}
           <path d="M14 10L34 10L35 17L28 24L35 31L33 40L15 40L13 31L20 23L13 17Z" fill="#15803d" stroke="#cbd5e1" strokeWidth="1.6" strokeLinejoin="round" />
-          {/* Coperchio e base in alluminio */}
           <ellipse cx="24" cy="10" rx="10" ry="2.5" fill="#e2e8f0" stroke="#94a3b8" strokeWidth="1.2" />
           <path d="M15 40C15 41.5 33 41.5 33 40" stroke="#e2e8f0" strokeWidth="2.2" strokeLinecap="round" />
-          {/* Linguetta storta */}
           <circle cx="24" cy="10" r="2" fill="#475569" />
           <path d="M24 10L27 7" stroke="#f8fafc" strokeWidth="1.6" strokeLinecap="round" />
-          {/* Pieghe dell'ammaccatura + simbolo % */}
           <path d="M16 19L27 23M20 26L31 29" stroke="#facc15" strokeWidth="1.6" strokeLinecap="round" />
           <text x="24" y="36" textAnchor="middle" fill="#fef08a" fontSize="6.5" fontWeight="900">9%</text>
         </svg>
@@ -213,6 +210,34 @@ function AlboDrawing({ type }) {
   );
 }
 
+// --- CONFIGURAZIONE DEI 3 DISCLAIMER PERSONALI DEL GIORNO ---
+const PERSONAL_DISCLAIMERS = {
+  1: {
+    badge: '1ª Birra del Giorno',
+    emoji: '🍻',
+    title: 'Alla salute!',
+    message: 'Prima birra della giornata messa a referto! Il motore è ufficialmente entrato in temperatura.',
+    buttonText: 'Daje tutta! 🍺',
+    theme: 'from-amber-500/30 via-slate-900 to-slate-950 border-amber-400 text-amber-300'
+  },
+  2: {
+    badge: '2ª Birra del Giorno',
+    emoji: '⚽🔥',
+    title: 'Doppietta, bravo bomber!',
+    message: 'Seconda stappata di giornata: passo gara deciso e freddezza sotto porta da vero attaccante di razza!',
+    buttonText: 'Puntiamo alla tripletta! 🚀',
+    theme: 'from-emerald-500/30 via-slate-900 to-slate-950 border-emerald-400 text-emerald-300'
+  },
+  3: {
+    badge: '3ª Birra del Giorno',
+    emoji: '🧐🚨',
+    title: 'Ehi calmo, vuoi diventare Mario?',
+    message: 'Siamo già alla terza birra di oggi... dalla panchina il mister inizia a guardarti con una certa preoccupazione!',
+    buttonText: 'Tranquilli, reggo il passo! 😎',
+    theme: 'from-purple-500/30 via-slate-900 to-slate-950 border-purple-400 text-purple-300'
+  }
+};
+
 // --- OPZIONI UFFICIALI DELLA SALA VAR ---
 const VAR_PENALTY_OPTIONS = [
   {
@@ -272,6 +297,11 @@ const getCurrentWeekKey = () => {
   return `${now.getFullYear()}-W${weekNum}`;
 };
 
+const getTodayDateKey = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
+
 // --- LEGA DEMO DI DEFAULT ---
 const DEFAULT_LEAGUES = [
   {
@@ -279,12 +309,24 @@ const DEFAULT_LEAGUES = [
     name: 'Lega Storica Sempre Noi',
     adminId: 'usr_manolo',
     members: [
-      { id: 'u1', name: 'Manolo', glassType: 'trappista', points: 54.5, weekendPts: 21.0, beers: 7, liters: 3.8, yellowCards: 1, redCards: 0, captainActive: false, captainBeers: 0, captainWeekUsed: null, rumenoUntil: null },
-      { id: 'u2', name: 'Marco', glassType: 'ipa', points: 46.0, weekendPts: 17.5, beers: 6, liters: 3.0, yellowCards: 0, redCards: 0, captainActive: true, captainBeers: 2, captainWeekUsed: '2026-W46', rumenoUntil: null },
-      { id: 'u3', name: 'Andrea', glassType: 'stout', points: 38.0, weekendPts: 12.0, beers: 5, liters: 2.5, yellowCards: 0, redCards: 0, captainActive: false, captainBeers: 0, captainWeekUsed: null, rumenoUntil: null },
-      { id: 'u4', name: 'Luca', glassType: 'lager', points: 21.5, weekendPts: 6.0, beers: 4, liters: 1.6, yellowCards: 1, redCards: 1, captainActive: false, captainBeers: 0, captainWeekUsed: null, rumenoUntil: null }
+      { id: 'u1', name: 'Manolo', glassType: 'trappista', points: 54.5, weekendPts: 21.0, beers: 7, liters: 3.8, yellowCards: 1, redCards: 0, captainActive: false, captainBeers: 0, captainWeekUsed: null, rumenoUntil: null, lastDrinkAtMs: Date.now() - 3600000, dailyDate: '', dailyCount: 0 },
+      { id: 'u2', name: 'Marco', glassType: 'ipa', points: 46.0, weekendPts: 17.5, beers: 6, liters: 3.0, yellowCards: 0, redCards: 0, captainActive: true, captainBeers: 2, captainWeekUsed: '2026-W46', rumenoUntil: null, lastDrinkAtMs: Date.now() - 7200000, dailyDate: '', dailyCount: 0 },
+      { id: 'u3', name: 'Andrea', glassType: 'stout', points: 38.0, weekendPts: 12.0, beers: 5, liters: 2.5, yellowCards: 0, redCards: 0, captainActive: false, captainBeers: 0, captainWeekUsed: null, rumenoUntil: null, lastDrinkAtMs: Date.now() - 86400000, dailyDate: '', dailyCount: 0 },
+      { id: 'u4', name: 'Luca', glassType: 'lager', points: 21.5, weekendPts: 6.0, beers: 4, liters: 1.6, yellowCards: 1, redCards: 1, captainActive: false, captainBeers: 0, captainWeekUsed: null, rumenoUntil: null, lastDrinkAtMs: Date.now() - 6 * 86400000, dailyDate: '', dailyCount: 0 }
     ],
     history: [],
+    gazzetta: [
+      {
+        id: 'news_init_1',
+        category: 'SORPASSO IN CURVA',
+        icon: '🏎️',
+        badgeColor: 'bg-emerald-500 text-slate-950',
+        text: 'Manolo si prende la Pole Position della lega (54.5 pt)! Marco insegue a ruota e prepara il controsorpasso!',
+        timestamp: '19:45',
+        dateLabel: 'Oggi',
+        createdAtMs: Date.now() - 3600000
+      }
+    ],
     feed: [
       {
         id: 'b101',
@@ -350,11 +392,14 @@ export default function App() {
   const [joinLeagueCustomName, setJoinLeagueCustomName] = useState('');
   const [copiedType, setCopiedType] = useState(null);
 
-  // --- 3. STATO NAVIGAZIONE, OROLOGIO LIVE E GIOCO ---
-  const [activeTab, setActiveTab] = useState('classifica'); // 'classifica' | 'stappa' | 'var' | 'albo' | 'regole'
+  // --- 3. STATO NAVIGAZIONE, OROLOGIO LIVE, DISCLAIMER E GAZZETTA ---
+  const [activeTab, setActiveTab] = useState('classifica');
   const [toastMessage, setToastMessage] = useState(null);
   const [showGlassPicker, setShowGlassPicker] = useState(false);
   const [clockTick, setClockTick] = useState(Date.now());
+  const [personalDisclaimer, setPersonalDisclaimer] = useState(null); // Popup 1ª, 2ª o 3ª birra
+  const [showGazzettaModal, setShowGazzettaModal] = useState(false); // Modale completo Gazzetta
+  const [breakingNewsAlert, setBreakingNewsAlert] = useState(null); // Popup Sky Sport per nuova notizia
 
   // --- 4. STATO SEZIONE "STAPPA!" + GOCCIA D'ORO + CAPITANO ---
   const [beerTitle, setBeerTitle] = useState('');
@@ -422,6 +467,7 @@ export default function App() {
           ...l,
           members: l.members || [],
           history: l.history || [],
+          gazzetta: l.gazzetta || [],
           feed: (l.feed || []).map(item => ({
             ...item,
             approvals: item.approvals || [],
@@ -472,6 +518,25 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('sempre_noi_leagues_v3', JSON.stringify(leagues));
   }, [leagues]);
+
+  // --- RILEVA NUOVE NOTIZIE DELLA "GAZZETTA DEL SEMPRE NOI" E MOSTRA IL BANNER SKY SPORT ---
+  const activeLeague = leagues.find(l => l.id === activeLeagueId);
+
+  useEffect(() => {
+    if (!activeLeague || !activeLeague.gazzetta || activeLeague.gazzetta.length === 0) return;
+    const latestNews = activeLeague.gazzetta[0];
+    const storageKey = `sempre_noi_seen_news_${activeLeague.id}`;
+    const lastSeenId = localStorage.getItem(storageKey);
+
+    if (latestNews && latestNews.id !== lastSeenId) {
+      localStorage.setItem(storageKey, latestNews.id);
+      setBreakingNewsAlert(latestNews);
+      const timer = setTimeout(() => {
+        setBreakingNewsAlert(null);
+      }, 7000);
+      return () => clearTimeout(timer);
+    }
+  }, [activeLeague?.gazzetta]);
 
   // --- CATTURA LINK DI INVITO ANCHE PRIMA DEL LOGIN ---
   useEffect(() => {
@@ -559,7 +624,10 @@ export default function App() {
       captainActive: false,
       captainBeers: 0,
       captainWeekUsed: null,
-      rumenoUntil: null
+      rumenoUntil: null,
+      lastDrinkAtMs: null,
+      dailyDate: '',
+      dailyCount: 0
     };
 
     let targetLeague = null;
@@ -573,6 +641,7 @@ export default function App() {
               ...cloudLeague,
               members: cloudLeague.members || [],
               history: cloudLeague.history || [],
+              gazzetta: cloudLeague.gazzetta || [],
               feed: (cloudLeague.feed || []).map(item => ({
                 ...item,
                 approvals: item.approvals || [],
@@ -624,7 +693,10 @@ export default function App() {
             captainActive: false,
             captainBeers: 0,
             captainWeekUsed: null,
-            rumenoUntil: null
+            rumenoUntil: null,
+            lastDrinkAtMs: null,
+            dailyDate: '',
+            dailyCount: 0
           }]
         : [];
 
@@ -634,6 +706,7 @@ export default function App() {
         adminId: currentUser.id,
         members: [...hostMember, newMemberObj],
         history: [],
+        gazzetta: [],
         feed: []
       };
 
@@ -728,10 +801,14 @@ export default function App() {
           captainActive: false,
           captainBeers: 0,
           captainWeekUsed: null,
-          rumenoUntil: null
+          rumenoUntil: null,
+          lastDrinkAtMs: null,
+          dailyDate: '',
+          dailyCount: 0
         }
       ],
       history: [],
+      gazzetta: [],
       feed: []
     };
 
@@ -748,7 +825,6 @@ export default function App() {
     joinOrCreateSharedLeague(joinLeagueCode, joinLeagueCustomName);
   };
 
-  const activeLeague = leagues.find(l => l.id === activeLeagueId);
   const myMemberProfile = activeLeague?.members.find(m => m.id === currentUser?.id);
   const myCrushedCanActive = isCrushedCanActive(myMemberProfile);
 
@@ -911,7 +987,7 @@ export default function App() {
     }
   };
 
-  // --- CALCOLATORE PUNTI COMPLETO (CON PASSAPORTO RUMENO -5 PT) ---
+  // --- CALCOLATORE PUNTI COMPLETO ---
   const calculatedDrink = useMemo(() => {
     const formatMap = {
       piccola33: { pts: 3, liters: 0.33, label: '33cl (+3pt)' },
@@ -961,7 +1037,7 @@ export default function App() {
     };
   }, [format, abvTier, qualityTier, bonusSempreNoi, bonusGocciaDOro, gocciaStatus.isOpen, myMemberProfile]);
 
-  // --- INVIO NUOVA BIRRA (SE È PASSAPORTO RUMENO ATTIVA SUBITO LA LATTINA AMMACCATA PER 24H) ---
+  // --- INVIO NUOVA BIRRA + DISCLAIMER PERSONALI (1ª, 2ª, 3ª) + NOTIZIE GAZZETTA ---
   const handleAddBeer = (e) => {
     e.preventDefault();
     if (!capturedPhoto) {
@@ -969,17 +1045,77 @@ export default function App() {
       return;
     }
 
+    const nowMs = Date.now();
+    const todayKey = getTodayDateKey();
+    const timeLabel = new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+    const dateLabel = new Date().toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
+
     const isRumenoSelected = qualityTier === 'rumeno';
-    const rumenoExpiry = isRumenoSelected ? Date.now() + 24 * 60 * 60 * 1000 : null;
+    const isGocciaApplied = gocciaStatus.isOpen && bonusGocciaDOro;
+    const rumenoExpiry = isRumenoSelected ? nowMs + 24 * 60 * 60 * 1000 : null;
+
+    // 1. Calcola il numero di birre stappate oggi dal giocatore per i 3 Disclaimer Personali
+    const prevDailyCount = myMemberProfile?.dailyDate === todayKey ? (myMemberProfile?.dailyCount || 0) : 0;
+    const newDailyCount = prevDailyCount + 1;
+
+    if (newDailyCount >= 1 && newDailyCount <= 3) {
+      setPersonalDisclaimer(PERSONAL_DISCLAIMERS[newDailyCount]);
+    }
+
+    // 2. Genera eventuali Notizie per la "Gazzetta del Sempre Noi"
+    const newGazzettaItems = [];
+
+    // Evento A: "IL PENTITO" (Non beveva da più di 5 giorni)
+    if (myMemberProfile?.lastDrinkAtMs && (nowMs - Number(myMemberProfile.lastDrinkAtMs)) >= 5 * 24 * 60 * 60 * 1000) {
+      const daysOff = Math.floor((nowMs - Number(myMemberProfile.lastDrinkAtMs)) / (24 * 60 * 60 * 1000));
+      newGazzettaItems.push({
+        id: 'news_pentito_' + nowMs,
+        category: 'IL PENTITO',
+        icon: '🚨',
+        badgeColor: 'bg-purple-500 text-white',
+        text: `Il rincoglionito (${currentUser.username}) è tornato a bere dopo ${daysOff} giorni di astinenza! Miracolo al bancone!`,
+        timestamp: timeLabel,
+        dateLabel,
+        createdAtMs: nowMs
+      });
+    }
+
+    // Evento B: "ALLARME DEGRADO" (Passaporto Rumeno)
+    if (isRumenoSelected) {
+      newGazzettaItems.push({
+        id: 'news_degrado_' + nowMs,
+        category: 'ALLARME DEGRADO',
+        icon: '🥫',
+        badgeColor: 'bg-red-600 text-white',
+        text: `${currentUser.username} ha appena stappato un Passaporto Rumeno (${beerTitle.trim() || 'Ceres/Tennent\'s/Faxe'}). Chiudete le finestre e allontanate i bambini!`,
+        timestamp: timeLabel,
+        dateLabel,
+        createdAtMs: nowMs
+      });
+    }
+
+    // Evento C: "COLAZIONE DEI CAMPIONI" (Goccia d'Oro prima delle 12:30)
+    if (isGocciaApplied) {
+      newGazzettaItems.push({
+        id: 'news_colazione_' + nowMs,
+        category: 'COLAZIONE DEI CAMPIONI',
+        icon: '☀️',
+        badgeColor: 'bg-amber-400 text-slate-950',
+        text: `Non è neanche mezzogiorno e mezza e ${currentUser.username} ha già stappato la prima birra del mattino. Inchinatevi!`,
+        timestamp: timeLabel,
+        dateLabel,
+        createdAtMs: nowMs
+      });
+    }
 
     const activeBonuses = [];
     if (isRumenoSelected) activeBonuses.push('Passaporto Rumeno (-5pt • Lattina 24h)');
     if (bonusSempreNoi) activeBonuses.push('Sempre noi (x1.3)');
-    if (gocciaStatus.isOpen && bonusGocciaDOro) activeBonuses.push("Goccia d'Oro (+3pt)");
+    if (isGocciaApplied) activeBonuses.push("Goccia d'Oro (+3pt)");
     if (calculatedDrink.isCaptainActive) activeBonuses.push('Capitano Serata (x2)');
 
     const newBeer = {
-      id: 'b_' + Date.now(),
+      id: 'b_' + nowMs,
       playerId: currentUser.id,
       playerName: currentUser.username,
       glassType: currentUser.glassType || 'weiss',
@@ -991,8 +1127,8 @@ export default function App() {
       styleLabel: calculatedDrink.styleLabel,
       isRumeno: isRumenoSelected,
       points: calculatedDrink.total,
-      timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
-      createdAtMs: Date.now(),
+      timestamp: timeLabel,
+      createdAtMs: nowMs,
       location: bonusSempreNoi ? 'Tavolata "Sempre noi" (x1.3)' : 'Scatto Live Fotocamera',
       photoUrl: capturedPhoto,
       bonuses: activeBonuses,
@@ -1006,9 +1142,16 @@ export default function App() {
         const updated = {
           ...l,
           feed: [newBeer, ...(l.feed || [])],
+          gazzetta: [...newGazzettaItems, ...(l.gazzetta || [])].slice(0, 30),
           members: l.members.map(m => {
-            if (m.id === currentUser.id && isRumenoSelected) {
-              return { ...m, rumenoUntil: rumenoExpiry };
+            if (m.id === currentUser.id) {
+              return {
+                ...m,
+                rumenoUntil: isRumenoSelected ? rumenoExpiry : (m.rumenoUntil || null),
+                lastDrinkAtMs: nowMs,
+                dailyDate: todayKey,
+                dailyCount: newDailyCount
+              };
             }
             return m;
           })
@@ -1032,7 +1175,7 @@ export default function App() {
     setActiveTab('var');
   };
 
-  // --- SALA VAR: CONFERMA BIRRA (A 2 CONFERME ASSEGNA PUNTI, SALVA NELL'ALBO D'ORO E RIMUOVE FOTO) ---
+  // --- SALA VAR: CONFERMA BIRRA + CONTROLLO "SORPASSO IN CURVA" PER LA GAZZETTA ---
   const handleApproveBeer = (beerId) => {
     const targetBeer = (activeLeague?.feed || []).find(item => item.id === beerId);
     if (!targetBeer) return;
@@ -1050,6 +1193,10 @@ export default function App() {
 
     setLeagues(prev => prev.map(l => {
       if (l.id !== activeLeagueId) return l;
+
+      // Controlla chi era il leader PRIMA dell'assegnazione dei punti
+      const prevSorted = [...(l.members || [])].sort((a, b) => b.points - a.points);
+      const prevLeader = prevSorted[0];
 
       const updatedFeed = reachedTwoConfirmations
         ? (l.feed || []).filter(item => item.id !== beerId)
@@ -1074,7 +1221,27 @@ export default function App() {
           })
         : l.members;
 
-      // Salva il micro-scontrino senza foto per calcolare l'Albo d'Oro (MVP Mensile, 24h Le Mans, Idrovora)
+      // Controlla se c'è stato il "SORPASSO IN CURVA" in testa alla classifica!
+      let updatedGazzetta = l.gazzetta || [];
+      if (reachedTwoConfirmations && updatedMembers.length > 1) {
+        const newSorted = [...updatedMembers].sort((a, b) => b.points - a.points);
+        const newLeader = newSorted[0];
+        if (prevLeader && newLeader && prevLeader.id !== newLeader.id && newLeader.id === targetBeer.playerId) {
+          const nowMs = Date.now();
+          const overtakeNews = {
+            id: 'news_sorpasso_' + nowMs,
+            category: 'SORPASSO IN CURVA',
+            icon: '🏎️',
+            badgeColor: 'bg-emerald-500 text-slate-950',
+            text: `${newLeader.name} si prende la Pole Position della lega (${newLeader.points} pt)! ${prevLeader.name} scivola dietro e mastica amaro!`,
+            timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
+            dateLabel: new Date().toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }),
+            createdAtMs: nowMs
+          };
+          updatedGazzetta = [overtakeNews, ...updatedGazzetta].slice(0, 30);
+        }
+      }
+
       const updatedHistory = reachedTwoConfirmations
         ? [
             {
@@ -1089,7 +1256,13 @@ export default function App() {
           ]
         : (l.history || []);
 
-      const updatedLeague = { ...l, feed: updatedFeed, members: updatedMembers, history: updatedHistory };
+      const updatedLeague = {
+        ...l,
+        feed: updatedFeed,
+        members: updatedMembers,
+        history: updatedHistory,
+        gazzetta: updatedGazzetta
+      };
       pushLeagueToCloud(updatedLeague);
       return updatedLeague;
     }));
@@ -1222,7 +1395,7 @@ export default function App() {
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
-    // 1. MVP MENSILE (GOAT 🐐): Più punti/birre nel mese corrente
+    // 1. MVP MENSILE (GOAT 🐐)
     const monthlyStats = {};
     history.forEach(h => {
       const d = new Date(h.timestampMs || Date.now());
@@ -1242,7 +1415,7 @@ export default function App() {
       ? `${monthlyStats[mvpMember.id].pts.toFixed(1)} pt (${monthlyStats[mvpMember.id].beers} birre nel mese)`
       : `${mvpMember.points} pt (${mvpMember.beers} birre nel mese)`;
 
-    // 2. 24 ORE DI LE MANS (⏱️): Massimo numero di birre bevute in una finestra di 24 ore
+    // 2. 24 ORE DI LE MANS (⏱️)
     let leMansMember = [...members].sort((a, b) => (b.weekendPts || b.points) - (a.weekendPts || a.points))[0];
     let leMansRecordBeers = Math.max(1, Math.min(leMansMember.beers || 0, Math.ceil((leMansMember.beers || 1) / 2)));
 
@@ -1275,7 +1448,7 @@ export default function App() {
     }
     const leMansValue = `${leMansRecordBeers} birre in 24h`;
 
-    // 3. L'IDROVORA (⛽): Chi ha bevuto più birre e litri totali finora
+    // 3. L'IDROVORA (⛽)
     const idrovoraMember = [...members].sort((a, b) => {
       const aLiters = a.liters ?? (a.beers * 0.5);
       const bLiters = b.liters ?? (b.beers * 0.5);
@@ -1285,7 +1458,7 @@ export default function App() {
     const idrovoraLiters = (idrovoraMember.liters ?? (idrovoraMember.beers * 0.5)).toFixed(1);
     const idrovoraValue = `${idrovoraMember.beers} birre (${idrovoraLiters} Litri scolati)`;
 
-    // 4. RE GOYIM (🍼): Il cucchiaio di legno per chi ha bevuto di meno
+    // 4. RE GOYIM (🍼)
     const reGoyimMember = [...members].sort((a, b) => {
       if (a.beers !== b.beers) return a.beers - b.beers;
       return a.points - b.points;
@@ -1647,11 +1820,14 @@ export default function App() {
     );
   }
 
+  const latestGazzettaNews = (activeLeague.gazzetta || [])[0];
+
   // =========================================================================
   // VISTA 3: DENTRO LA LEGA
   // =========================================================================
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center pb-24 font-sans select-none">
+      {/* TOAST STANDARD */}
       {toastMessage && (
         <div className={`fixed top-4 z-[100] max-w-sm w-11/12 px-4 py-3 rounded-2xl shadow-2xl border flex items-center gap-3 ${
           toastMessage.type === 'danger' ? 'bg-red-950/95 border-red-500 text-red-100' :
@@ -1663,12 +1839,77 @@ export default function App() {
         </div>
       )}
 
+      {/* POPUP NOTIFICA LIVE STILE SKY SPORT 24 ("GAZZETTA DEL SEMPRE NOI") */}
+      {breakingNewsAlert && !personalDisclaimer && (
+        <div className="fixed top-16 z-[95] max-w-md w-11/12 bg-slate-950 border-2 border-amber-400 rounded-2xl shadow-2xl overflow-hidden animate-bounce">
+          <div className="bg-gradient-to-r from-red-600 via-amber-500 to-amber-400 px-3 py-1 flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-white animate-ping" />
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-950">
+                ULTIM'ORA • GAZZETTA DEL SEMPRE NOI
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setBreakingNewsAlert(null)}
+              className="text-[10px] font-black text-slate-950 uppercase px-1"
+            >
+              ✕
+            </button>
+          </div>
+          <div
+            onClick={() => {
+              setBreakingNewsAlert(null);
+              setShowGazzettaModal(true);
+            }}
+            className="p-3 flex items-center gap-3 cursor-pointer"
+          >
+            <span className="text-2xl shrink-0">{breakingNewsAlert.icon}</span>
+            <div className="min-w-0">
+              <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${breakingNewsAlert.badgeColor}`}>
+                {breakingNewsAlert.category}
+              </span>
+              <p className="text-xs font-bold text-white mt-1 leading-snug">
+                {breakingNewsAlert.text}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* POPUP DISCLAIMER PERSONALE (1ª, 2ª E 3ª BIRRA DEL GIORNO) */}
+      {personalDisclaimer && (
+        <div className="fixed inset-0 z-[110] bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className={`bg-gradient-to-b ${personalDisclaimer.theme} border-2 rounded-3xl max-w-sm w-full p-6 text-center space-y-4 shadow-2xl`}>
+            <span className="text-[10px] font-black uppercase tracking-widest bg-slate-950/80 border border-white/15 px-3 py-1 rounded-full inline-block">
+              {personalDisclaimer.badge}
+            </span>
+            <div className="text-6xl py-2 drop-shadow-lg">
+              {personalDisclaimer.emoji}
+            </div>
+            <h2 className="text-xl font-black uppercase text-white tracking-wide">
+              {personalDisclaimer.title}
+            </h2>
+            <p className="text-xs text-slate-200 leading-relaxed font-semibold">
+              {personalDisclaimer.message}
+            </p>
+            <button
+              type="button"
+              onClick={() => setPersonalDisclaimer(null)}
+              className="w-full py-3.5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg transition"
+            >
+              {personalDisclaimer.buttonText}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="w-full max-w-md min-h-screen bg-slate-900/70 border-x border-slate-800 flex flex-col justify-between shadow-2xl">
         
-        {/* HEADER LEGA CON NOME BIRRA (O LATTINA AMMACCATA SE PENITENZA ATTIVA) */}
+        {/* HEADER LEGA CON NOME BIRRA, TASTO GAZZETTA E TASTO ELIMINA */}
         <header className="sticky top-0 z-30 bg-slate-950/95 backdrop-blur-md border-b border-amber-500/25 px-3.5 py-3 space-y-2.5">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2">
               <button
                 onClick={() => setActiveLeagueId(null)}
                 className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-amber-400"
@@ -1677,27 +1918,43 @@ export default function App() {
                 <ArrowLeft className="w-4 h-4" />
               </button>
               <SempreNoiLogo size="sm" />
-              <div>
-                <h1 className="text-sm font-black text-white leading-tight">{activeLeague.name}</h1>
+              <div className="min-w-0">
+                <h1 className="text-sm font-black text-white leading-tight truncate">{activeLeague.name}</h1>
                 <span className="text-[10px] text-amber-400 font-bold block">
-                  {(activeLeague.members || []).length} Giocatori in Lega • F1 Mode
+                  {(activeLeague.members || []).length} Piloti • F1 Mode
                 </span>
               </div>
             </div>
 
             <div className="flex items-center gap-1.5">
+              {/* Pulsante Gazzetta del Sempre Noi */}
+              <button
+                type="button"
+                onClick={() => setShowGazzettaModal(true)}
+                className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-amber-500/40 text-amber-400 relative transition"
+                title="Apri la Gazzetta del Sempre Noi"
+              >
+                <Newspaper className="w-4 h-4" />
+                {(activeLeague.gazzetta || []).length > 0 && (
+                  <span className="w-2 h-2 rounded-full bg-red-500 absolute top-1 right-1 animate-pulse" />
+                )}
+              </button>
+
+              {/* Pulsante Scelta Bicchiere */}
               <button
                 onClick={() => setShowGlassPicker(!showGlassPicker)}
-                className={`px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border text-xs font-bold flex items-center gap-1.5 transition ${
+                className={`px-2 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border text-xs font-bold flex items-center gap-1.5 transition ${
                   myCrushedCanActive ? 'border-red-500/60 text-red-300' : 'border-slate-700 text-amber-300'
                 }`}
                 title="Cambia la tua birra e bicchiere avatar"
               >
                 <BeerGlassAvatar type={currentUser.glassType || 'weiss'} size="sm" crushed={myCrushedCanActive} />
                 <span className="text-[10px] uppercase font-black tracking-tight">
-                  {myCrushedCanActive ? '🥫 Lattina 24h' : currentGlassObj.shortName}
+                  {myCrushedCanActive ? '🥫 24h' : currentGlassObj.shortName}
                 </span>
               </button>
+
+              {/* Pulsante Elimina Lega */}
               <button
                 type="button"
                 onClick={() => setLeagueToDelete(activeLeague)}
@@ -1732,6 +1989,32 @@ export default function App() {
               </button>
             </div>
           </div>
+
+          {/* BANNER FISSO STILE SKY SPORT 24: "GAZZETTA DEL SEMPRE NOI" */}
+          {latestGazzettaNews && (
+            <div
+              onClick={() => setShowGazzettaModal(true)}
+              className="bg-slate-900 hover:bg-slate-800/90 border border-amber-500/40 rounded-xl overflow-hidden cursor-pointer transition shadow-md"
+            >
+              <div className="bg-gradient-to-r from-red-600 via-amber-500 to-amber-400 px-2.5 py-0.5 flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                  <span className="text-[9px] font-black uppercase tracking-wider text-slate-950">
+                    GAZZETTA DEL SEMPRE NOI • {latestGazzettaNews.category}
+                  </span>
+                </div>
+                <span className="text-[9px] font-black text-slate-950 uppercase">
+                  Apri Giornale ▸
+                </span>
+              </div>
+              <div className="px-2.5 py-1.5 flex items-center gap-2">
+                <span className="text-base shrink-0">{latestGazzettaNews.icon}</span>
+                <p className="text-[11px] font-bold text-slate-100 line-clamp-2 leading-tight">
+                  {latestGazzettaNews.text}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* SELETTORE A 8 BICCHIERI E TIPOLOGIE DI BIRRA */}
           {showGlassPicker && (
@@ -1864,7 +2147,7 @@ export default function App() {
             </div>
           )}
 
-          {/* TAB 2: STAPPA! (CON PASSAPORTO RUMENO -> CERES, TENNENT'S, FAXE... + LATTINA 24H) */}
+          {/* TAB 2: STAPPA! */}
           {activeTab === 'stappa' && (
             <form onSubmit={handleAddBeer} className="space-y-4">
               {/* RIEPILOGO FORMULA PUNTI LIVE */}
@@ -2011,7 +2294,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* 3. Qualità della Birra (PASSAPORTO RUMENO CON CERES, TENNENT'S, FAXE... E LATTINA 24H) */}
+              {/* 3. Qualità della Birra */}
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2">
                 <label className="block text-[10px] font-bold uppercase text-slate-400">3. Qualità della Birra</label>
                 <div className="grid grid-cols-2 gap-1.5">
@@ -2058,7 +2341,7 @@ export default function App() {
                 <span className="text-sm font-black text-emerald-400">x1,3</span>
               </div>
 
-              {/* BONUS 2: Trofeo "Goccia d'Oro" (SOLO 07:00 - 12:30, ALTRIMENTI BARRATO CON X ROSSA) */}
+              {/* BONUS 2: Trofeo "Goccia d'Oro" */}
               <div 
                 onClick={() => {
                   if (!gocciaStatus.isOpen) {
@@ -2309,7 +2592,7 @@ export default function App() {
             </div>
           )}
 
-          {/* TAB 4: ALBO D'ORO (MVP MENSILE 🐐, 24 ORE DI LE MANS ⏱️, L'IDROVORA ⛽, RE GOYIM 🍼) */}
+          {/* TAB 4: ALBO D'ORO */}
           {activeTab === 'albo' && (
             <div className="space-y-4">
               <div className="bg-gradient-to-r from-amber-500/20 via-slate-900 to-slate-950 border border-amber-500/40 rounded-2xl p-3.5 space-y-1 shadow-xl">
@@ -2399,6 +2682,75 @@ export default function App() {
           )}
 
         </main>
+
+        {/* MODALE "GAZZETTA DEL SEMPRE NOI" (STILE SKY SPORT 24) */}
+        {showGazzettaModal && (
+          <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-slate-900 border-2 border-amber-400 rounded-2xl max-w-sm w-full max-h-[82vh] flex flex-col overflow-hidden shadow-2xl">
+              <div className="bg-gradient-to-r from-red-600 via-amber-500 to-amber-400 px-4 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Newspaper className="w-5 h-5 text-slate-950" />
+                  <div>
+                    <h3 className="text-xs font-black uppercase text-slate-950 leading-none">
+                      Gazzetta del Sempre Noi
+                    </h3>
+                    <span className="text-[9px] font-bold text-slate-900 uppercase">
+                      Notiziario Ufficiale Live 24
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowGazzettaModal(false)}
+                  className="px-2 py-1 rounded-lg bg-slate-950/20 text-slate-950 text-xs font-black"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="p-3.5 overflow-y-auto space-y-2.5 flex-1">
+                {(activeLeague.gazzetta || []).length === 0 ? (
+                  <div className="text-center py-8 space-y-2 text-slate-400">
+                    <Newspaper className="w-8 h-8 mx-auto text-slate-600" />
+                    <p className="text-xs font-bold">Nessuna notizia in prima pagina!</p>
+                    <p className="text-[10px]">
+                      Le edizioni straordinarie compariranno qui per: Il Pentito (&gt;5 giorni), Allarme Degrado, Colazione dei Campioni e Sorpasso in Curva!
+                    </p>
+                  </div>
+                ) : (
+                  (activeLeague.gazzetta || []).map(news => (
+                    <div
+                      key={news.id}
+                      className="bg-slate-950 border border-slate-800 rounded-xl p-3 space-y-1.5 shadow"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${news.badgeColor}`}>
+                          {news.icon} {news.category}
+                        </span>
+                        <span className="text-[9px] text-slate-500 font-mono">
+                          {news.dateLabel} • {news.timestamp}
+                        </span>
+                      </div>
+                      <p className="text-xs font-bold text-slate-100 leading-snug">
+                        {news.text}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="p-3 border-t border-slate-800 bg-slate-950">
+                <button
+                  type="button"
+                  onClick={() => setShowGazzettaModal(false)}
+                  className="w-full py-2.5 rounded-xl bg-amber-500 text-slate-950 text-xs font-black uppercase"
+                >
+                  Chiudi Gazzetta
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* MODALE CONFERMA ELIMINAZIONE LEGA (DA DENTRO LA LEGA) */}
         {leagueToDelete && (
