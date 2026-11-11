@@ -14,6 +14,16 @@ const CLOUD_DB_URL = "https://sempre-noi-default-rtdb.europe-west1.firebasedatab
 
 const cleanDbUrl = CLOUD_DB_URL ? CLOUD_DB_URL.replace(/\/$/, "") : "";
 
+// Durata massima di ogni notizia della Gazzetta: 24 ore (in millisecondi)
+const GAZZETTA_EXPIRY_MS = 24 * 60 * 60 * 1000;
+
+// Filtra solo le notizie uscite nelle ultime 24 ore (max 30)
+const filterActiveGazzettaNews = (newsList, nowMs = Date.now()) => {
+  return (newsList || [])
+    .filter(n => n && n.createdAtMs && (nowMs - Number(n.createdAtMs)) < GAZZETTA_EXPIRY_MS)
+    .slice(0, 30);
+};
+
 // --- LOGO UFFICIALE NON DEFORMATO (CARICA /logo.jpg CON FALLBACK PULITO) ---
 function SempreNoiLogo({ size = "md" }) {
   const [imgError, setImgError] = useState(false);
@@ -294,18 +304,20 @@ const getTodayDateKey = () => {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 };
 
-// --- MOTORE AUTOMATICO SCADENZA 12 ORE DEL CAPITANO ---
-// Verifica se sono passate le 12 ore:
-// - Se ha 4/4 birre confermate -> accredita i punti raddoppiati dal salvadanaio!
-// - Se non può più raggiungere le 4 birre -> 0 punti per le birre e Malus -20 pt!
-// - Se le 12h sono scadute ma ha ancora la 4ª birra in attesa in Sala VAR -> attende il verdetto del VAR!
+// --- MOTORE AUTOMATICO SCADENZA 12 ORE DEL CAPITANO + PULIZIA NOTIZIE > 24H ---
 const settleExpiredCaptainsInLeague = (leagueObj, nowMs) => {
   if (!leagueObj || !leagueObj.members) return { updatedLeague: leagueObj, changed: false, events: [] };
 
   let changed = false;
   const events = [];
   let currentFeed = [...(leagueObj.feed || [])];
-  let currentGazzetta = [...(leagueObj.gazzetta || [])];
+
+  // Elimina automaticamente le notizie della Gazzetta più vecchie di 24 ore
+  const rawGazzetta = leagueObj.gazzetta || [];
+  let currentGazzetta = filterActiveGazzettaNews(rawGazzetta, nowMs);
+  if (currentGazzetta.length !== rawGazzetta.length) {
+    changed = true;
+  }
 
   const prevSorted = [...(leagueObj.members || [])].sort((a, b) => b.points - a.points);
   const prevLeader = prevSorted[0];
@@ -317,7 +329,6 @@ const settleExpiredCaptainsInLeague = (leagueObj, nowMs) => {
     const confirmedCount = m.captainBeers || 0;
     const pendingCapBeersInVar = currentFeed.filter(b => b.playerId === m.id && b.isCaptainBeer);
 
-    // Se non ha ancora 4 conferme, ma ha birre Capitano in Sala VAR che potrebbero portarlo a 4, aspetta il voto del VAR
     if (confirmedCount < 4 && (confirmedCount + pendingCapBeersInVar.length) >= 4) {
       return m;
     }
@@ -325,7 +336,6 @@ const settleExpiredCaptainsInLeague = (leagueObj, nowMs) => {
     changed = true;
 
     if (confirmedCount >= 4) {
-      // VITTORIA CAPITANO: 12h concluse e 4/4 birre confermate -> Accredita il salvadanaio raddoppiato!
       const vaultPts = Number((m.captainVaultPoints || 0).toFixed(1));
       const vaultLiters = Number((m.captainVaultLiters || 0).toFixed(2));
       events.push({
@@ -347,7 +357,6 @@ const settleExpiredCaptainsInLeague = (leagueObj, nowMs) => {
         liters: Number(((m.liters || (m.beers || 0) * 0.5) + vaultLiters).toFixed(2))
       };
     } else {
-      // FALLIMENTO CAPITANO: 12h scadute e < 4 birre -> 0 punti per le birre e MALUS -20 PT!
       currentFeed = currentFeed.filter(b => !(b.playerId === m.id && b.isCaptainBeer));
       events.push({
         type: 'fail',
@@ -370,7 +379,6 @@ const settleExpiredCaptainsInLeague = (leagueObj, nowMs) => {
 
   if (!changed) return { updatedLeague: leagueObj, changed: false, events: [] };
 
-  // Controlla se lo sblocco del salvadanaio Capitano ha causato un "SORPASSO IN CURVA"
   if (updatedMembers.length > 1) {
     const newSorted = [...updatedMembers].sort((a, b) => b.points - a.points);
     const newLeader = newSorted[0];
@@ -385,7 +393,7 @@ const settleExpiredCaptainsInLeague = (leagueObj, nowMs) => {
         dateLabel: new Date().toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }),
         createdAtMs: nowMs
       };
-      currentGazzetta = [overtakeNews, ...currentGazzetta].slice(0, 30);
+      currentGazzetta = filterActiveGazzettaNews([overtakeNews, ...currentGazzetta], nowMs);
     }
   }
 
@@ -501,6 +509,12 @@ export default function App() {
   const [showGazzettaModal, setShowGazzettaModal] = useState(false);
   const [breakingNewsAlert, setBreakingNewsAlert] = useState(null);
 
+  // Memoria delle notizie già lette dall'utente (per far sparire il pallino rosso dopo l'apertura)
+  const [readNewsByLeague, setReadNewsByLeague] = useState(() => {
+    const saved = localStorage.getItem('sempre_noi_read_gazzetta_map');
+    return saved ? JSON.parse(saved) : {};
+  });
+
   // --- 4. STATO SEZIONE "STAPPA!" + GOCCIA D'ORO + CAPITANO ---
   const [beerTitle, setBeerTitle] = useState('');
   const [format, setFormat] = useState('spina50');
@@ -559,6 +573,7 @@ export default function App() {
       const data = await res.json();
       if (!data) return null;
 
+      const nowMs = Date.now();
       const rawValues = Object.values(data);
       const deletedIds = new Set(rawValues.filter(l => l && l.deleted).map(l => l.id));
       const cloudList = rawValues
@@ -567,7 +582,7 @@ export default function App() {
           ...l,
           members: l.members || [],
           history: l.history || [],
-          gazzetta: l.gazzetta || [],
+          gazzetta: filterActiveGazzettaNews(l.gazzetta || [], nowMs),
           feed: (l.feed || []).map(item => ({
             ...item,
             approvals: item.approvals || [],
@@ -602,8 +617,44 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // --- CONTROLLO AUTOMATICO SCADENZA 12 ORE CAPITANO AD OGNI TICK ---
+  // --- CONTROLLO AUTOMATICO SCADENZA 12 ORE CAPITANO E PULIZIA NOTIZIE > 24H ---
   const activeLeague = leagues.find(l => l.id === activeLeagueId);
+
+  // Notizie valide (< 24h) della lega attiva
+  const activeGazzettaList = useMemo(() => {
+    return filterActiveGazzettaNews(activeLeague?.gazzetta || [], clockTick);
+  }, [activeLeague?.gazzetta, clockTick]);
+
+  const latestGazzettaNews = activeGazzettaList[0] || null;
+
+  // Il pallino rosso compare SOLO se c'è almeno una notizia (< 24h) non ancora letta
+  const hasUnreadGazzetta = Boolean(
+    activeLeague &&
+    latestGazzettaNews &&
+    readNewsByLeague[activeLeague.id] !== latestGazzettaNews.id
+  );
+
+  // Funzione che apre la Gazzetta e segna subito le notizie come lette (rimuovendo il pallino rosso)
+  const handleOpenGazzetta = () => {
+    setShowGazzettaModal(true);
+    setBreakingNewsAlert(null);
+    if (activeLeague && latestGazzettaNews) {
+      const updatedMap = { ...readNewsByLeague, [activeLeague.id]: latestGazzettaNews.id };
+      setReadNewsByLeague(updatedMap);
+      localStorage.setItem('sempre_noi_read_gazzetta_map', JSON.stringify(updatedMap));
+    }
+  };
+
+  // Se la finestra della Gazzetta è già aperta mentre arriva una nuova notizia, la segna subito come letta
+  useEffect(() => {
+    if (showGazzettaModal && activeLeague && latestGazzettaNews) {
+      if (readNewsByLeague[activeLeague.id] !== latestGazzettaNews.id) {
+        const updatedMap = { ...readNewsByLeague, [activeLeague.id]: latestGazzettaNews.id };
+        setReadNewsByLeague(updatedMap);
+        localStorage.setItem('sempre_noi_read_gazzetta_map', JSON.stringify(updatedMap));
+      }
+    }
+  }, [showGazzettaModal, activeLeague?.id, latestGazzettaNews?.id]);
 
   useEffect(() => {
     if (!activeLeague) return;
@@ -639,22 +690,21 @@ export default function App() {
     localStorage.setItem('sempre_noi_leagues_v3', JSON.stringify(leagues));
   }, [leagues]);
 
-  // --- RILEVA NUOVE NOTIZIE DELLA "GAZZETTA DEL SEMPRE NOI" ---
+  // --- RILEVA NUOVE NOTIZIE DELLA "GAZZETTA DEL SEMPRE NOI" PER IL POPUP LIVE ---
   useEffect(() => {
-    if (!activeLeague || !activeLeague.gazzetta || activeLeague.gazzetta.length === 0) return;
-    const latestNews = activeLeague.gazzetta[0];
+    if (!activeLeague || !latestGazzettaNews) return;
     const storageKey = `sempre_noi_seen_news_${activeLeague.id}`;
     const lastSeenId = localStorage.getItem(storageKey);
 
-    if (latestNews && latestNews.id !== lastSeenId) {
-      localStorage.setItem(storageKey, latestNews.id);
-      setBreakingNewsAlert(latestNews);
+    if (latestGazzettaNews.id !== lastSeenId) {
+      localStorage.setItem(storageKey, latestGazzettaNews.id);
+      setBreakingNewsAlert(latestGazzettaNews);
       const timer = setTimeout(() => {
         setBreakingNewsAlert(null);
       }, 7000);
       return () => clearTimeout(timer);
     }
-  }, [activeLeague?.gazzetta]);
+  }, [activeLeague?.id, latestGazzettaNews?.id]);
 
   // --- CATTURA LINK DI INVITO ANCHE PRIMA DEL LOGIN ---
   useEffect(() => {
@@ -763,7 +813,7 @@ export default function App() {
               ...cloudLeague,
               members: cloudLeague.members || [],
               history: cloudLeague.history || [],
-              gazzetta: cloudLeague.gazzetta || [],
+              gazzetta: filterActiveGazzettaNews(cloudLeague.gazzetta || [], Date.now()),
               feed: (cloudLeague.feed || []).map(item => ({
                 ...item,
                 approvals: item.approvals || [],
@@ -997,7 +1047,7 @@ export default function App() {
     }
 
     const nowMs = Date.now();
-    const expiresAtMs = nowMs + 12 * 60 * 60 * 1000; // Scade esattamente dopo 12 ore
+    const expiresAtMs = nowMs + 12 * 60 * 60 * 1000;
 
     setLeagues(prev => prev.map(l => {
       if (l.id !== activeLeagueId) return l;
@@ -1119,7 +1169,6 @@ export default function App() {
     const isGocciaValidNow = gocciaStatus.isOpen && bonusGocciaDOro;
     const gocciaBonus = isGocciaValidNow ? 3 : 0;
 
-    // Il raddoppio x2 vale SOLO se il Capitano è attivo, dentro le 12 ore, e per le prime 4 birre stappate!
     const isWithin12h = Boolean(
       myMemberProfile?.captainActive &&
       (!myMemberProfile?.captainExpiresAtMs || clockTick < Number(myMemberProfile.captainExpiresAtMs))
@@ -1177,7 +1226,7 @@ export default function App() {
       setPersonalDisclaimer(PERSONAL_DISCLAIMERS[newDailyCount]);
     }
 
-    // 2. Notizie per la "Gazzetta del Sempre Noi"
+    // 2. Notizie per la "Gazzetta del Sempre Noi" (durata 24h)
     const newGazzettaItems = [];
 
     if (myMemberProfile?.lastDrinkAtMs && (nowMs - Number(myMemberProfile.lastDrinkAtMs)) >= 5 * 24 * 60 * 60 * 1000) {
@@ -1256,7 +1305,7 @@ export default function App() {
         const updated = {
           ...l,
           feed: [newBeer, ...(l.feed || [])],
-          gazzetta: [...newGazzettaItems, ...(l.gazzetta || [])].slice(0, 30),
+          gazzetta: filterActiveGazzettaNews([...newGazzettaItems, ...(l.gazzetta || [])], nowMs),
           members: l.members.map(m => {
             if (m.id === currentUser.id) {
               return {
@@ -1291,8 +1340,6 @@ export default function App() {
   };
 
   // --- SALA VAR: CONFERMA BIRRA ---
-  // Se è una Birra Capitano (1-4), mette i punti raddoppiati in Cassaforte fino allo scadere delle 12h!
-  // Se è una birra normale (o la 5ª+ del Capitano), accredita subito i punti!
   const handleApproveBeer = (beerId) => {
     const targetBeer = (activeLeague?.feed || []).find(item => item.id === beerId);
     if (!targetBeer) return;
@@ -1312,6 +1359,7 @@ export default function App() {
     setLeagues(prev => prev.map(l => {
       if (l.id !== activeLeagueId) return l;
 
+      const nowMs = Date.now();
       const prevSorted = [...(l.members || [])].sort((a, b) => b.points - a.points);
       const prevLeader = prevSorted[0];
 
@@ -1325,35 +1373,32 @@ export default function App() {
         ? l.members.map(m => {
             if (m.id === targetBeer.playerId) {
               if (isCapBeer && m.captainActive) {
-                // Birra Capitano (1-4): va nel salvadanaio congelato fino allo scadere delle 12 ore!
                 return {
                   ...m,
                   captainBeers: (m.captainBeers || 0) + 1,
                   captainVaultPoints: Number(((m.captainVaultPoints || 0) + targetBeer.points).toFixed(1)),
                   captainVaultLiters: Number(((m.captainVaultLiters || 0) + drinkLiters).toFixed(2)),
-                  rumenoUntil: targetBeer.isRumeno ? (Date.now() + 24 * 60 * 60 * 1000) : (m.rumenoUntil || null)
+                  rumenoUntil: targetBeer.isRumeno ? (nowMs + 24 * 60 * 60 * 1000) : (m.rumenoUntil || null)
                 };
               }
-              // Birra Normale (o 5ª+ birra): accredita immediatamente in classifica!
               return {
                 ...m,
                 points: Number((m.points + targetBeer.points).toFixed(1)),
                 weekendPts: Number((m.weekendPts + targetBeer.points).toFixed(1)),
                 beers: m.beers + 1,
                 liters: Number(((m.liters || m.beers * 0.5) + drinkLiters).toFixed(2)),
-                rumenoUntil: targetBeer.isRumeno ? (Date.now() + 24 * 60 * 60 * 1000) : (m.rumenoUntil || null)
+                rumenoUntil: targetBeer.isRumeno ? (nowMs + 24 * 60 * 60 * 1000) : (m.rumenoUntil || null)
               };
             }
             return m;
           })
         : l.members;
 
-      let updatedGazzetta = l.gazzetta || [];
+      let updatedGazzetta = filterActiveGazzettaNews(l.gazzetta || [], nowMs);
       if (reachedTwoConfirmations && !isCapBeer && updatedMembers.length > 1) {
         const newSorted = [...updatedMembers].sort((a, b) => b.points - a.points);
         const newLeader = newSorted[0];
         if (prevLeader && newLeader && prevLeader.id !== newLeader.id && newLeader.id === targetBeer.playerId) {
-          const nowMs = Date.now();
           const overtakeNews = {
             id: 'news_sorpasso_' + nowMs,
             category: 'SORPASSO IN CURVA',
@@ -1364,7 +1409,7 @@ export default function App() {
             dateLabel: new Date().toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }),
             createdAtMs: nowMs
           };
-          updatedGazzetta = [overtakeNews, ...updatedGazzetta].slice(0, 30);
+          updatedGazzetta = filterActiveGazzettaNews([overtakeNews, ...updatedGazzetta], nowMs);
         }
       }
 
@@ -1376,7 +1421,7 @@ export default function App() {
               playerName: targetBeer.playerName,
               points: targetBeer.points,
               liters: drinkLiters,
-              timestampMs: targetBeer.createdAtMs || Date.now()
+              timestampMs: targetBeer.createdAtMs || nowMs
             },
             ...(l.history || [])
           ]
@@ -1390,8 +1435,7 @@ export default function App() {
         gazzetta: updatedGazzetta
       };
 
-      // Se le 12 ore erano già scadute e questa era l'ultima birra Capitano in attesa, sblocca subito il verdetto!
-      const { updatedLeague: finalLeague } = settleExpiredCaptainsInLeague(draftLeague, Date.now());
+      const { updatedLeague: finalLeague } = settleExpiredCaptainsInLeague(draftLeague, nowMs);
       pushLeagueToCloud(finalLeague);
       return finalLeague;
     }));
@@ -1950,8 +1994,6 @@ export default function App() {
     );
   }
 
-  const latestGazzettaNews = (activeLeague.gazzetta || [])[0];
-
   // =========================================================================
   // VISTA 3: DENTRO LA LEGA
   // =========================================================================
@@ -1988,10 +2030,7 @@ export default function App() {
             </button>
           </div>
           <div
-            onClick={() => {
-              setBreakingNewsAlert(null);
-              setShowGazzettaModal(true);
-            }}
+            onClick={handleOpenGazzetta}
             className="p-3 flex items-center gap-3 cursor-pointer"
           >
             <span className="text-2xl shrink-0">{breakingNewsAlert.icon}</span>
@@ -2057,14 +2096,15 @@ export default function App() {
             </div>
 
             <div className="flex items-center gap-1.5">
+              {/* Pulsante Gazzetta con Pallino Rosso SOLO se ci sono notizie non lette */}
               <button
                 type="button"
-                onClick={() => setShowGazzettaModal(true)}
+                onClick={handleOpenGazzetta}
                 className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-amber-500/40 text-amber-400 relative transition"
                 title="Apri la Gazzetta del Sempre Noi"
               >
                 <Newspaper className="w-4 h-4" />
-                {(activeLeague.gazzetta || []).length > 0 && (
+                {hasUnreadGazzetta && (
                   <span className="w-2 h-2 rounded-full bg-red-500 absolute top-1 right-1 animate-pulse" />
                 )}
               </button>
@@ -2117,10 +2157,10 @@ export default function App() {
             </div>
           </div>
 
-          {/* BANNER FISSO STILE SKY SPORT 24: "GAZZETTA DEL SEMPRE NOI" */}
+          {/* BANNER FISSO SOTTO IL CODICE INVITO (VISIBILE SOLO PER 24 ORE DALL'USCITA DELLA NOTIZIA) */}
           {latestGazzettaNews && (
             <div
-              onClick={() => setShowGazzettaModal(true)}
+              onClick={handleOpenGazzetta}
               className="bg-slate-900 hover:bg-slate-800/90 border border-amber-500/40 rounded-xl overflow-hidden cursor-pointer transition shadow-md"
             >
               <div className="bg-gradient-to-r from-red-600 via-amber-500 to-amber-400 px-2.5 py-0.5 flex items-center justify-between">
@@ -2303,7 +2343,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* PANNELLO UFFICIALE: IL "CAPITANO" DELLA SERATA (TIMER AUTOMATICO 12H + SALVADANAIO 4 BIRRE) */}
+              {/* PANNELLO UFFICIALE: IL "CAPITANO" DELLA SERATA */}
               <div className={`p-3.5 rounded-2xl border transition space-y-2.5 ${
                 myMemberProfile?.captainActive 
                   ? 'bg-purple-950/60 border-purple-400 text-white shadow-lg shadow-purple-500/10' 
@@ -2840,7 +2880,7 @@ export default function App() {
 
         </main>
 
-        {/* MODALE "GAZZETTA DEL SEMPRE NOI" */}
+        {/* MODALE "GAZZETTA DEL SEMPRE NOI" (CON SCADENZA AUTOMATICA 24H) */}
         {showGazzettaModal && (
           <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="bg-slate-900 border-2 border-amber-400 rounded-2xl max-w-sm w-full max-h-[82vh] flex flex-col overflow-hidden shadow-2xl">
@@ -2852,7 +2892,7 @@ export default function App() {
                       Gazzetta del Sempre Noi
                     </h3>
                     <span className="text-[9px] font-bold text-slate-900 uppercase">
-                      Notiziario Ufficiale Live 24
+                      Notiziario Live 24h (Max 30 News)
                     </span>
                   </div>
                 </div>
@@ -2866,16 +2906,16 @@ export default function App() {
               </div>
 
               <div className="p-3.5 overflow-y-auto space-y-2.5 flex-1">
-                {(activeLeague.gazzetta || []).length === 0 ? (
+                {activeGazzettaList.length === 0 ? (
                   <div className="text-center py-8 space-y-2 text-slate-400">
                     <Newspaper className="w-8 h-8 mx-auto text-slate-600" />
-                    <p className="text-xs font-bold">Nessuna notizia in prima pagina!</p>
+                    <p className="text-xs font-bold">Nessuna notizia nelle ultime 24 ore!</p>
                     <p className="text-[10px]">
-                      Le edizioni straordinarie compariranno qui per: Il Pentito (&gt;5 giorni), Allarme Degrado, Colazione dei Campioni e Sorpasso in Curva!
+                      Le notizie rimangono visibili per 24 ore dalla pubblicazione e poi si eliminano automaticamente.
                     </p>
                   </div>
                 ) : (
-                  (activeLeague.gazzetta || []).map(news => (
+                  activeGazzettaList.map(news => (
                     <div
                       key={news.id}
                       className="bg-slate-950 border border-slate-800 rounded-xl p-3 space-y-1.5 shadow"
