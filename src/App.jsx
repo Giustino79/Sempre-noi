@@ -1117,7 +1117,37 @@ export default function App() {
       showToast('✅ 1ª Conferma registrata (1/2)!', 'success');
     }
   };
+// --- SALA VAR: IL PROPRIETARIO RITIRA/CANCELLA LA PROPRIA FOTO CARICATA PER ERRORE ---
+  const handleDeleteOwnBeer = (beerItem) => {
+    if (!beerItem || !activeLeagueId) return;
+    if (beerItem.playerId !== currentUser.id) {
+      showToast('⚠️ Puoi cancellare solo le foto caricate da te!', 'warning');
+      return;
+    }
+    if ((beerItem.varVotes || []).length > 0) {
+      showToast('🚨 Troppo tardi! Hai già una segnalazione VAR su questa foto, non puoi più ritirarla!', 'danger');
+      return;
+    }
 
+    setLeagues(prev => prev.map(l => {
+      if (l.id !== activeLeagueId) return l;
+      const updatedFeed = (l.feed || []).filter(item => item.id !== beerItem.id);
+      const updatedMembers = l.members.map(m => {
+        if (m.id === currentUser.id && beerItem.isCaptainBeer) {
+          return {
+            ...m,
+            captainBeersSubmitted: Math.max(0, (m.captainBeersSubmitted || 1) - 1)
+          };
+        }
+        return m;
+      });
+      const updated = { ...l, feed: updatedFeed, members: updatedMembers };
+      pushLeagueToCloud(updated);
+      return updated;
+    }));
+
+    showToast('🗑️ Hai ritirato e cancellato la tua birra dalla Sala VAR!', 'warning');
+  };
   const handleOpenVarModal = (beerItem) => {
     if (beerItem.playerId === currentUser.id) return showToast('⚠️ Non puoi segnalare al VAR la tua stessa birra!', 'warning');
     const existingFirstVote = (beerItem.varVotes || [])[0];
@@ -2264,10 +2294,27 @@ export default function App() {
                             </div>
                           )}
 
-                          {isMyBeer ? (
-                            <div className="py-2.5 px-3 rounded-xl bg-slate-950 border border-slate-800 text-slate-400 text-[11px] font-bold flex items-center justify-center gap-2">
-                              <Clock className="w-4 h-4 text-amber-400 shrink-0" />
-                              <span>Tua bevuta: in attesa del giudizio di 2 amici della lega</span>
+                         {isMyBeer ? (
+                            <div className="space-y-2 pt-1">
+                              <div className="py-2 px-3 rounded-xl bg-slate-950 border border-slate-800 text-slate-400 text-[11px] font-bold flex items-center justify-center gap-2">
+                                <Clock className="w-4 h-4 text-amber-400 shrink-0" />
+                                <span>Tua bevuta: in attesa del giudizio di 2 amici della lega</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteOwnBeer(item)}
+                                disabled={varVotesList.length > 0}
+                                className={`w-full py-2 px-3 rounded-xl text-xs font-black uppercase flex items-center justify-center gap-1.5 border transition ${
+                                  varVotesList.length > 0
+                                    ? 'bg-slate-950 border-slate-800 text-slate-600 cursor-not-allowed'
+                                    : 'bg-red-500/15 hover:bg-red-500/25 border-red-500/40 text-red-300'
+                                }`}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                                {varVotesList.length > 0
+                                  ? 'Bloccata (Sotto indagine VAR)'
+                                  : 'Hai sbagliato? Ritira ed Elimina Foto'}
+                              </button>
                             </div>
                           ) : (
                             <div className="grid grid-cols-2 gap-2 pt-1">
