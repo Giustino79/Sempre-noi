@@ -494,7 +494,8 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('classifica');
   const [toastMessage, setToastMessage] = useState(null);
   const [showGlassPicker, setShowGlassPicker] = useState(false);
-  const [showRulesModal, setShowRulesModal] = useState(false);
+const [showRulesModal, setShowRulesModal] = useState(false);
+const [rulesPage, setRulesPage] = useState('intro');
   const [clockTick, setClockTick] = useState(Date.now());
   const [personalDisclaimer, setPersonalDisclaimer] = useState(null);
   const [showGazzettaModal, setShowGazzettaModal] = useState(false);
@@ -2850,7 +2851,7 @@ export default function App() {
             </form>
           </div>
         )}
-        {/* MODALE REGOLE UFFICIALI (APERTO DALL'ICONA IN ALTO A DESTRA) */}
+       {/* MODALE REGOLE UFFICIALI (A 2 PAGINE: COME SI GIOCA + PUNTI E BONUS) */}
         {showRulesModal && (
           <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="bg-slate-900 border-2 border-amber-400 rounded-2xl max-w-sm w-full max-h-[85vh] flex flex-col overflow-hidden shadow-2xl">
@@ -2867,35 +2868,110 @@ export default function App() {
                 </button>
               </div>
 
-              <div className="p-4 overflow-y-auto space-y-3 text-xs text-slate-300">
-                <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
-                  <span className="text-[10px] font-black uppercase text-amber-400">1. Formati, Gradi e Qualità</span>
-                  <div className="flex justify-between"><span>Piccola 33cl / Media 50cl / 1 litro</span><strong className="text-white">+3 / +5 / +8 pt</strong></div>
-                  <div className="flex justify-between"><span>Leggera (≤5,6°) / Media / Forte (&gt;7,5°)</span><strong className="text-white">x1.0 / x1.3 / x1.7</strong></div>
-                  <div className="flex justify-between"><span>Industriale / Artigianale / Alla spina</span><strong className="text-amber-400">+0 / +2 / +3 pt</strong></div>
-                  <div className="flex justify-between"><span>Passaporto Rumeno (Ceres, Tennent's, Faxe...)</span><strong className="text-red-400">-5 pt + 🥫 24h</strong></div>
-                </div>
-
-                <div className="p-2.5 rounded-xl bg-slate-950 border border-purple-500/30 space-y-1">
-                  <span className="text-[10px] font-black uppercase text-purple-400">2. Capitano 12 Ore</span>
-                  <div className="flex justify-between"><span>4 Birre validate nelle 12h</span><strong className="text-purple-300">Punti Doppi (x2)</strong></div>
-                  <div className="flex justify-between"><span>Meno di 4 birre a fine 12h</span><strong className="text-red-500">0 pt birre e Malus -20 pt</strong></div>
-                </div>
-
-                <div className="p-2.5 rounded-xl bg-slate-950 border border-red-500/30 space-y-1">
-                  <span className="text-[10px] font-black uppercase text-red-400">3. Sala VAR (2 Voti)</span>
-                  <div className="flex justify-between"><span>2 Conferme dagli amici</span><strong className="text-emerald-400">+Punti Birra</strong></div>
-                  <div className="flex justify-between"><span>🟨 Cartellino giallo: birra avanzata</span><strong className="text-yellow-400">Solo -2 pt</strong></div>
-                  <div className="flex justify-between"><span>🚨 Simulazione: foto riciclata/vuota</span><strong className="text-red-400">Solo -5 pt</strong></div>
-                  <div className="flex justify-between"><span>🟥 Cartellino rosso: analcolica/radler</span><strong className="text-red-500">Solo -10 pt</strong></div>
-                </div>
+              {/* Selettore delle 2 Pagine */}
+              <div className="grid grid-cols-2 gap-1.5 p-2 bg-slate-950/90 border-b border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setRulesPage('intro')}
+                  className={`py-2 rounded-xl text-[10px] font-black uppercase transition ${
+                    rulesPage === 'intro'
+                      ? 'bg-amber-400 text-slate-950 shadow'
+                      : 'bg-slate-900 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  🍺 1. Come si Gioca
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRulesPage('punti')}
+                  className={`py-2 rounded-xl text-[10px] font-black uppercase transition ${
+                    rulesPage === 'punti'
+                      ? 'bg-amber-400 text-slate-950 shadow'
+                      : 'bg-slate-900 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  ⚡ 2. Punti & Bonus
+                </button>
               </div>
 
-              <div className="p-3 bg-slate-950 border-t border-slate-800">
+              {/* CONTENUTO PAGINA 1: INTRODUZIONE GENERALE (CALCIO & BIRRA) */}
+              {rulesPage === 'intro' ? (
+                <div className="p-4 overflow-y-auto space-y-2.5 text-xs text-slate-300">
+                  <div className="p-3 rounded-xl bg-gradient-to-r from-amber-500/15 to-slate-950 border border-amber-500/30 space-y-1">
+                    <span className="text-[10px] font-black uppercase text-amber-400 block">
+                      🍻⚽ Benvenuto nel Fantabirra Ufficiale
+                    </span>
+                    <p className="text-[11px] leading-relaxed text-slate-200">
+                      Crea la lega con i tuoi compagni di bevute e scendi in campo al bancone! Qui ogni pinta vale punti pesanti: si gioca tutti contro tutti a colpi di luppolo, doppiette e chiamate al VAR per incoronare il vero <strong>Bomber</strong> della compagnia.
+                    </p>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+                    <span className="text-[10px] font-black uppercase text-sky-400 block">
+                      1️⃣ Stappa, Fascia da Capitano e Scatta Live
+                    </span>
+                    <p className="text-[11px] leading-snug">
+                      Quando hai la birra davanti, vai su <strong>Stappa!</strong>, scegli formato, gradi e qualità (o indossa la <strong>Fascia da Capitano</strong> del weekend!) e scatta la foto in diretta: niente foto vecchie dalla galleria!
+                    </p>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+                    <span className="text-[10px] font-black uppercase text-emerald-400 block">
+                      2️⃣ Il Giudizio della Sala VAR
+                    </span>
+                    <p className="text-[11px] leading-snug">
+                      La tua foto finisce al vaglio della <strong>Sala VAR</strong>: servono <strong>2 conferme</strong> degli amici per convalidare la bevuta e incassare i punti. Ma se avanzi la birra o provi a barare, scattano <strong>Simulazioni, Cartellini Gialli e Rossi</strong>!
+                    </p>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+                    <span className="text-[10px] font-black uppercase text-purple-400 block">
+                      3️⃣ Gazzetta, Bollettino e Chiosco
+                    </span>
+                    <p className="text-[11px] leading-snug">
+                      Ogni impresa o degrado finisce in prima pagina sulla <strong>Gazzetta</strong>! Tocca i giocatori in classifica per spiare il loro <strong>Bollettino Medico</strong> e accumula <strong>Tappi d'Oro 🪙</strong> per collezionare le 32 carte del <strong>Chiosco</strong>.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                /* CONTENUTO PAGINA 2: LE TUE REGOLE SUI PUNTI E BONUS */
+                <div className="p-4 overflow-y-auto space-y-3 text-xs text-slate-300">
+                  <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+                    <span className="text-[10px] font-black uppercase text-amber-400">1. Formati, Gradi e Qualità</span>
+                    <div className="flex justify-between"><span>Piccola 33cl / Media 50cl / 1 litro</span><strong className="text-white">+3 / +5 / +8 pt</strong></div>
+                    <div className="flex justify-between"><span>Leggera (≤5,6°) / Media / Forte (&gt;7,5°)</span><strong className="text-white">x1.0 / x1.3 / x1.7</strong></div>
+                    <div className="flex justify-between"><span>Industriale / Artigianale / Alla spina</span><strong className="text-amber-400">+0 / +2 / +3 pt</strong></div>
+                    <div className="flex justify-between"><span>Passaporto Rumeno (Ceres, Tennent's, Faxe...)</span><strong className="text-red-400">-5 pt + 🥫 24h</strong></div>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-slate-950 border border-purple-500/30 space-y-1">
+                    <span className="text-[10px] font-black uppercase text-purple-400">2. Capitano 12 Ore</span>
+                    <div className="flex justify-between"><span>4 Birre validate nelle 12h</span><strong className="text-purple-300">Punti Doppi (x2)</strong></div>
+                    <div className="flex justify-between"><span>Meno di 4 birre a fine 12h</span><strong className="text-red-500">0 pt birre e Malus -20 pt</strong></div>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-slate-950 border border-red-500/30 space-y-1">
+                    <span className="text-[10px] font-black uppercase text-red-400">3. Sala VAR (2 Voti)</span>
+                    <div className="flex justify-between"><span>2 Conferme dagli amici</span><strong className="text-emerald-400">+Punti Birra</strong></div>
+                    <div className="flex justify-between"><span>🟨 Cartellino giallo: birra avanzata</span><strong className="text-yellow-400">Solo -2 pt</strong></div>
+                    <div className="flex justify-between"><span>🚨 Simulazione: foto riciclata/vuota</span><strong className="text-red-400">Solo -5 pt</strong></div>
+                    <div className="flex justify-between"><span>🟥 Cartellino rosso: analcolica/radler</span><strong className="text-red-500">Solo -10 pt</strong></div>
+                  </div>
+                </div>
+              )}
+
+              <div className="p-3 bg-slate-950 border-t border-slate-800 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRulesPage(rulesPage === 'intro' ? 'punti' : 'intro')}
+                  className="py-2.5 bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-black uppercase rounded-xl"
+                >
+                  {rulesPage === 'intro' ? 'Vedi Punti ▸' : '◂ Come si Gioca'}
+                </button>
                 <button
                   type="button"
                   onClick={() => setShowRulesModal(false)}
-                  className="w-full py-2.5 bg-amber-500 text-slate-950 text-xs font-black uppercase rounded-xl"
+                  className="py-2.5 bg-amber-500 text-slate-950 text-xs font-black uppercase rounded-xl"
                 >
                   Ho Capito
                 </button>
