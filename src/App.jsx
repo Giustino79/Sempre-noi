@@ -1052,25 +1052,36 @@ const [rulesPage, setRulesPage] = useState('intro');
     }));
   };
 
-  const handleGodForceVar = (beerItem, mode) => {
+const handleGodForceVar = (beerItem, mode) => {
     if (!beerItem || !activeLeagueId) return;
+    const nowMs = Date.now();
     setLeagues(prev => prev.map(l => {
       if (l.id !== activeLeagueId) return l;
       const updatedFeed = (l.feed || []).filter(item => item.id !== beerItem.id);
       const drinkL = Number(beerItem.liters || 0.5);
-      const updatedMembers = mode === 'approve'
-        ? (l.members || []).map(m => m.id === beerItem.playerId ? {
+      const updatedMembers = (l.members || []).map(m => {
+        if (m.id !== beerItem.playerId) return m;
+        if (mode === 'approve') {
+          return {
             ...m,
             points: Number((m.points + beerItem.points).toFixed(1)),
             beers: (m.beers || 0) + 1,
             liters: Number(((m.liters ?? ((m.beers || 0) * 0.5)) + drinkL).toFixed(2))
-          } : m)
-        : l.members;
+          };
+        } else {
+          const curStreak = getActiveSessionStreak(m, nowMs);
+          return {
+            ...m,
+            dailyCount: Math.max(0, curStreak - 1),
+            captainBeersSubmitted: beerItem.isCaptainBeer ? Math.max(0, (m.captainBeersSubmitted || 1) - 1) : m.captainBeersSubmitted
+          };
+        }
+      });
       const updated = { ...l, feed: updatedFeed, members: updatedMembers };
       pushLeagueToCloud(updated);
       return updated;
     }));
-    showToast(mode === 'approve' ? '⚡ Birra convalidata istantaneamente (God Mode)!' : '🗑️ Foto eliminata dalla Sala VAR (God Mode)!', 'success');
+    showToast(mode === 'approve' ? '⚡ Birra convalidata istantaneamente (God Mode)!' : '🗑️ Foto eliminata e contatore scalato (-1)!', 'success');
   };
   const handleLogout = () => {
     if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
@@ -1396,24 +1407,43 @@ const newCount = prevCount + 1;
       return;
     }
 
+    const nowMs = Date.now();
+
     setLeagues(prev => prev.map(l => {
       if (l.id !== activeLeagueId) return l;
       const updatedFeed = (l.feed || []).filter(item => item.id !== beerItem.id);
+
+      // Cerchiamo se il giocatore ha altre birre recenti (nelle ultime 3h) per mantenere il timer corretto
+      const myOtherBeersInVar = updatedFeed.filter(b => b.playerId === currentUser.id && b.createdAtMs);
+      const myHistoryBeers = (l.history || []).filter(h => h.playerId === currentUser.id && h.timestampMs);
+      const latestPrevMs = [
+        ...myOtherBeersInVar.map(b => Number(b.createdAtMs)),
+        ...myHistoryBeers.map(h => Number(h.timestampMs))
+      ].sort((a, b) => b - a)[0] || null;
+
       const updatedMembers = l.members.map(m => {
-        if (m.id === currentUser.id && beerItem.isCaptainBeer) {
-          return {
-            ...m,
-            captainBeersSubmitted: Math.max(0, (m.captainBeersSubmitted || 1) - 1)
-          };
-        }
-        return m;
+        if (m.id !== currentUser.id) return m;
+
+        const currentStreak = getActiveSessionStreak(m, nowMs);
+        const nextStreak = Math.max(0, currentStreak - 1);
+
+        return {
+          ...m,
+          dailyCount: nextStreak,
+          lastDrinkAtMs: nextStreak > 0 ? (latestPrevMs || m.lastDrinkAtMs) : latestPrevMs,
+          rumenoUntil: beerItem.isRumeno ? null : m.rumenoUntil,
+          captainBeersSubmitted: beerItem.isCaptainBeer
+            ? Math.max(0, (m.captainBeersSubmitted || 1) - 1)
+            : m.captainBeersSubmitted
+        };
       });
+
       const updated = { ...l, feed: updatedFeed, members: updatedMembers };
       pushLeagueToCloud(updated);
       return updated;
     }));
 
-    showToast('🗑️ Hai ritirato e cancellato la tua birra dalla Sala VAR!', 'warning');
+    showToast('🗑️ Foto ritirata! Contatore birre della serata riportato indietro (-1).', 'warning');
   };
   const handleOpenVarModal = (beerItem) => {
     if (beerItem.playerId === currentUser.id) return showToast('⚠️ Non puoi segnalare al VAR la tua stessa birra!', 'warning');
