@@ -120,16 +120,49 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md', crushed = false, streakL
 
   return (
     <div className={`${sizeClasses} aspect-square rounded-2xl ${borderStyle} border flex items-center justify-center shrink-0 relative overflow-visible`}>
-      {/* EFFETTO FIAMME DINAMICHE (3ª e 4ª BIRRA) */}
+      {/* EFFETTO FIAMME DINAMICHE A PIÙ FIAMMETTE INDIPENDENTI (3ª e 4ª BIRRA) */}
       {streakLevel === 'fire' && (
-        <svg viewBox="0 0 60 60" className="absolute -inset-2 w-[calc(100%+16px)] h-[calc(100%+16px)] pointer-events-none z-20 overflow-visible">
-          <g className=" sn-flame-outer">
-            <path d="M10 48 C4 34, 12 20, 16 10 C18 22, 24 18, 22 6 C30 16, 34 8, 30 2 C38 12, 44 20, 40 30 C46 22, 50 14, 48 8 C54 22, 56 36, 50 48 Z" fill="none" stroke="#f97316" strokeWidth="2.2" strokeLinecap="round" opacity="0.85" />
-            <path d="M8 50 Q14 36 12 24 Q18 32 20 18 Q26 30 30 14 Q36 30 40 20 Q44 32 48 22 Q54 36 52 50" fill="none" stroke="#facc15" strokeWidth="1.6" strokeLinecap="round" opacity="0.9" />
+        <svg viewBox="0 0 64 64" className="absolute -inset-2.5 w-[calc(100%+20px)] h-[calc(100%+20px)] pointer-events-none z-20 overflow-visible">
+          <defs>
+            <linearGradient id="snFlameRed" x1="0%" y1="100%" x2="0%" y2="0%">
+              <stop offset="0%" stopColor="#dc2626" />
+              <stop offset="55%" stopColor="#f97316" />
+              <stop offset="100%" stopColor="#fde047" />
+            </linearGradient>
+            <linearGradient id="snFlameGold" x1="0%" y1="100%" x2="0%" y2="0%">
+              <stop offset="0%" stopColor="#f97316" />
+              <stop offset="50%" stopColor="#facc15" />
+              <stop offset="100%" stopColor="#fef9c3" />
+            </linearGradient>
+          </defs>
+
+          {/* Gruppo 1: Fiammette laterali basse e alte (Ritmo A) */}
+          <g className="sn-flame-a">
+            <path d="M8 48 C2 40, 4 28, 10 21 C9 29, 13 33, 12 44 Z" fill="url(#snFlameRed)" />
+            <path d="M56 48 C62 40, 60 28, 54 21 C55 29, 51 33, 52 44 Z" fill="url(#snFlameRed)" />
+            <path d="M18 13 C15 7, 19 2, 23 -1 C22 5, 25 8, 23 13 Z" fill="url(#snFlameGold)" />
+            <path d="M46 13 C49 7, 45 2, 41 -1 C42 5, 39 8, 41 13 Z" fill="url(#snFlameGold)" />
           </g>
-          <circle cx="14" cy="14" r="1.8" fill="#fde047" className="sn-spark-1" />
-          <circle cx="46" cy="12" r="1.6" fill="#fb923c" className="sn-spark-2" />
-          <circle cx="30" cy="6" r="2" fill="#fef08a" className="sn-spark-1" />
+
+          {/* Gruppo 2: Fiammette intermedie e cresta superiore (Ritmo B sfasato) */}
+          <g className="sn-flame-b">
+            <path d="M11 33 C5 24, 9 14, 15 8 C13 16, 17 21, 15 30 Z" fill="url(#snFlameGold)" />
+            <path d="M53 33 C59 24, 55 14, 49 8 C51 16, 47 21, 49 30 Z" fill="url(#snFlameGold)" />
+            <path d="M29 10 C27 3, 32 -3, 33 -5 C35 -1, 37 4, 35 10 Z" fill="url(#snFlameRed)" />
+          </g>
+
+          {/* Gruppo 3: Lingue di fuoco vive interne (Ritmo C veloce) */}
+          <g className="sn-flame-c">
+            <path d="M14 55 C9 49, 10 41, 15 36 C14 42, 18 46, 17 53 Z" fill="url(#snFlameGold)" />
+            <path d="M50 55 C55 49, 54 41, 49 36 C50 42, 46 46, 47 53 Z" fill="url(#snFlameGold)" />
+            <path d="M31 11 C30 6, 32 1, 33 -1 C34 2, 35 6, 33 11 Z" fill="#fef08a" />
+          </g>
+
+          {/* Scintille che salgono */}
+          <circle cx="11" cy="14" r="1.6" fill="#fde047" className="sn-spark-1" />
+          <circle cx="53" cy="12" r="1.5" fill="#fb923c" className="sn-spark-2" />
+          <circle cx="25" cy="2" r="1.4" fill="#fef08a" className="sn-spark-2" />
+          <circle cx="39" cy="1" r="1.7" fill="#fde047" className="sn-spark-1" />
         </svg>
       )}
 
@@ -2099,7 +2132,9 @@ const newCount = prevCount + 1;
                   0% { transform: translateX(-110%) skewX(-18deg); }
                   100% { transform: translateX(220%) skewX(-18deg); }
                 }
-                .sn-flame-outer { animation: snFlameDance 0.75s infinite ease-in-out; transform-origin: bottom center; }
+        .sn-flame-a { animation: snFlameDance 0.55s infinite ease-in-out; transform-origin: center; }
+                .sn-flame-b { animation: snFlameDance 0.75s infinite ease-in-out 0.18s; transform-origin: center; }
+                .sn-flame-c { animation: snFlameDance 0.42s infinite ease-in-out 0.32s; transform-origin: center; }
                 .sn-spark-1 { animation: snSparkRise 1.1s infinite ease-out; }
                 .sn-spark-2 { animation: snSparkRise 1.4s infinite ease-out 0.35s; }
                 .sn-comet-orbit { animation: snOrbitSpin 3.4s infinite linear; transform-origin: 32px 32px; }
