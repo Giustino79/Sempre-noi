@@ -885,13 +885,12 @@ export default function Chiosco() {
               onClick={() => setInspectedItem(item)}
               className={`w-full bg-gradient-to-b ${style.cardBg} border-2 ${style.cardBorder} rounded-2xl p-3 flex flex-col items-center justify-between text-center cursor-pointer transition active:scale-95 shadow-lg relative overflow-hidden group`}
             >
-              {/* Header Carta: OVR + Rarità */}
-              <div className="w-full flex items-center justify-between pointer-events-none">
-                <span className="text-[10px] font-black bg-slate-950/80 border border-white/15 text-amber-300 px-1.5 py-0.5 rounded-lg">
-                <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full shadow ${style.badgeBg}`}>
-                  {style.label}
-                </span>
-              </div>
+{/* Header Carta: Solo Rarità */}
+           <div className="w-full flex items-center justify-center pointer-events-none">
+             <span className={`text-[9px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow ${style.badgeBg}`}>
+               {style.label}
+             </span>
+           </div>
 
               {/* Illustrazione Vettoriale */}
               <div className="my-1.5 group-hover:scale-105 transition-transform pointer-events-none">
@@ -937,43 +936,41 @@ export default function Chiosco() {
               <X className="w-4 h-4" />
             </button>
 
-            {/* Top Badge OVR FIFA + Rarità Clash Royale */}
-            <div className="flex items-center justify-center gap-2">
-              <span className="text-xs font-black bg-slate-950 border border-amber-400/50 text-amber-300 px-2.5 py-0.5 rounded-full">
-                
-              <span className={`text-xs font-black uppercase tracking-widest px-3.5 py-0.5 rounded-full shadow-lg ${activeModalStyle.badgeBg}`}>
-                ★ {activeModalStyle.label} ★
-              </span>
-            </div>
+           {/* Top Badge Solo Rarità */}
+         <div className="flex items-center justify-center">
+           <span className={`text-xs font-black uppercase tracking-widest px-4 py-1 rounded-full shadow-lg ${activeModalStyle.badgeBg}`}>
+             ★ {activeModalStyle.label} ★
+           </span>
+         </div>
 
-            {/* Area Grafica Gigante con Bagliore Radiale */}
-            <div
-              className="py-1.5 flex items-center justify-center rounded-2xl mx-auto"
-              style={{ background: activeModalStyle.radialBg }}
-            >
-              <ChioscoItemArtwork id={inspectedItem.id} size="xl" />
-            </div>
+         {/* Area Grafica Gigante con Bagliore Radiale */}
+         <div
+           className="py-3 flex items-center justify-center rounded-2xl mx-auto"
+           style={{ background: activeModalStyle.radialBg }}
+         >
+           <ChioscoItemArtwork id={inspectedItem.id} size="xl" />
+         </div>
 
-            {/* Titolo, Sottotitolo e BOX DESCRIZIONE SPIRITOSA IN EVIDENZA */}
-            <div className="space-y-2">
-              <div>
-                <h2 className="text-lg font-black uppercase text-white tracking-wide leading-tight">
-                  {inspectedItem.name}
-                </h2>
-                <span className="text-[10px] font-black uppercase text-amber-400 tracking-wider block mt-0.5">
-                  {inspectedItem.subtitle}
-                </span>
-              </div>
+         {/* Titolo, Sottotitolo e BOX DESCRIZIONE SPIRITOSA IN EVIDENZA */}
+         <div className="space-y-2.5">
+           <div>
+             <h2 className="text-xl font-black uppercase text-white tracking-wide leading-tight">
+               {inspectedItem.name}
+             </h2>
+             <span className="text-[10px] font-black uppercase text-amber-400 tracking-wider block mt-0.5">
+               {inspectedItem.subtitle}
+             </span>
+           </div>
 
-              <div className="bg-slate-950/95 border-2 border-amber-400/50 rounded-2xl p-3.5 text-center shadow-lg">
-                <span className="text-[9px] font-black uppercase tracking-widest text-amber-400 block mb-1">
-                  📜 Descrizione Ufficiale del Chiosco
-                </span>
-                <p className="text-xs text-white leading-relaxed font-bold italic">
-                  "{inspectedItem.desc}"
-                </p>
-              </div>
-            </div>
+           <div className="bg-slate-950/95 border-2 border-amber-400/50 rounded-2xl p-4 text-center shadow-lg">
+             <span className="text-[9px] font-black uppercase tracking-widest text-amber-400 block mb-1.5">
+               📜 Descrizione Ufficiale del Chiosco
+             </span>
+             <p className="text-xs text-white leading-relaxed font-bold italic">
+               "{inspectedItem.desc}"
+             </p>
+           </div>
+         </div>
 
 
             {/* Pulsante Bloccato + Chiudi */}
