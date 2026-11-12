@@ -65,13 +65,17 @@ function SempreNoiLogo({ size = "md" }) {
 // --- CATALOGO BICCHIERI AVATAR (8 STILI + LATTINA AMMACCATA PENITENZA 24H) ---
 const BEER_GLASS_TYPES = [
   { id: 'weiss', name: 'Weiss / Weizen', shortName: 'Weiss', shortDesc: 'Vaso slanciato dorato' },
-  { id: 'lager', name: 'Lager / Pils', shortName: 'Lager', shortDesc: 'Boccale classico da pub' },
+  { id: 'lager', name: 'Lager Classica', shortName: 'Lager', shortDesc: 'Boccale classico da pub' },
+  { id: 'pilsner', name: 'Pilsner / Kölsch', shortName: 'Pilsner', shortDesc: 'Cilindro Stange slanciato' },
+  { id: 'keller', name: 'Keller / Oktoberfest', shortName: 'Oktober', shortDesc: 'Maßkrug 1L con fossette' },
   { id: 'ipa', name: 'IPA Artigianale', shortName: 'IPA', shortDesc: 'Calice Teku con base' },
   { id: 'session_ipa', name: 'Session IPA', shortName: 'Session IPA', shortDesc: 'Pinta Nonic chiara' },
   { id: 'dipa', name: 'DIPA (Double IPA)', shortName: 'DIPA', shortDesc: 'Snifter tulipano ramato' },
+  { id: 'bock', name: 'Rossa / Doppio Malto', shortName: 'Bock', shortDesc: 'Calice Thistle rosso rubino' },
   { id: 'triple', name: 'Tripel Belga', shortName: 'Tripel', shortDesc: 'Calice a coppa dorato' },
   { id: 'trappista', name: 'Trappista', shortName: 'Trappista', shortDesc: 'Coppa larga bruno-ambrata' },
-  { id: 'stout', name: 'Stout Irlandese', shortName: 'Stout', shortDesc: 'Pinta scura cremosa' }
+  { id: 'stout', name: 'Stout Irlandese', shortName: 'Stout', shortDesc: 'Pinta scura cremosa' },
+  { id: 'boccione', name: 'Boccione 66cl', shortName: 'Boccione 66', shortDesc: 'Bottiglia ignorante da 66cl' }
 ];
 
 const isCrushedCanActive = (member) => {
@@ -266,11 +270,68 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md', crushed = false, streakL
         </svg>
       )}
 
-      {effectiveType === 'stout' && (
+     {effectiveType === 'stout' && (
         <svg viewBox="0 0 48 48" className="w-full h-full">
           <path d="M13 15L14.5 19L16.5 42H31.5L33.5 19L35 15H13Z" fill="#1c1917" />
           <path d="M13 15.5V11.5C13 10 15 9.5 24 9.5C33 9.5 35 10 35 11.5V15.5H13Z" fill="#f5deb3" />
           <path d="M13 10.5L12 16.5L14.5 20L16.5 42.5H31.5L33.5 20L36 16.5L35 10.5" stroke="#cbd5e1" strokeWidth="1.8" fill="none" />
+        </svg>
+      )}
+
+      {/* 9. PILSNER / KÖLSCH (CILINDRO STANGE SLANCIATO CON PERLAGE) */}
+      {effectiveType === 'pilsner' && (
+        <svg viewBox="0 0 48 48" className="w-full h-full">
+          <rect x="17.5" y="13" width="13" height="26.5" fill="#fef08a" />
+          <path d="M17 13.5C17 10.5 19.5 9 24 9C28.5 9 31 10.5 31 13.5H17Z" fill="#ffffff" />
+          <rect x="17.5" y="39" width="13" height="3.5" fill="#cbd5e1" opacity="0.85" />
+          <rect x="17.5" y="10" width="13" height="32.5" rx="1" stroke="#e2e8f0" strokeWidth="1.8" fill="none" />
+          <circle cx="21.5" cy="33" r="0.9" fill="#ffffff" />
+          <circle cx="25.5" cy="27" r="1" fill="#ffffff" />
+          <circle cx="23" cy="20" r="0.9" fill="#ffffff" />
+        </svg>
+      )}
+
+      {/* 10. KELLER / OKTOBERFEST (BOCCALE MASSKRUG 1L CON FOSSETTE) */}
+      {effectiveType === 'keller' && (
+        <svg viewBox="0 0 48 48" className="w-full h-full">
+          <path d="M34 18H40C42 18 43 20 43 27.5C43 35 42 37 40 37H34" stroke="#e2e8f0" strokeWidth="3.2" fill="none" strokeLinejoin="round" />
+          <rect x="9" y="15" width="25" height="27" rx="3" fill="#f59e0b" />
+          <path d="M8 15.5C7.5 11.5 11 9.5 14.5 10.5C17 7.5 22.5 7.5 25 10.5C29 9 35 11 35 15.5H8Z" fill="#ffffff" />
+          <rect x="12" y="19" width="5.5" height="6" rx="1.2" stroke="#fde68a" strokeWidth="1" fill="none" opacity="0.75" />
+          <rect x="19" y="19" width="5.5" height="6" rx="1.2" stroke="#fde68a" strokeWidth="1" fill="none" opacity="0.75" />
+          <rect x="26" y="19" width="5.5" height="6" rx="1.2" stroke="#fde68a" strokeWidth="1" fill="none" opacity="0.75" />
+          <rect x="12" y="27" width="5.5" height="6" rx="1.2" stroke="#fde68a" strokeWidth="1" fill="none" opacity="0.75" />
+          <rect x="19" y="27" width="5.5" height="6" rx="1.2" stroke="#fde68a" strokeWidth="1" fill="none" opacity="0.75" />
+          <rect x="26" y="27" width="5.5" height="6" rx="1.2" stroke="#fde68a" strokeWidth="1" fill="none" opacity="0.75" />
+          <rect x="9" y="14" width="25" height="28.5" rx="3" stroke="#e2e8f0" strokeWidth="2" fill="none" />
+        </svg>
+      )}
+
+      {/* 11. BOCK / ROSSA DOPPIO MALTO (CALICE THISTLE SCOZZESE ROSSO RUBINO) */}
+      {effectiveType === 'bock' && (
+        <svg viewBox="0 0 48 48" className="w-full h-full">
+          <path d="M13 13L15.5 19.5C12 24 13.5 32 24 32C34.5 32 36 24 32.5 19.5L35 13H13Z" fill="#991b1b" />
+          <path d="M12.5 13.5C12.5 10.5 16.5 9 24 9C31.5 9 35.5 10.5 35.5 13.5H12.5Z" fill="#fde68a" />
+          <path d="M12.5 11L15.5 19.5C11.8 24 13.2 32.5 24 32.5C34.8 32.5 36.2 24 32.5 19.5L35.5 11" stroke="#e2e8f0" strokeWidth="1.8" fill="none" strokeLinejoin="round" />
+          <path d="M24 32.5V41.5" stroke="#cbd5e1" strokeWidth="2.8" />
+          <path d="M15.5 42.5C18 40.8 30 40.8 32.5 42.5" stroke="#e2e8f0" strokeWidth="2.6" strokeLinecap="round" />
+        </svg>
+      )}
+
+      {/* 12. BOCCIONE 66CL (BOTTIGLIA IGNORANTE STILE PERONI) */}
+      {effectiveType === 'boccione' && (
+        <svg viewBox="0 0 48 48" className="w-full h-full">
+          <path d="M20.5 7H27.5L28.5 15C28.8 18.5 33.5 21 33.5 25.5V41C33.5 42.5 32.5 43.5 31 43.5H17C15.5 43.5 14.5 42.5 14.5 41V25.5C14.5 21 19.2 18.5 19.5 15L20.5 7Z" fill="#78350f" stroke="#d97706" strokeWidth="1.5" strokeLinejoin="round" />
+          {/* Tappo a corona dorato */}
+          <rect x="19.5" y="5" width="9" height="2.8" rx="1" fill="#facc15" stroke="#b45309" strokeWidth="0.8" />
+          {/* Collarino superiore */}
+          <path d="M19.8 11.5H28.2L28.6 15H19.4Z" fill="#fef2f2" stroke="#dc2626" strokeWidth="0.8" />
+          {/* Etichetta classica bianca con banda rossa e bordo oro */}
+          <rect x="15.5" y="25" width="17" height="12.5" rx="1" fill="#ffffff" stroke="#eab308" strokeWidth="1.2" />
+          <path d="M16 34.5L32 27.5" stroke="#dc2626" strokeWidth="3.8" />
+          <text x="24" y="33" textAnchor="middle" fill="#ffffff" fontSize="5.6" fontWeight="900">66cl</text>
+          {/* Riflesso vetro ghiacciato */}
+          <path d="M17.5 22V39" stroke="#fde68a" strokeWidth="1.2" strokeLinecap="round" opacity="0.45" />
         </svg>
       )}
     </div>
