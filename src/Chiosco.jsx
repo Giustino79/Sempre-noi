@@ -7,7 +7,6 @@ import { Lock, Sparkles, X, Award, Wrench, Eye, Crown } from 'lucide-react';
 const RARITY_STYLES = {
   COMUNE: {
     label: 'COMUNE',
-    ovr: '74',
     badgeBg: 'bg-emerald-500 text-slate-950',
     cardBorder: 'border-emerald-500/50 hover:border-emerald-400',
     cardBg: 'from-emerald-950/50 via-slate-900 to-slate-950',
@@ -17,7 +16,6 @@ const RARITY_STYLES = {
   },
   RARO: {
     label: 'RARO',
-    ovr: '82',
     badgeBg: 'bg-sky-400 text-slate-950',
     cardBorder: 'border-sky-400/60 hover:border-sky-300',
     cardBg: 'from-sky-950/60 via-slate-900 to-slate-950',
@@ -27,7 +25,6 @@ const RARITY_STYLES = {
   },
   MITICO: {
     label: 'MITICO',
-    ovr: '90',
     badgeBg: 'bg-purple-500 text-white',
     cardBorder: 'border-purple-500/70 hover:border-purple-400',
     cardBg: 'from-purple-950/65 via-slate-900 to-slate-950',
@@ -37,7 +34,6 @@ const RARITY_STYLES = {
   },
   LEGGENDARIO: {
     label: 'LEGGENDARIO',
-    ovr: '99',
     badgeBg: 'bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-500 text-slate-950',
     cardBorder: 'border-amber-400/90 hover:border-yellow-300',
     cardBg: 'from-amber-500/30 via-slate-900 to-slate-950',
@@ -892,8 +888,6 @@ export default function Chiosco() {
               {/* Header Carta: OVR + Rarità */}
               <div className="w-full flex items-center justify-between pointer-events-none">
                 <span className="text-[10px] font-black bg-slate-950/80 border border-white/15 text-amber-300 px-1.5 py-0.5 rounded-lg">
-                  OVR {style.ovr}
-                </span>
                 <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full shadow ${style.badgeBg}`}>
                   {style.label}
                 </span>
@@ -946,8 +940,7 @@ export default function Chiosco() {
             {/* Top Badge OVR FIFA + Rarità Clash Royale */}
             <div className="flex items-center justify-center gap-2">
               <span className="text-xs font-black bg-slate-950 border border-amber-400/50 text-amber-300 px-2.5 py-0.5 rounded-full">
-                OVR {activeModalStyle.ovr}
-              </span>
+                
               <span className={`text-xs font-black uppercase tracking-widest px-3.5 py-0.5 rounded-full shadow-lg ${activeModalStyle.badgeBg}`}>
                 ★ {activeModalStyle.label} ★
               </span>
@@ -982,40 +975,6 @@ export default function Chiosco() {
               </div>
             </div>
 
-            {/* Statistiche Carta Stile Clash Royale / FIFA */}
-            {inspectedItem.stats && (
-              <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-3 space-y-2 text-left">
-                <div className="space-y-1">
-                  <div className="flex justify-between text-[10px] font-black uppercase">
-                    <span className="text-slate-300">😎 Stile al Bancone</span>
-                    <span className="text-amber-300">{inspectedItem.stats.stile} / 100</span>
-                  </div>
-                  <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                    <div className={`h-full ${activeModalStyle.statBar}`} style={{ width: `${inspectedItem.stats.stile}%` }} />
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <div className="flex justify-between text-[10px] font-black uppercase">
-                    <span className="text-slate-300">🔥 Livello Ignoranza</span>
-                    <span className="text-amber-300">{inspectedItem.stats.ignoranza} / 100</span>
-                  </div>
-                  <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                    <div className={`h-full ${activeModalStyle.statBar}`} style={{ width: `${inspectedItem.stats.ignoranza}%` }} />
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <div className="flex justify-between text-[10px] font-black uppercase">
-                    <span className="text-slate-300">👑 Prestigio al Civico 74</span>
-                    <span className="text-amber-300">{inspectedItem.stats.prestigio} / 100</span>
-                  </div>
-                  <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                    <div className={`h-full ${activeModalStyle.statBar}`} style={{ width: `${inspectedItem.stats.prestigio}%` }} />
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* Pulsante Bloccato + Chiudi */}
             <div className="pt-1 space-y-2">
