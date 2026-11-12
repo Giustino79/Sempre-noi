@@ -834,20 +834,15 @@ export default function Chiosco() {
 
   return (
     <div className="space-y-4 pb-6">
-      {/* INTESTAZIONE DEL CHIOSCO */}
-      <div className="bg-gradient-to-r from-amber-500/20 via-slate-900 to-slate-950 border border-amber-500/40 rounded-2xl p-3.5 shadow-xl space-y-1.5">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-black uppercase text-amber-400 flex items-center gap-1.5">
-            <Sparkles className="w-4 h-4" /> Il Chiosco Ufficiale • 32 Carte
-          </span>
-          <span className="text-[9px] font-black uppercase bg-slate-950 text-amber-300 border border-amber-400/40 px-2 py-0.5 rounded-full">
-            Tocca una carta
-          </span>
-        </div>
-        <p className="text-[11px] text-slate-300 leading-snug">
-          Tocca qualsiasi oggetto qui sotto per aprire la <strong>Carta a Tutto Schermo stile Clash Royale / FIFA</strong> con la descrizione spiritosa!
-        </p>
-      </div>
+   {/* INTESTAZIONE DEL CHIOSCO */}
+   <div className="bg-gradient-to-r from-amber-500/20 via-slate-900 to-slate-950 border border-amber-500/40 rounded-2xl px-3.5 py-2.5 shadow-xl flex items-center justify-between">
+     <span className="text-xs font-black uppercase text-amber-400 flex items-center gap-1.5">
+       <Sparkles className="w-4 h-4" /> Il Chiosco Ufficiale • 32 Carte
+     </span>
+     <span className="text-[9px] font-black uppercase bg-slate-950 text-amber-300 border border-amber-400/40 px-2 py-0.5 rounded-full">
+       Tocca una carta
+     </span>
+   </div>   
 
       {/* SELETTORE DELLE 4 CATEGORIE */}
       <div className="grid grid-cols-4 gap-1.5 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
