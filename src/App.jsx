@@ -4,7 +4,7 @@ import {
   CheckCircle2, Sparkles, LogOut, Plus, UserPlus, Key, User, 
   Beer, Copy, Check, ChevronRight, ArrowLeft, BookOpen, Flag, 
   XCircle, Share2, RefreshCw, Eye, Sun, Crown, Trash2, Clock, Lock, Award,
-  Newspaper, Store
+  Newspaper, Store, Pencil 
 } from 'lucide-react';
 import Chiosco from './Chiosco';
 
@@ -832,7 +832,52 @@ export default function App() {
       showToast(`Bentornato ${logged.username}!`, 'success');
     }
   };
+// --- STATI E FUNZIONI PER CAMBIO NOME E BOLLETTINO MEDICO GIOCATORE ---
+  const [showEditNameModal, setShowEditNameModal] = useState(false);
+  const [editNicknameValue, setEditNicknameValue] = useState('');
+  const [inspectedMemberId, setInspectedMemberId] = useState(null);
 
+  const inspectedMember = useMemo(() => {
+    if (!inspectedMemberId || !activeLeague) return null;
+    return (activeLeague.members || []).find(m => m.id === inspectedMemberId) || null;
+  }, [inspectedMemberId, activeLeague]);
+
+  const handleOpenEditName = () => {
+    setEditNicknameValue(currentUser?.username || '');
+    setShowEditNameModal(true);
+  };
+
+  const handleUpdateUsername = async (e) => {
+    e.preventDefault();
+    const cleanNewName = editNicknameValue.trim();
+    if (!cleanNewName) return showToast('Inserisci un soprannome valido!', 'danger');
+    if (cleanNewName.length > 22) return showToast('Massimo 22 caratteri!', 'warning');
+
+    const updatedUser = { ...currentUser, username: cleanNewName };
+    setCurrentUser(updatedUser);
+    setAccounts(prev => prev.map(a => a.id === currentUser.id ? updatedUser : a));
+    localStorage.setItem('sempre_noi_remembered_creds', JSON.stringify({
+      username: cleanNewName,
+      password: currentUser.password || ''
+    }));
+
+    const updatedLeagues = leagues.map(l => {
+      const isMember = (l.members || []).some(m => m.id === currentUser.id);
+      if (!isMember) return l;
+      const updatedL = {
+        ...l,
+        members: (l.members || []).map(m => m.id === currentUser.id ? { ...m, name: cleanNewName } : m),
+        feed: (l.feed || []).map(item => item.playerId === currentUser.id ? { ...item, playerName: cleanNewName } : item),
+        history: (l.history || []).map(h => h.playerId === currentUser.id ? { ...h, playerName: cleanNewName } : h)
+      };
+      pushLeagueToCloud(updatedL);
+      return updatedL;
+    });
+
+    setLeagues(updatedLeagues);
+    setShowEditNameModal(false);
+    showToast(`✏️ Soprannome aggiornato in "${cleanNewName}"!`, 'success');
+  };
   const handleLogout = () => {
     if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
     setCurrentUser(null);
@@ -1169,7 +1214,8 @@ export default function App() {
         ...m,
         points: Number((m.points - malus).toFixed(1)),
         weekendPts: Number((m.weekendPts - malus).toFixed(1)),
-        yellowCards: opt.id === 'yellow' || opt.id === 'simulation' ? m.yellowCards + 1 : m.yellowCards,
+        yellowCards: opt.id === 'yellow' ? (m.yellowCards || 0) + 1 : (m.yellowCards || 0),
+        simulations: opt.id === 'simulation' ? (m.simulations || 0) + 1 : (m.simulations || 0),
         redCards: opt.id === 'red' ? m.redCards + 1 : m.redCards
       } : m) : l.members;
       const draft = { ...l, feed: updatedFeed, members: updatedMembers };
@@ -1335,10 +1381,20 @@ export default function App() {
           <div className="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg">
             <div className="flex items-center gap-3">
               <SempreNoiLogo size="md" />
-              <div>
-                <span className="text-[11px] text-amber-400 font-bold uppercase block">Pilota Ufficiale</span>
-                <span className="text-base font-black text-white">{currentUser.username}</span>
-              </div>
+             <div>
+             <span className="text-[11px] text-amber-400 font-bold uppercase block">Bevitore Ufficiale</span>
+             <div className="flex items-center gap-2">
+               <span className="text-base font-black text-white truncate max-w-[165px]">{currentUser.username}</span>
+               <button
+                 type="button"
+                 onClick={handleOpenEditName}
+                 className="p-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/30 border border-amber-400/40 text-amber-300 transition"
+                 title="Cambia Nome"
+               >
+                 <Pencil className="w-3.5 h-3.5" />
+               </button>
+             </div>
+           </div>
             </div>
             <button
               onClick={handleLogout}
@@ -1458,7 +1514,39 @@ export default function App() {
             </div>
           </div>
         )}
-
+{/* MODALE CAMBIA NOME (HOME) */}
+     {showEditNameModal && (
+       <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+         <form onSubmit={handleUpdateUsername} className="bg-slate-900 border border-amber-500/40 rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
+           <h3 className="text-sm font-black uppercase text-amber-400 flex items-center gap-1.5">
+             <Pencil className="w-4 h-4" /> Cambia Soprannome
+           </h3>
+           <div>
+             <label className="block text-xs font-bold uppercase text-slate-400 mb-1">Nuovo Nome Bevitore</label>
+             <input
+               type="text"
+               required
+               maxLength={22}
+               value={editNicknameValue}
+               onChange={(e) => setEditNicknameValue(e.target.value)}
+               placeholder="Es. Il Sindaco del 74"
+               className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500"
+             />
+             <span className="text-[10px] text-slate-400 block mt-1">
+               Punti, birre e litri rimarranno intatti!
+             </span>
+           </div>
+           <div className="grid grid-cols-2 gap-2 pt-2">
+             <button type="button" onClick={() => setShowEditNameModal(false)} className="py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold">
+               Annulla
+             </button>
+             <button type="submit" className="py-2.5 rounded-xl bg-amber-500 text-slate-950 text-xs font-black uppercase">
+               Salva Nome
+             </button>
+           </div>
+         </form>
+       </div>
+     )}
         {/* MODALE CREA LEGA */}
         {showCreateLeagueModal && (
           <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
@@ -1695,31 +1783,54 @@ export default function App() {
             </div>
           </div>
 
-          {/* BANNER FISSO GAZZETTA (MAX 24 ORE) */}
-          {latestGazzettaNews && (
+         {/* BARRA PROFILO PERSONALE (SOSTITUISCE IL BANNER GAZZETTA FISSO) */}
+          {myMemberProfile && (
             <div
-              onClick={handleOpenGazzetta}
-              className="bg-slate-900 hover:bg-slate-800/90 border border-amber-500/40 rounded-xl overflow-hidden cursor-pointer transition shadow-md"
+              onClick={() => setInspectedMemberId(myMemberProfile.id)}
+              className="bg-gradient-to-r from-slate-900 via-slate-900 to-amber-950/30 hover:bg-slate-800/90 border border-amber-500/40 rounded-xl p-2.5 cursor-pointer transition shadow-md space-y-2"
             >
-              <div className="bg-gradient-to-r from-red-600 via-amber-500 to-amber-400 px-2.5 py-0.5 flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
-                  <span className="text-[9px] font-black uppercase tracking-wider text-slate-950">
-                    GAZZETTA DEL SEMPRE NOI • {latestGazzettaNews.category}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="text-[9px] font-black uppercase bg-amber-500/20 text-amber-300 border border-amber-400/30 px-1.5 py-0.5 rounded">
+                    TU
+                  </span>
+                  <span className="text-xs font-black text-white truncate">
+                    {myMemberProfile.name}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenEditName();
+                    }}
+                    className="p-1 rounded-lg bg-slate-800 hover:bg-amber-500/20 text-amber-400 border border-slate-700 hover:border-amber-400/50 transition shrink-0"
+                    title="Cambia il tuo soprannome"
+                  >
+                    <Pencil className="w-3 h-3" />
+                  </button>
+                </div>
+
+                {/* Tappi d'Oro in alto a destra nella barra profilo */}
+                <div className="flex items-center gap-1 bg-slate-950 border border-amber-400/50 px-2 py-0.5 rounded-full shrink-0">
+                  <span className="text-xs leading-none">🪙</span>
+                  <span className="text-[10px] font-black text-amber-300">
+                    {myMemberProfile.goldCaps || 0} Tappi d'Oro
                   </span>
                 </div>
-                <span className="text-[9px] font-black text-slate-950 uppercase">
-                  Apri Giornale ▸
+              </div>
+
+              <div className="flex items-center justify-between pt-1 border-t border-slate-800/80 text-[10px]">
+                <div className="flex items-center gap-3 font-bold text-slate-300">
+                  <span>🍺 <strong className="text-white">{myMemberProfile.beers || 0}</strong> birre</span>
+                  <span>⛽ <strong className="text-emerald-400">{(myMemberProfile.liters ?? ((myMemberProfile.beers || 0) * 0.5)).toFixed(1)}L</strong></span>
+                  <span>🎒 <strong className="text-amber-300">{(myMemberProfile.ownedItems || []).length}</strong> averi</span>
+                </div>
+                <span className="text-[9px] font-black uppercase text-amber-400 flex items-center gap-0.5">
+                  Bollettino ▸
                 </span>
               </div>
-              <div className="px-2.5 py-1.5 flex items-center gap-2">
-                <span className="text-base shrink-0">{latestGazzettaNews.icon}</span>
-                <p className="text-[11px] font-bold text-slate-100 line-clamp-1 leading-tight">
-                  {latestGazzettaNews.text}
-                </p>
-              </div>
             </div>
-          )}
+          )} 
 
           {/* SELETTORE A 8 BICCHIERI */}
           {showGlassPicker && (
@@ -1766,17 +1877,25 @@ export default function App() {
         {/* CONTENUTO CENTRALE */}
         <main className="flex-1 p-4 space-y-5">
           
-          {/* TAB 1: CLASSIFICA FORMULA 1 (CON PODIO A 3 COLONNE P1/P2/P3 COMPLETO) */}
+          {/* TAB 1: CLASSIFICA FORMULA 1 (GIOCATORI CLICCABILI CON BOLLETTINO MEDICO) */}
           {activeTab === 'classifica' && (
             <div className="space-y-4">
               <div className="bg-gradient-to-br from-slate-800 to-slate-950 rounded-2xl p-3.5 border border-amber-500/30 shadow-xl">
-                <span className="text-[10px] font-black uppercase text-amber-400 flex items-center gap-1 mb-2">
-                  <Flag className="w-3.5 h-3.5" /> Podio Gran Premio ({sortedMembers.length} Piloti)
-                </span>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-black uppercase text-amber-400 flex items-center gap-1">
+                    <Flag className="w-3.5 h-3.5" /> Podio Gran Premio ({sortedMembers.length} Piloti)
+                  </span>
+                  <span className="text-[9px] text-slate-400 font-bold">
+                    Tocca un bevitore per la scheda ▸
+                  </span>
+                </div>
 
                 <div className="grid grid-cols-3 gap-1.5 items-end text-center pt-1">
                   {sortedMembers[1] && (
-                    <div className="bg-slate-900/90 border border-slate-700 rounded-xl p-2 flex flex-col items-center">
+                    <div
+                      onClick={() => setInspectedMemberId(sortedMembers[1].id)}
+                      className="bg-slate-900/90 hover:bg-slate-800 border border-slate-700 rounded-xl p-2 flex flex-col items-center cursor-pointer transition active:scale-95"
+                    >
                       <span className="text-[9px] font-black bg-slate-300 text-slate-950 px-1.5 rounded mb-1">P2</span>
                       <BeerGlassAvatar type={sortedMembers[1].glassType} size="sm" crushed={isCrushedCanActive(sortedMembers[1])} />
                       <span className="text-xs font-bold text-white truncate max-w-full mt-1">{sortedMembers[1].name}</span>
@@ -1784,7 +1903,10 @@ export default function App() {
                     </div>
                   )}
                   {sortedMembers[0] && (
-                    <div className="bg-amber-500/15 border-2 border-amber-400 rounded-xl p-2.5 flex flex-col items-center -translate-y-1 shadow-lg">
+                    <div
+                      onClick={() => setInspectedMemberId(sortedMembers[0].id)}
+                      className="bg-amber-500/15 hover:bg-amber-500/25 border-2 border-amber-400 rounded-xl p-2.5 flex flex-col items-center -translate-y-1 shadow-lg cursor-pointer transition active:scale-95"
+                    >
                       <span className="text-[9px] font-black bg-amber-400 text-slate-950 px-2 rounded mb-1">LEADER</span>
                       <BeerGlassAvatar type={sortedMembers[0].glassType} size="md" crushed={isCrushedCanActive(sortedMembers[0])} />
                       <span className="text-xs font-black text-white truncate max-w-full mt-1">{sortedMembers[0].name}</span>
@@ -1792,7 +1914,10 @@ export default function App() {
                     </div>
                   )}
                   {sortedMembers[2] && (
-                    <div className="bg-slate-900/90 border border-amber-700/50 rounded-xl p-2 flex flex-col items-center">
+                    <div
+                      onClick={() => setInspectedMemberId(sortedMembers[2].id)}
+                      className="bg-slate-900/90 hover:bg-slate-800 border border-amber-700/50 rounded-xl p-2 flex flex-col items-center cursor-pointer transition active:scale-95"
+                    >
                       <span className="text-[9px] font-black bg-amber-700 text-white px-1.5 rounded mb-1">P3</span>
                       <BeerGlassAvatar type={sortedMembers[2].glassType} size="sm" crushed={isCrushedCanActive(sortedMembers[2])} />
                       <span className="text-xs font-bold text-white truncate max-w-full mt-1">{sortedMembers[2].name}</span>
@@ -1804,7 +1929,7 @@ export default function App() {
 
               <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-lg">
                 <div className="px-3.5 py-2.5 bg-slate-800/70 border-b border-slate-800 flex justify-between text-[10px] font-black text-slate-400 uppercase">
-                  <span>Pos / Pilota ({sortedMembers.length})</span>
+                  <span>Pos / Bevitore (Tocca per aprire)</span>
                   <span>Distacco F1 / Totale</span>
                 </div>
                 <div className="divide-y divide-slate-800">
@@ -1815,7 +1940,11 @@ export default function App() {
                     const hasCanPenalty = isCrushedCanActive(member);
 
                     return (
-                      <div key={member.id} className={`px-3 py-2.5 flex items-center justify-between ${isMe ? 'bg-amber-500/10' : ''}`}>
+                      <div
+                        key={member.id}
+                        onClick={() => setInspectedMemberId(member.id)}
+                        className={`px-3 py-2.5 flex items-center justify-between cursor-pointer hover:bg-slate-800/60 transition ${isMe ? 'bg-amber-500/10' : ''}`}
+                      >
                         <div className="flex items-center gap-2.5">
                           <span className={`w-5 text-center text-xs font-black ${isLeader ? 'text-amber-400' : 'text-slate-500'}`}>
                             {idx + 1}
@@ -1848,7 +1977,7 @@ export default function App() {
                               )}
                             </div>
                             <span className="text-[10px] text-slate-400 block">
-                              {member.beers} birre confermate (2/2)
+                              {member.beers} birre • {(member.liters ?? (member.beers * 0.5)).toFixed(1)}L
                               {member.captainActive && (member.captainVaultPoints || 0) > 0 ? ` • Cassaforte CAP: +${member.captainVaultPoints} pt` : ''}
                             </span>
                           </div>
@@ -1866,7 +1995,6 @@ export default function App() {
               </div>
             </div>
           )}
-
           {/* TAB 2: STAPPA! (CON CAPITANO 12H, MAX 4 BIRRE x2 E MALUS -20 PT) */}
           {activeTab === 'stappa' && (
             <form onSubmit={handleAddBeer} className="space-y-4">
@@ -2416,7 +2544,198 @@ export default function App() {
           {/* TAB 5: IL CHIOSCO DEI GADGET */}
           {activeTab === 'chiosco' && <Chiosco />}
         </main>
+{/* MODALE BOLLETTINO MEDICO PERSONALE / SCHEDA BEVITORE */}
+        {inspectedMember && (
+          <div
+            onClick={() => setInspectedMemberId(null)}
+            className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-slate-900 border-2 border-amber-400 rounded-3xl max-w-sm w-full max-h-[88vh] flex flex-col overflow-hidden shadow-2xl"
+            >
+              {/* Intestazione Superiore con Tappi d'Oro in alto */}
+              <div className="bg-slate-950 px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+                <span className="text-[11px] font-black uppercase text-amber-400 flex items-center gap-1.5">
+                  🏥 Bollettino Medico • Scheda Bevitore
+                </span>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 bg-amber-500/20 border border-amber-400/50 px-2.5 py-0.5 rounded-full">
+                    <span className="text-xs">🪙</span>
+                    <span className="text-[11px] font-black text-amber-300">
+                      {inspectedMember.goldCaps || 0} Tappi
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setInspectedMemberId(null)}
+                    className="w-7 h-7 rounded-lg bg-slate-800 text-slate-300 hover:text-white text-xs font-black flex items-center justify-center"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
 
+              <div className="p-4 overflow-y-auto space-y-4">
+                {/* Identità del Bevitore */}
+                <div className="flex items-center justify-between bg-slate-950 border border-slate-800 rounded-2xl p-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <BeerGlassAvatar
+                      type={inspectedMember.glassType}
+                      size="lg"
+                      crushed={isCrushedCanActive(inspectedMember)}
+                    />
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <h3 className="text-base font-black text-white truncate">
+                          {inspectedMember.name}
+                        </h3>
+                        {inspectedMember.id === currentUser.id && (
+                          <button
+                            type="button"
+                            onClick={handleOpenEditName}
+                            className="p-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/50 text-amber-300 transition shrink-0"
+                            title="Modifica il tuo nome"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                      <span className="text-[10px] font-bold text-amber-400 uppercase block mt-0.5">
+                        Posizione #{sortedMembers.findIndex(m => m.id === inspectedMember.id) + 1} in Classifica
+                      </span>
+                      {isCrushedCanActive(inspectedMember) && (
+                        <span className="text-[9px] font-black bg-red-500/20 text-red-300 border border-red-500/40 px-1.5 py-0.5 rounded inline-block mt-1">
+                          🥫 Penitenza Passaporto Rumeno Attiva
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* I 4 BOX STATISTICHE (PUNTI, BIRRE, LITRI, CARTELLINI/SIMULAZIONI) */}
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div className="bg-slate-950 border border-amber-500/30 rounded-2xl p-3 text-center">
+                    <span className="text-[9px] font-black uppercase text-slate-400 block">Punteggio F1</span>
+                    <span className="text-xl font-black text-amber-400 mt-0.5 block">
+                      {inspectedMember.points} pt
+                    </span>
+                  </div>
+
+                  <div className="bg-slate-950 border border-sky-500/30 rounded-2xl p-3 text-center">
+                    <span className="text-[9px] font-black uppercase text-slate-400 block">Birre Scolate</span>
+                    <span className="text-xl font-black text-sky-400 mt-0.5 block">
+                      🍺 {inspectedMember.beers || 0}
+                    </span>
+                  </div>
+
+                  <div className="bg-slate-950 border border-emerald-500/30 rounded-2xl p-3 text-center">
+                    <span className="text-[9px] font-black uppercase text-slate-400 block">Litri Totali</span>
+                    <span className="text-xl font-black text-emerald-400 mt-0.5 block">
+                      ⛽ {(inspectedMember.liters ?? ((inspectedMember.beers || 0) * 0.5)).toFixed(1)} L
+                    </span>
+                  </div>
+
+                  <div className="bg-slate-950 border border-red-500/30 rounded-2xl p-3 text-center">
+                    <span className="text-[9px] font-black uppercase text-slate-400 block">Fedina Sala VAR</span>
+                    <div className="flex items-center justify-center gap-2 mt-1 text-xs font-black">
+                      <span title="Cartellini Gialli" className="text-yellow-400">🟨 {inspectedMember.yellowCards || 0}</span>
+                      <span title="Simulazioni" className="text-orange-400">🚨 {inspectedMember.simulations || 0}</span>
+                      <span title="Cartellini Rossi" className="text-red-500">🟥 {inspectedMember.redCards || 0}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* SEZIONE LIBERA "I MIEI AVERI" (TUTTI GLI OGGETTI COMPRATI) */}
+                <div className="bg-slate-950 border border-slate-800 rounded-2xl p-3.5 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black uppercase text-amber-400 flex items-center gap-1.5">
+                      🎒 {inspectedMember.id === currentUser.id ? 'I Miei Averi' : `Gli Averi di ${inspectedMember.name}`}
+                    </span>
+                    <span className="text-[10px] font-bold text-slate-400">
+                      {(inspectedMember.ownedItems || []).length} Oggetti
+                    </span>
+                  </div>
+
+                  {(inspectedMember.ownedItems || []).length === 0 ? (
+                    <div className="py-5 px-3 rounded-xl border border-dashed border-slate-800 text-center space-y-2">
+                      <p className="text-xs font-bold text-slate-300">
+                        Nessun oggetto ancora riscattato al Chiosco!
+                      </p>
+                      <p className="text-[10px] text-slate-400 italic">
+                        "Fegato da professionista, ma inventario ancora vuoto: accumula Tappi d'Oro per fare spesa al Chiosco!"
+                      </p>
+                      {inspectedMember.id === currentUser.id && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setInspectedMemberId(null);
+                            setActiveTab('chiosco');
+                          }}
+                          className="mt-1 px-3 py-1.5 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-300 text-[10px] font-black uppercase"
+                        >
+                          Vai al Chiosco 🏪
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      {(inspectedMember.ownedItems || []).map((obj, i) => (
+                        <div key={i} className="p-2 rounded-xl bg-slate-900 border border-amber-500/30 text-center">
+                          <span className="text-xs font-black text-white block truncate">{obj.name || obj}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-3 bg-slate-950 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setInspectedMemberId(null)}
+                  className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black uppercase rounded-xl"
+                >
+                  Chiudi Bollettino Medico
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODALE CAMBIA SOPRANNOME (DENTRO LA LEGA) */}
+        {showEditNameModal && (
+          <div className="fixed inset-0 z-[60] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+            <form onSubmit={handleUpdateUsername} className="bg-slate-900 border-2 border-amber-400 rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
+              <h3 className="text-sm font-black uppercase text-amber-400 flex items-center gap-1.5">
+                <Pencil className="w-4 h-4" /> Cambia il tuo Soprannome
+              </h3>
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-400 mb-1">Nuovo Nome Bevitore</label>
+                <input
+                  type="text"
+                  required
+                  maxLength={22}
+                  value={editNicknameValue}
+                  onChange={(e) => setEditNicknameValue(e.target.value)}
+                  placeholder="Es. Il Sindaco del 74"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500"
+                />
+                <span className="text-[10px] text-slate-400 block mt-1">
+                  Il nuovo nome sarà subito visibile a tutti senza perdere punti!
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 pt-2">
+                <button type="button" onClick={() => setShowEditNameModal(false)} className="py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold">
+                  Annulla
+                </button>
+                <button type="submit" className="py-2.5 rounded-xl bg-amber-500 text-slate-950 text-xs font-black uppercase">
+                  Salva Nome
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
         {/* MODALE REGOLE UFFICIALI (APERTO DALL'ICONA IN ALTO A DESTRA) */}
         {showRulesModal && (
           <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
