@@ -1099,31 +1099,59 @@ const [rulesPage, setRulesPage] = useState('intro');
     }
   };
 
-  const calculatedDrink = useMemo(() => {
-    const fMap = { piccola33: { pts: 3, liters: 0.33, label: '33cl (+3pt)' }, spina50: { pts: 5, liters: 0.5, label: 'Media 50cl (+5pt)' }, litro: { pts: 8, liters: 1.0, label: '1 litro (+8pt)' } };
-    const aMap = { leggera: { mult: 1.0, label: 'Leggera fino a 5,6° (x1.0)' }, media: { mult: 1.3, label: 'Media 5,6° - 7,5° (x1.3)' }, forte: { mult: 1.7, label: 'Forte > 7,5° (x1.7)' } };
-    const qMap = { industriale: { bonus: 0, label: 'Industriale (+0pt)' }, artigianale: { bonus: 2, label: 'Artigianale (+2pt)' }, spina: { bonus: 3, label: 'Alla spina (+3pt)' }, rumeno: { bonus: -5, label: 'Passaporto Rumeno (-5pt)' } };
+  const [beerTypeTier, setBeerTypeTier] = useState('classica');
 
-    const base = fMap[format].pts;
-    const liters = fMap[format].liters;
+  const calculatedDrink = useMemo(() => {
+    const fMap = {
+      piccola33: { pts: 3, liters: 0.33, label: '33cl (+3pt)' },
+      spina50: { pts: 5, liters: 0.5, label: 'Media 50cl (+5pt)' },
+      boccione66: { pts: 6.5, liters: 0.66, label: 'Boccione 66cl (+6.5pt)' },
+      litro: { pts: 10, liters: 1.0, label: '1 litro (+10pt)' }
+    };
+    const aMap = {
+      leggera: { mult: 1.0, label: 'Leggera fino a 5,6° (x1.0)' },
+      media: { mult: 1.2, label: 'Media 5,6° - 7,5° (x1.2)' },
+      forte: { mult: 1.4, label: 'Forte > 7,5° (x1.4)' }
+    };
+    const qMap = {
+      industriale: { bonus: 0, label: 'Industriale (+0pt)' },
+      artigianale: { bonus: 2, label: 'Artigianale (+2pt)' },
+      spina: { bonus: 3, label: 'Alla spina (+3pt)' },
+      rumeno: { bonus: -5, label: 'Passaporto Rumeno (-5pt)' }
+    };
+    const tMap = {
+      classica: { bonus: 0, label: 'Lager/Pils/Weiss (+0pt)' },
+      session: { bonus: 1.0, label: 'Session IPA/APA/Rossa (+1pt)' },
+      ipa: { bonus: 1.5, label: 'IPA/Double IPA/Stout (+1.5pt)' },
+      trappista: { bonus: 2.0, label: 'Trappista/Tripel/Quadrupel (+2pt)' }
+    };
+
+    const safeFormat = fMap[format] ? format : 'spina50';
+    const safeType = tMap[beerTypeTier] ? beerTypeTier : 'classica';
+
+    const base = fMap[safeFormat].pts;
+    const liters = fMap[safeFormat].liters;
     const mult = aMap[abvTier].mult;
     const qualityBonus = qMap[qualityTier].bonus;
+    const typeBonus = tMap[safeType].bonus;
     const gocciaBonus = gocciaStatus.isOpen && bonusGocciaDOro ? 3 : 0;
     const isWithin12h = Boolean(myMemberProfile?.captainActive && (!myMemberProfile?.captainExpiresAtMs || clockTick < Number(myMemberProfile.captainExpiresAtMs)));
     const eligibleForCaptainDouble = isWithin12h && (myMemberProfile?.captainBeersSubmitted || 0) < 4;
 
-    let subtotal = (base * mult) + qualityBonus;
+    let subtotal = (base * mult) + qualityBonus + typeBonus;
     if (bonusSempreNoi) subtotal *= 1.3;
     subtotal += gocciaBonus;
     if (eligibleForCaptainDouble) subtotal *= 2;
 
     return {
       total: Number(subtotal.toFixed(1)),
-      base, liters, mult, qualityBonus, gocciaBonus, eligibleForCaptainDouble,
+      base, liters, mult, qualityBonus, typeBonus, gocciaBonus, eligibleForCaptainDouble,
       nextCaptainSlot: eligibleForCaptainDouble ? (myMemberProfile?.captainBeersSubmitted || 0) + 1 : null,
-      formatLabel: fMap[format].label, abvLabel: aMap[abvTier].label, styleLabel: qMap[qualityTier].label
+      formatLabel: fMap[safeFormat].label,
+      abvLabel: aMap[abvTier].label,
+      styleLabel: `${qMap[qualityTier].label} • ${tMap[safeType].label}`
     };
-  }, [format, abvTier, qualityTier, bonusSempreNoi, bonusGocciaDOro, gocciaStatus.isOpen, myMemberProfile, clockTick]);
+  }, [format, abvTier, qualityTier, beerTypeTier, bonusSempreNoi, bonusGocciaDOro, gocciaStatus.isOpen, myMemberProfile, clockTick]);
 
   const handleAddBeer = (e) => {
     e.preventDefault();
@@ -2226,14 +2254,15 @@ const [rulesPage, setRulesPage] = useState('intro');
                 />
               </div>
 
-              {/* 1. Formato */}
+             {/* 1. Formato (4 Opzioni: 33cl, 50cl, 66cl, 1L) */}
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2">
                 <label className="block text-[10px] font-bold uppercase text-slate-400">1. Formato</label>
-                <div className="grid grid-cols-3 gap-1.5">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                   {[
-                    { id: 'piccola33', name: '33cl', pts: '+3 pt' },
-                    { id: 'spina50', name: 'Media 50cl', pts: '+5 pt' },
-                    { id: 'litro', name: '1 litro', pts: '+8 pt' }
+                    { id: 'piccola33', name: 'Piccola 33cl', sub: '0,33 L', pts: '+3 pt' },
+                    { id: 'spina50', name: 'Media 50cl', sub: '0,50 L', pts: '+5 pt' },
+                    { id: 'boccione66', name: 'Boccione 66cl', sub: '0,66 L', pts: '+6.5 pt' },
+                    { id: 'litro', name: 'Boccale 1 Litro', sub: '1,00 L', pts: '+10 pt' }
                   ].map(f => (
                     <button
                       type="button"
@@ -2242,20 +2271,21 @@ const [rulesPage, setRulesPage] = useState('intro');
                       className={`p-2.5 rounded-xl border text-center transition ${format === f.id ? 'bg-amber-500/20 border-amber-400 text-white' : 'bg-slate-950 border-slate-800 text-slate-400'}`}
                     >
                       <span className="text-xs font-bold block">{f.name}</span>
+                      <span className="text-[9px] text-slate-400 block">{f.sub}</span>
                       <span className="text-[10px] text-amber-400 font-black">{f.pts}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* 2. Grado Alcolico */}
+              {/* 2. Grado Alcolico (Strada A: x1.0 / x1.2 / x1.4) */}
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2">
                 <label className="block text-[10px] font-bold uppercase text-slate-400">2. Grado Alcolico</label>
                 <div className="grid grid-cols-3 gap-1.5">
                   {[
                     { id: 'leggera', name: 'Leggera', sub: 'fino a 5,6°', mult: 'x1.0' },
-                    { id: 'media', name: 'Media', sub: '5,6° - 7,5°', mult: 'x1.3' },
-                    { id: 'forte', name: 'Forte', sub: 'oltre 7,5°', mult: 'x1.7' }
+                    { id: 'media', name: 'Media', sub: '5,6° - 7,5°', mult: 'x1.2' },
+                    { id: 'forte', name: 'Forte', sub: 'oltre 7,5°', mult: 'x1.4' }
                   ].map(a => (
                     <button
                       type="button"
@@ -2301,6 +2331,34 @@ const [rulesPage, setRulesPage] = useState('intro');
                 </div>
               </div>
 
+              {/* 4. Tipologia / Stile della Birra (NUOVO) */}
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2">
+                <label className="block text-[10px] font-bold uppercase text-slate-400">4. Tipologia della Birra</label>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {[
+                    { id: 'classica', name: 'Lager / Pils / Weiss', sub: 'Chiara o non filtrata classica', bonus: '+0 pt' },
+                    { id: 'session', name: 'Session IPA / APA / Rossa', sub: 'Luppolata leggera o Ambrata', bonus: '+1 pt' },
+                    { id: 'ipa', name: 'IPA / Double IPA / Stout', sub: 'Luppolo deciso o Scura', bonus: '+1.5 pt' },
+                    { id: 'trappista', name: 'Trappista / Tripel / Quadrupel', sub: 'Speciale d\'Abbazia', bonus: '+2 pt' }
+                  ].map(t => (
+                    <button
+                      type="button"
+                      key={t.id}
+                      onClick={() => setBeerTypeTier(t.id)}
+                      className={`p-2.5 rounded-xl border text-center transition ${
+                        beerTypeTier === t.id
+                          ? 'bg-amber-500/20 border-amber-400 text-white'
+                          : 'bg-slate-950 border-slate-800 text-slate-400'
+                      }`}
+                    >
+                      <span className="text-xs font-bold block">{t.name}</span>
+                      <span className="text-[9px] text-slate-400 block">{t.sub}</span>
+                      <span className="text-[10px] text-amber-400 font-black">{t.bonus}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* BONUS 1: Sempre Noi */}
               <div 
                 onClick={() => setBonusSempreNoi(!bonusSempreNoi)}
@@ -2312,11 +2370,11 @@ const [rulesPage, setRulesPage] = useState('intro');
                   <Users className={`w-5 h-5 ${bonusSempreNoi ? 'text-emerald-400' : 'text-slate-500'}`} />
                   <div>
                     <span className="text-xs font-bold block">Bonus "Sempre noi"</span>
-                    <span className="text-[10px] text-slate-400">Bevuta in compagnia con gli amici della lega</span>
+                    <span className="text-[10px] text-slate-400">Bevuta in compagnia con almeno altri 2 membri della lega</span>
                   </div>
                 </div>
                 <span className="text-sm font-black text-emerald-400">x1,3</span>
-              </div>
+              </div> 
 
               {/* BONUS 2: Goccia d'Oro */}
               <div 
@@ -2937,10 +2995,12 @@ const [rulesPage, setRulesPage] = useState('intro');
                 /* CONTENUTO PAGINA 2: LE TUE REGOLE SUI PUNTI E BONUS */
                 <div className="p-4 overflow-y-auto space-y-3 text-xs text-slate-300">
                   <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
-                    <span className="text-[10px] font-black uppercase text-amber-400">1. Formati, Gradi e Qualità</span>
-                    <div className="flex justify-between"><span>Piccola 33cl / Media 50cl / 1 litro</span><strong className="text-white">+3 / +5 / +8 pt</strong></div>
-                    <div className="flex justify-between"><span>Leggera (≤5,6°) / Media / Forte (&gt;7,5°)</span><strong className="text-white">x1.0 / x1.3 / x1.7</strong></div>
+                    <span className="text-[10px] font-black uppercase text-amber-400">1. Formati, Gradi, Qualità e Stile</span>
+                    <div className="flex justify-between"><span>33cl / 50cl / 66cl / 1 Litro</span><strong className="text-white">+3 / +5 / +6.5 / +10 pt</strong></div>
+                    <div className="flex justify-between"><span>Leggera (≤5,6°) / Media / Forte (&gt;7,5°)</span><strong className="text-white">x1.0 / x1.2 / x1.4</strong></div>
                     <div className="flex justify-between"><span>Industriale / Artigianale / Alla spina</span><strong className="text-amber-400">+0 / +2 / +3 pt</strong></div>
+                    <div className="flex justify-between"><span>Stile: Classica / Session / IPA-Stout / Abbazia</span><strong className="text-amber-300">+0 / +1 / +1.5 / +2 pt</strong></div>
+                    <div className="flex justify-between"><span>Bonus "Sempre noi" (con +2 membri lega)</span><strong className="text-emerald-400">x1.3</strong></div>
                     <div className="flex justify-between"><span>Passaporto Rumeno (Ceres, Tennent's, Faxe...)</span><strong className="text-red-400">-5 pt + 🥫 24h</strong></div>
                   </div>
 
