@@ -2266,8 +2266,8 @@ const newCount = prevCount + 1;
                             crushed={hasCanPenalty}
                             streakLevel={streakLevel}
                           />
-                          <div>
-                            <div className="flex items-center gap-1.5 flex-wrap">
+                          <div className="text-left">
+                            <div className="flex items-center justify-start gap-1.5 flex-wrap">
                               <span className={`text-xs ${nameColorClass}`}>
                                 {member.name}
                               </span>
