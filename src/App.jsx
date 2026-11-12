@@ -69,7 +69,7 @@ const BEER_GLASS_TYPES = [
   { id: 'ipa', name: 'IPA Artigianale', shortName: 'IPA', shortDesc: 'Calice Teku con base' },
   { id: 'session_ipa', name: 'Session IPA', shortName: 'Session IPA', shortDesc: 'Pinta Nonic chiara' },
   { id: 'dipa', name: 'DIPA (Double IPA)', shortName: 'DIPA', shortDesc: 'Snifter tulipano ramato' },
-  { id: 'triple', name: 'Triple Belga', shortName: 'Triple', shortDesc: 'Calice a coppa dorato' },
+  { id: 'triple', name: 'Tripel Belga', shortName: 'Tripel', shortDesc: 'Calice a coppa dorato' },
   { id: 'trappista', name: 'Trappista', shortName: 'Trappista', shortDesc: 'Coppa larga bruno-ambrata' },
   { id: 'stout', name: 'Stout Irlandese', shortName: 'Stout', shortDesc: 'Pinta scura cremosa' }
 ];
