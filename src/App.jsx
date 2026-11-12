@@ -6,7 +6,7 @@ import {
   XCircle, Share2, RefreshCw, Eye, Sun, Crown, Trash2, Clock, Lock, Award,
   Newspaper, Store, Pencil 
 } from 'lucide-react';
-import Chiosco from './Chiosco';
+import Chiosco, { GodPinModal, GodBollettinoConsole, OwnedItemsShowcase } from './Chiosco';
 
 // ============================================================================
 // 🔗 LINK FIREBASE REALTIME DATABASE PRECONFIGURATO
@@ -530,8 +530,31 @@ export default function App() {
     return () => clearInterval(timer);
   }, []);
 
-  const gocciaStatus = useMemo(() => checkGocciaWindow(), [clockTick]);
-  const captainWindowStatus = useMemo(() => checkCaptainWindow(), [clockTick]);
+  const [isGodMode, setIsGodMode] = useState(() => localStorage.getItem('sempre_noi_god_mode') === 'true');
+  const [showGodPinModal, setShowGodPinModal] = useState(false);
+  const logoTapRef = useRef({ count: 0, timer: null });
+
+  const handleSecretLogoTap = () => {
+    if (isGodMode) {
+      setIsGodMode(false);
+      localStorage.removeItem('sempre_noi_god_mode');
+      showToast('🔒 God Mode nascosta.', 'warning');
+      return;
+    }
+    logoTapRef.current.count += 1;
+    if (logoTapRef.current.timer) clearTimeout(logoTapRef.current.timer);
+    if (logoTapRef.current.count >= 5) {
+      logoTapRef.current.count = 0;
+      setShowGodPinModal(true);
+    } else {
+      logoTapRef.current.timer = setTimeout(() => {
+        logoTapRef.current.count = 0;
+      }, 2200);
+    }
+  };
+
+  const gocciaStatus = useMemo(() => isGodMode ? { isOpen: true, isTooEarly: false } : checkGocciaWindow(), [clockTick, isGodMode]);
+  const captainWindowStatus = useMemo(() => isGodMode ? { isOpen: true, reason: '' } : checkCaptainWindow(), [clockTick, isGodMode]);
   const currentWeekKey = useMemo(() => getCurrentWeekKey(), [clockTick]);
 
   const pushLeagueToCloud = async (leagueObj) => {
@@ -877,6 +900,82 @@ export default function App() {
     setLeagues(updatedLeagues);
     setShowEditNameModal(false);
     showToast(`✏️ Soprannome aggiornato in "${cleanNewName}"!`, 'success');
+  };
+  const handleGodEditMember = (memberId, action) => {
+    if (!activeLeagueId) return;
+    setLeagues(prev => prev.map(l => {
+      if (l.id !== activeLeagueId) return l;
+      const updated = {
+        ...l,
+        members: (l.members || []).map(m => {
+          if (m.id !== memberId) return m;
+          const nextPts = action.pointsDelta ? Number((m.points + action.pointsDelta).toFixed(1)) : m.points;
+          const nextCaps = action.goldCapsDelta ? Math.max(0, (m.goldCaps || 0) + action.goldCapsDelta) : (m.goldCaps || 0);
+          const nextBeers = action.beersDelta ? Math.max(0, (m.beers || 0) + action.beersDelta) : (m.beers || 0);
+          const baseLiters = m.liters ?? ((m.beers || 0) * 0.5);
+          const nextLiters = action.litersDelta ? Math.max(0, Number((baseLiters + action.litersDelta).toFixed(2))) : baseLiters;
+          const hasCanNow = Boolean(m.rumenoUntil && Number(m.rumenoUntil) > Date.now());
+          const nextRumeno = action.toggleCan ? (hasCanNow ? null : Date.now() + 24 * 3600000) : m.rumenoUntil;
+
+          return {
+            ...m,
+            points: nextPts,
+            goldCaps: nextCaps,
+            beers: nextBeers,
+            liters: nextLiters,
+            rumenoUntil: nextRumeno,
+            yellowCards: action.resetCards ? 0 : (m.yellowCards || 0),
+            simulations: action.resetCards ? 0 : (m.simulations || 0),
+            redCards: action.resetCards ? 0 : (m.redCards || 0)
+          };
+        })
+      };
+      pushLeagueToCloud(updated);
+      return updated;
+    }));
+  };
+
+  const handleToggleChioscoItem = (itemObj) => {
+    if (!activeLeagueId || !currentUser) return;
+    setLeagues(prev => prev.map(l => {
+      if (l.id !== activeLeagueId) return l;
+      const updated = {
+        ...l,
+        members: (l.members || []).map(m => {
+          if (m.id !== currentUser.id) return m;
+          const currentOwned = m.ownedItems || [];
+          const exists = currentOwned.some(x => (typeof x === 'string' ? x === itemObj.id : x?.id === itemObj.id));
+          const nextOwned = exists
+            ? currentOwned.filter(x => (typeof x === 'string' ? x !== itemObj.id : x?.id !== itemObj.id))
+            : [...currentOwned, { id: itemObj.id, name: itemObj.name, rarity: itemObj.rarity }];
+          showToast(exists ? `🗑️ "${itemObj.name}" rimosso dai tuoi averi` : `⚡ "${itemObj.name}" aggiunto gratis ai tuoi averi!`, 'success');
+          return { ...m, ownedItems: nextOwned };
+        })
+      };
+      pushLeagueToCloud(updated);
+      return updated;
+    }));
+  };
+
+  const handleGodForceVar = (beerItem, mode) => {
+    if (!beerItem || !activeLeagueId) return;
+    setLeagues(prev => prev.map(l => {
+      if (l.id !== activeLeagueId) return l;
+      const updatedFeed = (l.feed || []).filter(item => item.id !== beerItem.id);
+      const drinkL = Number(beerItem.liters || 0.5);
+      const updatedMembers = mode === 'approve'
+        ? (l.members || []).map(m => m.id === beerItem.playerId ? {
+            ...m,
+            points: Number((m.points + beerItem.points).toFixed(1)),
+            beers: (m.beers || 0) + 1,
+            liters: Number(((m.liters ?? ((m.beers || 0) * 0.5)) + drinkL).toFixed(2))
+          } : m)
+        : l.members;
+      const updated = { ...l, feed: updatedFeed, members: updatedMembers };
+      pushLeagueToCloud(updated);
+      return updated;
+    }));
+    showToast(mode === 'approve' ? '⚡ Birra convalidata istantaneamente (God Mode)!' : '🗑️ Foto eliminata dalla Sala VAR (God Mode)!', 'success');
   };
   const handleLogout = () => {
     if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
@@ -1710,7 +1809,14 @@ export default function App() {
               >
                 <ArrowLeft className="w-4 h-4" />
               </button>
-              <SempreNoiLogo size="sm" />
+              <div onClick={handleSecretLogoTap} className="cursor-pointer relative">
+             <SempreNoiLogo size="sm" />
+             {isGodMode && (
+               <span className="absolute -bottom-1 -right-1 bg-amber-400 text-slate-950 text-[8px] font-black px-1 rounded-full border border-slate-950 shadow">
+                 ⚡GOD
+               </span>
+             )}
+           </div>
               <div className="min-w-0">
                 <h1 className="text-sm font-black text-white leading-tight truncate">{activeLeague.name}</h1>
                 <span className="text-[10px] text-amber-400 font-bold block">
@@ -2421,7 +2527,24 @@ export default function App() {
                               </span>
                             </div>
                           )}
-
+{isGodMode && (
+                         <div className="grid grid-cols-2 gap-2 p-2 rounded-xl bg-amber-500/10 border border-amber-400/50">
+                           <button
+                             type="button"
+                             onClick={() => handleGodForceVar(item, 'approve')}
+                             className="py-1.5 px-2 rounded-lg bg-emerald-500 text-slate-950 text-[10px] font-black uppercase"
+                           >
+                             ⚡ Approva Subito
+                           </button>
+                           <button
+                             type="button"
+                             onClick={() => handleGodForceVar(item, 'delete')}
+                             className="py-1.5 px-2 rounded-lg bg-red-600 text-white text-[10px] font-black uppercase"
+                           >
+                             ⚡ Cancella Foto
+                           </button>
+                         </div>
+                       )}
                          {isMyBeer ? (
                             <div className="space-y-2 pt-1">
                               <div className="py-2 px-3 rounded-xl bg-slate-950 border border-slate-800 text-slate-400 text-[11px] font-bold flex items-center justify-center gap-2">
@@ -2542,7 +2665,23 @@ export default function App() {
           )}
 
           {/* TAB 5: IL CHIOSCO DEI GADGET */}
-          {activeTab === 'chiosco' && <Chiosco />}
+         {activeTab === 'chiosco' && (
+         <Chiosco
+           isGodMode={isGodMode}
+           ownedItems={myMemberProfile?.ownedItems || []}
+           onToggleOwnItem={handleToggleChioscoItem}
+         />
+       )}
+       <GodPinModal
+         isOpen={showGodPinModal}
+         onClose={() => setShowGodPinModal(false)}
+         onUnlock={() => {
+           setIsGodMode(true);
+           localStorage.setItem('sempre_noi_god_mode', 'true');
+           setShowGodPinModal(false);
+           showToast('⚡ GOD MODE ATTIVATA! Tocca il logo per nasconderla.', 'success');
+         }}
+       />
         </main>
 {/* MODALE BOLLETTINO MEDICO PERSONALE / SCHEDA BEVITORE */}
         {inspectedMember && (
@@ -2646,48 +2785,23 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* SEZIONE LIBERA "I MIEI AVERI" (TUTTI GLI OGGETTI COMPRATI) */}
-                <div className="bg-slate-950 border border-slate-800 rounded-2xl p-3.5 space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-black uppercase text-amber-400 flex items-center gap-1.5">
-                      🎒 {inspectedMember.id === currentUser.id ? 'I Miei Averi' : `Gli Averi di ${inspectedMember.name}`}
-                    </span>
-                    <span className="text-[10px] font-bold text-slate-400">
-                      {(inspectedMember.ownedItems || []).length} Oggetti
-                    </span>
-                  </div>
+               {/* SEZIONE LIBERA "I MIEI AVERI" + CONSOLE GOD MODE */}
+                <OwnedItemsShowcase
+                  ownedItems={inspectedMember.ownedItems || []}
+                  isMe={inspectedMember.id === currentUser.id}
+                  playerName={inspectedMember.name}
+                  onGoToChiosco={() => {
+                    setInspectedMemberId(null);
+                    setActiveTab('chiosco');
+                  }}
+                />
 
-                  {(inspectedMember.ownedItems || []).length === 0 ? (
-                    <div className="py-5 px-3 rounded-xl border border-dashed border-slate-800 text-center space-y-2">
-                      <p className="text-xs font-bold text-slate-300">
-                        Nessun oggetto ancora riscattato al Chiosco!
-                      </p>
-                      <p className="text-[10px] text-slate-400 italic">
-                        "Fegato da professionista, ma inventario ancora vuoto: accumula Tappi d'Oro per fare spesa al Chiosco!"
-                      </p>
-                      {inspectedMember.id === currentUser.id && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setInspectedMemberId(null);
-                            setActiveTab('chiosco');
-                          }}
-                          className="mt-1 px-3 py-1.5 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-300 text-[10px] font-black uppercase"
-                        >
-                          Vai al Chiosco 🏪
-                        </button>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-2">
-                      {(inspectedMember.ownedItems || []).map((obj, i) => (
-                        <div key={i} className="p-2 rounded-xl bg-slate-900 border border-amber-500/30 text-center">
-                          <span className="text-xs font-black text-white block truncate">{obj.name || obj}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                {isGodMode && (
+                  <GodBollettinoConsole
+                    member={inspectedMember}
+                    onGodEdit={handleGodEditMember}
+                  />
+                )}
               </div>
 
               <div className="p-3 bg-slate-950 border-t border-slate-800">

@@ -4,7 +4,7 @@ import { Lock, Sparkles, X, Award, Wrench, Eye, Crown } from 'lucide-react';
 // ============================================================================
 // 🎨 CONFIGURAZIONE RARITÀ (COMUNE, RARO, MITICO, LEGGENDARIO)
 // ============================================================================
-const RARITY_STYLES = {
+export const RARITY_STYLES = {
   COMUNE: {
     label: 'COMUNE',
     badgeBg: 'bg-emerald-500 text-slate-950',
@@ -46,7 +46,7 @@ const RARITY_STYLES = {
 // ============================================================================
 // 📦 CATALOGO UFFICIALE DEI 32 OGGETTI (4 CATEGORIE x 8 OGGETTI)
 // ============================================================================
-const CHIOSCO_ITEMS = {
+export const CHIOSCO_ITEMS = {
   cavatappi: [
     {
       id: 'accendino',
@@ -313,11 +313,18 @@ const CHIOSCO_ITEMS = {
   ]
 };
 
+export const ALL_CHIOSCO_ITEMS = [
+  ...CHIOSCO_ITEMS.cavatappi,
+  ...CHIOSCO_ITEMS.calici,
+  ...CHIOSCO_ITEMS.cimeli,
+  ...CHIOSCO_ITEMS.postazioni
+];
+
 // ============================================================================
 // 🖌️ MOTORE GRAFICO SVG AD ALTA DEFINIZIONE PER TUTTI I 32 OGGETTI
 // ============================================================================
-function ChioscoItemArtwork({ id, size = 'md' }) {
-  const sizeClass = size === 'xl' ? 'w-36 h-36' : 'w-24 h-24';
+export function ChioscoItemArtwork({ id, size = 'md' }) {
+  const sizeClass = size === 'xl' ? 'w-36 h-36' : size === 'sm' ? 'w-14 h-14' : 'w-24 h-24';
 
   return (
     <div className={`${sizeClass} flex items-center justify-center relative select-none pointer-events-none`}>
@@ -814,9 +821,251 @@ function ChioscoItemArtwork({ id, size = 'md' }) {
 }
 
 // ============================================================================
-// 🏪 COMPONENTE PRINCIPALE DEL CHIOSCO (CON MODALE CLASH ROYALE / FIFA)
+// 🎒 VETRINA "I MIEI AVERI" NEL BOLLETTINO MEDICO (CON DISEGNI SVG E RARITÀ)
 // ============================================================================
-export default function Chiosco() {
+export function OwnedItemsShowcase({ ownedItems = [], isMe, playerName, onGoToChiosco }) {
+  return (
+    <div className="bg-slate-950 border border-slate-800 rounded-2xl p-3.5 space-y-2.5">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-black uppercase text-amber-400 flex items-center gap-1.5">
+          🎒 {isMe ? 'I Miei Averi' : `Gli Averi di ${playerName}`}
+        </span>
+        <span className="text-[10px] font-bold text-slate-400">
+          {ownedItems.length} Oggetti
+        </span>
+      </div>
+
+      {ownedItems.length === 0 ? (
+        <div className="py-5 px-3 rounded-xl border border-dashed border-slate-800 text-center space-y-2">
+          <p className="text-xs font-bold text-slate-300">
+            Nessun oggetto ancora riscattato al Chiosco!
+          </p>
+          <p className="text-[10px] text-slate-400 italic">
+            "Fegato da professionista, ma inventario ancora vuoto: accumula Tappi d'Oro per fare spesa al Chiosco!"
+          </p>
+          {isMe && (
+            <button
+              type="button"
+              onClick={onGoToChiosco}
+              className="mt-1 px-3 py-1.5 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-300 text-[10px] font-black uppercase"
+            >
+              Vai al Chiosco 🏪
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          {ownedItems.map((rawObj, i) => {
+            const itemId = typeof rawObj === 'string' ? rawObj : rawObj?.id;
+            const catalogMatch = ALL_CHIOSCO_ITEMS.find(x => x.id === itemId || x.name === rawObj?.name);
+            const itemData = catalogMatch || {
+              id: itemId || 'accendino',
+              name: rawObj?.name || String(rawObj),
+              rarity: rawObj?.rarity || 'COMUNE'
+            };
+            const st = RARITY_STYLES[itemData.rarity] || RARITY_STYLES.COMUNE;
+
+            return (
+              <div
+                key={i}
+                className={`p-2 rounded-xl bg-gradient-to-b ${st.cardBg} border ${st.cardBorder} flex flex-col items-center text-center gap-1`}
+              >
+                <span className={`text-[8px] font-black uppercase px-2 py-0.2 rounded-full ${st.badgeBg}`}>
+                  {st.label}
+                </span>
+                <ChioscoItemArtwork id={itemData.id} size="sm" />
+                <span className="text-[10px] font-black text-white leading-tight line-clamp-1">
+                  {itemData.name}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// ⚡ CONSOLE SEGRETA FONDATORE (DENTRO IL BOLLETTINO MEDICO DI OGNI GIOCATORE)
+// ============================================================================
+export function GodBollettinoConsole({ member, onGodEdit }) {
+  if (!member) return null;
+  const hasCan = Boolean(member.rumenoUntil && Number(member.rumenoUntil) > Date.now());
+
+  return (
+    <div className="bg-gradient-to-b from-amber-500/20 via-slate-950 to-slate-950 border-2 border-amber-400 rounded-2xl p-3.5 space-y-3 shadow-xl">
+      <div className="flex items-center justify-between border-b border-amber-500/30 pb-2">
+        <span className="text-[11px] font-black uppercase text-amber-300 flex items-center gap-1.5">
+          ⚡ Console God Mode • {member.name}
+        </span>
+        <span className="text-[9px] font-black uppercase bg-amber-400 text-slate-950 px-2 py-0.5 rounded-full">
+          Silenziosa
+        </span>
+      </div>
+
+      {/* Punti F1 */}
+      <div className="space-y-1">
+        <span className="text-[9px] font-black uppercase text-slate-400 block">
+          Modifica Punti F1 (Senza Notifica Gazzetta)
+        </span>
+        <div className="grid grid-cols-6 gap-1">
+          {[-10, -5, -1, +1, +5, +10].map(delta => (
+            <button
+              key={delta}
+              type="button"
+              onClick={() => onGodEdit(member.id, { pointsDelta: delta })}
+              className={`py-1.5 rounded-lg text-[10px] font-black border transition ${
+                delta < 0
+                  ? 'bg-red-500/15 border-red-500/40 text-red-300 hover:bg-red-500/30'
+                  : 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30'
+              }`}
+            >
+              {delta > 0 ? `+${delta}` : delta}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Tappi d'Oro */}
+      <div className="space-y-1">
+        <span className="text-[9px] font-black uppercase text-slate-400 block">
+          Modifica Tappi d'Oro 🪙
+        </span>
+        <div className="grid grid-cols-5 gap-1">
+          {[-10, -1, +1, +10, +50].map(delta => (
+            <button
+              key={delta}
+              type="button"
+              onClick={() => onGodEdit(member.id, { goldCapsDelta: delta })}
+              className="py-1.5 rounded-lg text-[10px] font-black bg-amber-500/15 border border-amber-400/40 text-amber-300 hover:bg-amber-500/30 transition"
+            >
+              {delta > 0 ? `+${delta}🪙` : `${delta}🪙`}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Birre, Litri e Penitenze */}
+      <div className="grid grid-cols-2 gap-1.5 pt-1">
+        <button
+          type="button"
+          onClick={() => onGodEdit(member.id, { beersDelta: 1, litersDelta: 0.5 })}
+          className="py-1.5 px-2 rounded-xl bg-sky-500/15 border border-sky-400/40 text-sky-300 text-[10px] font-black uppercase"
+        >
+          +1 Birra (+0.5L)
+        </button>
+        <button
+          type="button"
+          onClick={() => onGodEdit(member.id, { beersDelta: -1, litersDelta: -0.5 })}
+          className="py-1.5 px-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-300 text-[10px] font-black uppercase"
+        >
+          -1 Birra (-0.5L)
+        </button>
+        <button
+          type="button"
+          onClick={() => onGodEdit(member.id, { toggleCan: true })}
+          className="py-1.5 px-2 rounded-xl bg-red-500/15 border border-red-500/40 text-red-300 text-[10px] font-black uppercase"
+        >
+          {hasCan ? '🥫 Togli Lattina' : '🥫 Metti Lattina 24h'}
+        </button>
+        <button
+          type="button"
+          onClick={() => onGodEdit(member.id, { resetCards: true })}
+          className="py-1.5 px-2 rounded-xl bg-purple-500/15 border border-purple-400/40 text-purple-300 text-[10px] font-black uppercase"
+        >
+          🧹 Azzera VAR
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// 🔐 MODALE PIN SEGRETO FONDATORE (5 TOCCHI SUL LOGO -> PIN 7474)
+// ============================================================================
+export function GodPinModal({ isOpen, onClose, onUnlock }) {
+  const [pinValue, setPinValue] = useState('');
+  const [pinError, setPinError] = useState(false);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (pinValue.trim() === '7474') {
+      setPinValue('');
+      setPinError(false);
+      onUnlock();
+    } else {
+      setPinError(true);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[250] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+      <form
+        onSubmit={handleSubmit}
+        className="bg-slate-900 border-2 border-amber-400 rounded-3xl max-w-xs w-full p-5 text-center space-y-4 shadow-2xl"
+      >
+        <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-400 flex items-center justify-center mx-auto text-2xl">
+          ⚡
+        </div>
+        <div>
+          <h3 className="text-sm font-black uppercase text-amber-400">
+            Accesso Segreto Fondatore
+          </h3>
+          <p className="text-[11px] text-slate-400 mt-0.5">
+            Inserisci il PIN del Civico 74 per attivare la God Mode
+          </p>
+        </div>
+
+        <input
+          type="password"
+          inputMode="numeric"
+          autoFocus
+          value={pinValue}
+          onChange={(e) => {
+            setPinValue(e.target.value);
+            setPinError(false);
+          }}
+          placeholder="••••"
+          className="w-full bg-slate-950 border border-slate-700 rounded-xl py-2.5 text-center text-lg font-black tracking-[0.4em] text-amber-300 focus:outline-none focus:border-amber-400"
+        />
+
+        {pinError && (
+          <span className="text-[10px] font-black text-red-400 block">
+            ❌ PIN errato! Accesso negato.
+          </span>
+        )}
+
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setPinValue('');
+              setPinError(false);
+              onClose();
+            }}
+            className="py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold"
+          >
+            Annulla
+          </button>
+          <button
+            type="submit"
+            className="py-2.5 rounded-xl bg-amber-400 text-slate-950 text-xs font-black uppercase shadow-lg"
+          >
+            Attiva ⚡
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+// ============================================================================
+// 🏪 COMPONENTE PRINCIPALE DEL CHIOSCO (CON SBLOCCO GRATIS IN GOD MODE)
+// ============================================================================
+export default function Chiosco({ isGodMode = false, ownedItems = [], onToggleOwnItem }) {
   const [activeCategory, setActiveCategory] = useState('cavatappi');
   const [inspectedItem, setInspectedItem] = useState(null);
 
@@ -827,22 +1076,28 @@ export default function Chiosco() {
     { id: 'postazioni', label: 'Troni', icon: Crown }
   ];
 
+  const isItemOwned = (item) => {
+    if (!item) return false;
+    return (ownedItems || []).some(x => (typeof x === 'string' ? x === item.id : x?.id === item.id));
+  };
+
   const currentItems = CHIOSCO_ITEMS[activeCategory] || [];
   const activeModalStyle = inspectedItem
     ? (RARITY_STYLES[inspectedItem.rarity] || RARITY_STYLES.COMUNE)
     : null;
+  const inspectedOwned = isItemOwned(inspectedItem);
 
   return (
     <div className="space-y-4 pb-6">
-   {/* INTESTAZIONE DEL CHIOSCO */}
-   <div className="bg-gradient-to-r from-amber-500/20 via-slate-900 to-slate-950 border border-amber-500/40 rounded-2xl px-3.5 py-2.5 shadow-xl flex items-center justify-between">
-     <span className="text-xs font-black uppercase text-amber-400 flex items-center gap-1.5">
-       <Sparkles className="w-4 h-4" /> Il Chiosco Ufficiale • 32 Carte
-     </span>
-     <span className="text-[9px] font-black uppercase bg-slate-950 text-amber-300 border border-amber-400/40 px-2 py-0.5 rounded-full">
-       Tocca una carta
-     </span>
-   </div>   
+      {/* INTESTAZIONE DEL CHIOSCO */}
+      <div className="bg-gradient-to-r from-amber-500/20 via-slate-900 to-slate-950 border border-amber-500/40 rounded-2xl px-3.5 py-2.5 shadow-xl flex items-center justify-between">
+        <span className="text-xs font-black uppercase text-amber-400 flex items-center gap-1.5">
+          <Sparkles className="w-4 h-4" /> Il Chiosco Ufficiale • 32 Carte
+        </span>
+        <span className="text-[9px] font-black uppercase bg-slate-950 text-amber-300 border border-amber-400/40 px-2 py-0.5 rounded-full">
+          {isGodMode ? '⚡ Tutto Gratis' : 'Tocca una carta'}
+        </span>
+      </div>
 
       {/* SELETTORE DELLE 4 CATEGORIE */}
       <div className="grid grid-cols-4 gap-1.5 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
@@ -871,6 +1126,7 @@ export default function Chiosco() {
       <div className="grid grid-cols-2 gap-3">
         {currentItems.map(item => {
           const style = RARITY_STYLES[item.rarity] || RARITY_STYLES.COMUNE;
+          const owned = isItemOwned(item);
 
           return (
             <div
@@ -880,12 +1136,12 @@ export default function Chiosco() {
               onClick={() => setInspectedItem(item)}
               className={`w-full bg-gradient-to-b ${style.cardBg} border-2 ${style.cardBorder} rounded-2xl p-3 flex flex-col items-center justify-between text-center cursor-pointer transition active:scale-95 shadow-lg relative overflow-hidden group`}
             >
-{/* Header Carta: Solo Rarità */}
-           <div className="w-full flex items-center justify-center pointer-events-none">
-             <span className={`text-[9px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow ${style.badgeBg}`}>
-               {style.label}
-             </span>
-           </div>
+              {/* Header Carta: Solo Rarità */}
+              <div className="w-full flex items-center justify-center pointer-events-none">
+                <span className={`text-[9px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow ${style.badgeBg}`}>
+                  {style.label}
+                </span>
+              </div>
 
               {/* Illustrazione Vettoriale */}
               <div className="my-1.5 group-hover:scale-105 transition-transform pointer-events-none">
@@ -900,9 +1156,13 @@ export default function Chiosco() {
                 <p className="text-[10px] text-amber-200/90 line-clamp-2 leading-tight italic px-0.5">
                   "{item.desc}"
                 </p>
-                <div className="w-full py-1.5 rounded-xl bg-amber-500/20 border border-amber-400/50 text-amber-300 text-[10px] font-black uppercase flex items-center justify-center gap-1">
-                  <Eye className="w-3 h-3 text-amber-400" />
-                  <span>Apri Carta • 🔒</span>
+                <div className={`w-full py-1.5 rounded-xl border text-[10px] font-black uppercase flex items-center justify-center gap-1 ${
+                  owned
+                    ? 'bg-emerald-500/20 border-emerald-400/60 text-emerald-300'
+                    : 'bg-amber-500/20 border-amber-400/50 text-amber-300'
+                }`}>
+                  <Eye className="w-3 h-3" />
+                  <span>{owned ? 'Nei tuoi averi ✅' : isGodMode ? 'Apri • ⚡ Gratis' : 'Apri Carta • 🔒'}</span>
                 </div>
               </div>
             </div>
@@ -931,49 +1191,71 @@ export default function Chiosco() {
               <X className="w-4 h-4" />
             </button>
 
-           {/* Top Badge Solo Rarità */}
-         <div className="flex items-center justify-center">
-           <span className={`text-xs font-black uppercase tracking-widest px-4 py-1 rounded-full shadow-lg ${activeModalStyle.badgeBg}`}>
-             ★ {activeModalStyle.label} ★
-           </span>
-         </div>
+            {/* Top Badge Solo Rarità */}
+            <div className="flex items-center justify-center">
+              <span className={`text-xs font-black uppercase tracking-widest px-4 py-1 rounded-full shadow-lg ${activeModalStyle.badgeBg}`}>
+                ★ {activeModalStyle.label} ★
+              </span>
+            </div>
 
-         {/* Area Grafica Gigante con Bagliore Radiale */}
-         <div
-           className="py-3 flex items-center justify-center rounded-2xl mx-auto"
-           style={{ background: activeModalStyle.radialBg }}
-         >
-           <ChioscoItemArtwork id={inspectedItem.id} size="xl" />
-         </div>
+            {/* Area Grafica Gigante con Bagliore Radiale */}
+            <div
+              className="py-3 flex items-center justify-center rounded-2xl mx-auto"
+              style={{ background: activeModalStyle.radialBg }}
+            >
+              <ChioscoItemArtwork id={inspectedItem.id} size="xl" />
+            </div>
 
-         {/* Titolo, Sottotitolo e BOX DESCRIZIONE SPIRITOSA IN EVIDENZA */}
-         <div className="space-y-2.5">
-           <div>
-             <h2 className="text-xl font-black uppercase text-white tracking-wide leading-tight">
-               {inspectedItem.name}
-             </h2>
-             <span className="text-[10px] font-black uppercase text-amber-400 tracking-wider block mt-0.5">
-               {inspectedItem.subtitle}
-             </span>
-           </div>
-
-           <div className="bg-slate-950/95 border-2 border-amber-400/50 rounded-2xl p-4 text-center shadow-lg">
-             <span className="text-[9px] font-black uppercase tracking-widest text-amber-400 block mb-1.5">
-               📜 Descrizione Ufficiale del Chiosco
-             </span>
-             <p className="text-xs text-white leading-relaxed font-bold italic">
-               "{inspectedItem.desc}"
-             </p>
-           </div>
-         </div>
-
-
-            {/* Pulsante Bloccato + Chiudi */}
-            <div className="pt-1 space-y-2">
-              <div className="w-full py-2.5 rounded-2xl bg-slate-950 border border-amber-500/40 text-amber-300 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2">
-                <Lock className="w-4 h-4 text-amber-400" />
-                <span>Bloccato • Presto coi Tappi d'Oro</span>
+            {/* Titolo, Sottotitolo e BOX DESCRIZIONE SPIRITOSA IN EVIDENZA */}
+            <div className="space-y-2.5">
+              <div>
+                <h2 className="text-xl font-black uppercase text-white tracking-wide leading-tight">
+                  {inspectedItem.name}
+                </h2>
+                <span className="text-[10px] font-black uppercase text-amber-400 tracking-wider block mt-0.5">
+                  {inspectedItem.subtitle}
+                </span>
               </div>
+
+              <div className="bg-slate-950/95 border-2 border-amber-400/50 rounded-2xl p-4 text-center shadow-lg">
+                <span className="text-[9px] font-black uppercase tracking-widest text-amber-400 block mb-1.5">
+                  📜 Descrizione Ufficiale del Chiosco
+                </span>
+                <p className="text-xs text-white leading-relaxed font-bold italic">
+                  "{inspectedItem.desc}"
+                </p>
+              </div>
+            </div>
+
+            {/* Pulsante Azione (Sblocco Gratis in God Mode oppure Stato Bloccato) */}
+            <div className="pt-1 space-y-2">
+              {isGodMode && onToggleOwnItem ? (
+                <button
+                  type="button"
+                  onClick={() => onToggleOwnItem(inspectedItem)}
+                  className={`w-full py-3 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition ${
+                    inspectedOwned
+                      ? 'bg-red-600/25 hover:bg-red-600/40 border-2 border-red-400 text-red-200'
+                      : 'bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 text-slate-950'
+                  }`}
+                >
+                  <span>
+                    {inspectedOwned
+                      ? '🗑️ Togli dai Miei Averi (God Mode)'
+                      : '⚡ Prendi Gratis (0 Tappi • God Mode)'}
+                  </span>
+                </button>
+              ) : inspectedOwned ? (
+                <div className="w-full py-2.5 rounded-2xl bg-emerald-950/80 border border-emerald-400/60 text-emerald-300 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2">
+                  <span>✅ Già presente nei tuoi averi!</span>
+                </div>
+              ) : (
+                <div className="w-full py-2.5 rounded-2xl bg-slate-950 border border-amber-500/40 text-amber-300 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2">
+                  <Lock className="w-4 h-4 text-amber-400" />
+                  <span>Bloccato • Presto coi Tappi d'Oro</span>
+                </div>
+              )}
+
               <button
                 type="button"
                 onClick={() => setInspectedItem(null)}
