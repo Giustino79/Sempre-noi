@@ -970,16 +970,46 @@ export function GodBollettinoConsole({ member, onGodEdit }) {
           {hasCan ? '🥫 Togli Lattina' : '🥫 Metti Lattina 24h'}
         </button>
         <button
-          type="button"
-          onClick={() => onGodEdit(member.id, { resetCards: true })}
-          className="py-1.5 px-2 rounded-xl bg-purple-500/15 border border-purple-400/40 text-purple-300 text-[10px] font-black uppercase"
-        >
-          🧹 Azzera VAR
-        </button>
-      </div>
-    </div>
-  );
-}
+             type="button"
+             onClick={() => onGodEdit(member.id, { resetCards: true })}
+             className="py-1.5 px-2 rounded-xl bg-purple-500/15 border border-purple-400/40 text-purple-300 text-[10px] font-black uppercase"
+           >
+             🧹 Azzera VAR
+           </button>
+         </div>
+
+         {/* Effetti Grafici Serata (Fiamme & Cometa) */}
+         <div className="space-y-1 pt-1 border-t border-amber-500/20">
+           <span className="text-[9px] font-black uppercase text-slate-400 block">
+             Effetto Serata Live (Durata 3h da ultima birra)
+           </span>
+           <div className="grid grid-cols-3 gap-1">
+             <button
+               type="button"
+               onClick={() => onGodEdit(member.id, { setStreak: 0 })}
+               className="py-1.5 rounded-lg text-[9px] font-black uppercase bg-slate-900 border border-slate-700 text-slate-300 hover:bg-slate-800"
+             >
+               🧊 Spento
+             </button>
+             <button
+               type="button"
+               onClick={() => onGodEdit(member.id, { setStreak: 3 })}
+               className="py-1.5 rounded-lg text-[9px] font-black uppercase bg-orange-500/20 border border-orange-400 text-orange-300 hover:bg-orange-500/30"
+             >
+               🔥 On Fire (3)
+             </button>
+             <button
+               type="button"
+               onClick={() => onGodEdit(member.id, { setStreak: 5 })}
+               className="py-1.5 rounded-lg text-[9px] font-black uppercase bg-cyan-500/20 border border-cyan-400 text-cyan-200 hover:bg-cyan-500/30"
+             >
+               ☄️ Cometa (5)
+             </button>
+           </div>
+         </div>
+       </div>
+     );
+   }
 
 // ============================================================================
 // 🔐 MODALE PIN SEGRETO FONDATORE (5 TOCCHI SUL LOGO -> PIN 7474)

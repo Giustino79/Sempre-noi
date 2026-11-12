@@ -78,6 +78,21 @@ const isCrushedCanActive = (member) => {
   return Boolean(member?.rumenoUntil && Number(member.rumenoUntil) > Date.now());
 };
 
+// Calcola la serie attiva della serata (si azzera 3 ore dopo l'ultima birra stappata)
+const STREAK_EXPIRY_MS = 3 * 60 * 60 * 1000;
+const getActiveSessionStreak = (member, nowMs = Date.now()) => {
+  if (!member?.lastDrinkAtMs || !member?.dailyCount) return 0;
+  if ((nowMs - Number(member.lastDrinkAtMs)) > STREAK_EXPIRY_MS) return 0;
+  return Number(member.dailyCount || 0);
+};
+
+const getMemberStreakLevel = (member, nowMs = Date.now()) => {
+  const count = getActiveSessionStreak(member, nowMs);
+  if (count >= 5) return 'comet';
+  if (count >= 3) return 'fire';
+  return 'none';
+};
+
 const formatCaptainTimeLeft = (expiresAtMs, nowMs) => {
   if (!expiresAtMs) return '12h 00m';
   const diff = Number(expiresAtMs) - nowMs;
@@ -87,7 +102,7 @@ const formatCaptainTimeLeft = (expiresAtMs, nowMs) => {
   return `${hrs}h ${String(mins).padStart(2, '0')}m`;
 };
 
-function BeerGlassAvatar({ type = 'weiss', size = 'md', crushed = false }) {
+function BeerGlassAvatar({ type = 'weiss', size = 'md', crushed = false, streakLevel = 'none' }) {
   const effectiveType = crushed ? 'crushed_can' : type;
   const sizeClasses = {
     sm: 'w-8 h-8 p-1',
@@ -95,8 +110,51 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md', crushed = false }) {
     lg: 'w-14 h-14 p-2'
   }[size] || 'w-11 h-11 p-1.5';
 
+  const borderStyle = streakLevel === 'comet'
+    ? 'bg-indigo-950/90 border-cyan-300 shadow-[0_0_16px_rgba(34,211,238,0.85)]'
+    : streakLevel === 'fire'
+    ? 'bg-orange-950/80 border-orange-400 shadow-[0_0_14px_rgba(249,115,22,0.85)]'
+    : effectiveType === 'crushed_can'
+    ? 'bg-red-950/80 border-red-500/70'
+    : 'bg-slate-900 border-slate-700';
+
   return (
-    <div className={`${sizeClasses} aspect-square rounded-2xl ${effectiveType === 'crushed_can' ? 'bg-red-950/80 border-red-500/70' : 'bg-slate-900 border-slate-700'} border flex items-center justify-center shadow-inner shrink-0 relative`}>
+    <div className={`${sizeClasses} aspect-square rounded-2xl ${borderStyle} border flex items-center justify-center shrink-0 relative overflow-visible`}>
+      {/* EFFETTO FIAMME DINAMICHE (3ª e 4ª BIRRA) */}
+      {streakLevel === 'fire' && (
+        <svg viewBox="0 0 60 60" className="absolute -inset-2 w-[calc(100%+16px)] h-[calc(100%+16px)] pointer-events-none z-20 overflow-visible">
+          <g className=" sn-flame-outer">
+            <path d="M10 48 C4 34, 12 20, 16 10 C18 22, 24 18, 22 6 C30 16, 34 8, 30 2 C38 12, 44 20, 40 30 C46 22, 50 14, 48 8 C54 22, 56 36, 50 48 Z" fill="none" stroke="#f97316" strokeWidth="2.2" strokeLinecap="round" opacity="0.85" />
+            <path d="M8 50 Q14 36 12 24 Q18 32 20 18 Q26 30 30 14 Q36 30 40 20 Q44 32 48 22 Q54 36 52 50" fill="none" stroke="#facc15" strokeWidth="1.6" strokeLinecap="round" opacity="0.9" />
+          </g>
+          <circle cx="14" cy="14" r="1.8" fill="#fde047" className="sn-spark-1" />
+          <circle cx="46" cy="12" r="1.6" fill="#fb923c" className="sn-spark-2" />
+          <circle cx="30" cy="6" r="2" fill="#fef08a" className="sn-spark-1" />
+        </svg>
+      )}
+
+      {/* EFFETTO SCIA DI STELLE E COMETA (5+ BIRRE) */}
+      {streakLevel === 'comet' && (
+        <svg viewBox="0 0 64 64" className="absolute -inset-2.5 w-[calc(100%+20px)] h-[calc(100%+20px)] pointer-events-none z-20 overflow-visible">
+          <defs>
+            <linearGradient id="cometTailGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#22d3ee" stopOpacity="1" />
+              <stop offset="50%" stopColor="#a855f7" stopOpacity="0.8" />
+              <stop offset="100%" stopColor="#facc15" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <g className="sn-comet-orbit">
+            <circle cx="32" cy="32" r="27" fill="none" stroke="url(#cometTailGrad)" strokeWidth="2.8" strokeDasharray="42 35" strokeLinecap="round" />
+            <circle cx="32" cy="5" r="3.2" fill="#ffffff" />
+            <circle cx="32" cy="5" r="5.5" fill="#22d3ee" opacity="0.55" />
+            <polygon points="56,24 58,28 62,29 58,31 56,35 54,31 50,29 54,28" fill="#fde047" />
+            <polygon points="8,38 9.5,41 13,42 9.5,43.5 8,47 6.5,43.5 3,42 6.5,41" fill="#38bdf8" />
+          </g>
+          <polygon points="12,10 13.5,13 17,14 13.5,15.5 12,19 10.5,15.5 7,14 10.5,13" fill="#facc15" className="sn-star-twinkle" />
+          <polygon points="52,48 53.2,50.5 56,51.5 53.2,52.5 52,55 50.8,52.5 48,51.5 50.8,50.5" fill="#e879f9" className="sn-star-twinkle" />
+        </svg>
+      )}
+
       {effectiveType === 'crushed_can' && (
         <svg viewBox="0 0 48 48" className="w-full h-full">
           <path d="M14 10L34 10L35 17L28 24L35 31L33 40L15 40L13 31L20 23L13 17Z" fill="#15803d" stroke="#cbd5e1" strokeWidth="1.6" strokeLinejoin="round" />
@@ -917,6 +975,7 @@ const [rulesPage, setRulesPage] = useState('intro');
           const nextLiters = action.litersDelta ? Math.max(0, Number((baseLiters + action.litersDelta).toFixed(2))) : baseLiters;
           const hasCanNow = Boolean(m.rumenoUntil && Number(m.rumenoUntil) > Date.now());
           const nextRumeno = action.toggleCan ? (hasCanNow ? null : Date.now() + 24 * 3600000) : m.rumenoUntil;
+          const hasStreakOverride = typeof action.setStreak === 'number';
 
           return {
             ...m,
@@ -925,6 +984,8 @@ const [rulesPage, setRulesPage] = useState('intro');
             beers: nextBeers,
             liters: nextLiters,
             rumenoUntil: nextRumeno,
+            dailyCount: hasStreakOverride ? action.setStreak : (m.dailyCount || 0),
+            lastDrinkAtMs: hasStreakOverride ? (action.setStreak > 0 ? Date.now() : null) : m.lastDrinkAtMs,
             yellowCards: action.resetCards ? 0 : (m.yellowCards || 0),
             simulations: action.resetCards ? 0 : (m.simulations || 0),
             redCards: action.resetCards ? 0 : (m.redCards || 0)
@@ -1162,8 +1223,8 @@ const [rulesPage, setRulesPage] = useState('intro');
     const isRumeno = qualityTier === 'rumeno';
     const isCapSlot = calculatedDrink.eligibleForCaptainDouble;
 
-    const prevCount = myMemberProfile?.dailyDate === todayKey ? (myMemberProfile?.dailyCount || 0) : 0;
-    const newCount = prevCount + 1;
+    const prevCount = getActiveSessionStreak(myMemberProfile, nowMs);
+const newCount = prevCount + 1;
     if (newCount >= 1 && newCount <= 3) setPersonalDisclaimer(PERSONAL_DISCLAIMERS[newCount]);
 
     const newsItems = [];
@@ -2012,9 +2073,40 @@ const [rulesPage, setRulesPage] = useState('intro');
         {/* CONTENUTO CENTRALE */}
         <main className="flex-1 p-4 space-y-5">
           
-          {/* TAB 1: CLASSIFICA FORMULA 1 (GIOCATORI CLICCABILI CON BOLLETTINO MEDICO) */}
+          {/* TAB 1: CLASSIFICA FORMULA 1 (CON EFFETTI LIVE ON FIRE E COMETA INARRESTABILE) */}
           {activeTab === 'classifica' && (
             <div className="space-y-4">
+              {/* CSS Animazioni Fiamme e Scia di Cometa */}
+              <style>{`
+                @keyframes snFlameDance {
+                  0%, 100% { transform: scaleY(1) translateY(0px); opacity: 0.9; }
+                  50% { transform: scaleY(1.14) translateY(-2px); opacity: 1; }
+                }
+                @keyframes snSparkRise {
+                  0% { transform: translateY(4px) scale(0.7); opacity: 0; }
+                  50% { opacity: 1; }
+                  100% { transform: translateY(-7px) scale(1.2); opacity: 0; }
+                }
+                @keyframes snOrbitSpin {
+                  0% { transform: rotate(0deg); }
+                  100% { transform: rotate(360deg); }
+                }
+                @keyframes snTwinkle {
+                  0%, 100% { transform: scale(0.75); opacity: 0.5; }
+                  50% { transform: scale(1.25); opacity: 1; }
+                }
+                @keyframes snCometSweep {
+                  0% { transform: translateX(-110%) skewX(-18deg); }
+                  100% { transform: translateX(220%) skewX(-18deg); }
+                }
+                .sn-flame-outer { animation: snFlameDance 0.75s infinite ease-in-out; transform-origin: bottom center; }
+                .sn-spark-1 { animation: snSparkRise 1.1s infinite ease-out; }
+                .sn-spark-2 { animation: snSparkRise 1.4s infinite ease-out 0.35s; }
+                .sn-comet-orbit { animation: snOrbitSpin 3.4s infinite linear; transform-origin: 32px 32px; }
+                .sn-star-twinkle { animation: snTwinkle 1.1s infinite ease-in-out; transform-box: fill-box; transform-origin: center; }
+                .sn-comet-row-beam { animation: snCometSweep 2.6s infinite linear; }
+              `}</style>
+
               <div className="bg-gradient-to-br from-slate-800 to-slate-950 rounded-2xl p-3.5 border border-amber-500/30 shadow-xl">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[10px] font-black uppercase text-amber-400 flex items-center gap-1">
@@ -2025,15 +2117,20 @@ const [rulesPage, setRulesPage] = useState('intro');
                   </span>
                 </div>
 
-                <div className="grid grid-cols-3 gap-1.5 items-end text-center pt-1">
+                <div className="grid grid-cols-3 gap-1.5 items-end text-center pt-2">
                   {sortedMembers[1] && (
                     <div
                       onClick={() => setInspectedMemberId(sortedMembers[1].id)}
                       className="bg-slate-900/90 hover:bg-slate-800 border border-slate-700 rounded-xl p-2 flex flex-col items-center cursor-pointer transition active:scale-95"
                     >
-                      <span className="text-[9px] font-black bg-slate-300 text-slate-950 px-1.5 rounded mb-1">P2</span>
-                      <BeerGlassAvatar type={sortedMembers[1].glassType} size="sm" crushed={isCrushedCanActive(sortedMembers[1])} />
-                      <span className="text-xs font-bold text-white truncate max-w-full mt-1">{sortedMembers[1].name}</span>
+                      <span className="text-[9px] font-black bg-slate-300 text-slate-950 px-1.5 rounded mb-1.5">P2</span>
+                      <BeerGlassAvatar
+                        type={sortedMembers[1].glassType}
+                        size="sm"
+                        crushed={isCrushedCanActive(sortedMembers[1])}
+                        streakLevel={getMemberStreakLevel(sortedMembers[1], clockTick)}
+                      />
+                      <span className="text-xs font-bold text-white truncate max-w-full mt-1.5">{sortedMembers[1].name}</span>
                       <span className="text-xs font-black text-amber-400">{sortedMembers[1].points} pt</span>
                     </div>
                   )}
@@ -2042,9 +2139,14 @@ const [rulesPage, setRulesPage] = useState('intro');
                       onClick={() => setInspectedMemberId(sortedMembers[0].id)}
                       className="bg-amber-500/15 hover:bg-amber-500/25 border-2 border-amber-400 rounded-xl p-2.5 flex flex-col items-center -translate-y-1 shadow-lg cursor-pointer transition active:scale-95"
                     >
-                      <span className="text-[9px] font-black bg-amber-400 text-slate-950 px-2 rounded mb-1">LEADER</span>
-                      <BeerGlassAvatar type={sortedMembers[0].glassType} size="md" crushed={isCrushedCanActive(sortedMembers[0])} />
-                      <span className="text-xs font-black text-white truncate max-w-full mt-1">{sortedMembers[0].name}</span>
+                      <span className="text-[9px] font-black bg-amber-400 text-slate-950 px-2 rounded mb-1.5">LEADER</span>
+                      <BeerGlassAvatar
+                        type={sortedMembers[0].glassType}
+                        size="md"
+                        crushed={isCrushedCanActive(sortedMembers[0])}
+                        streakLevel={getMemberStreakLevel(sortedMembers[0], clockTick)}
+                      />
+                      <span className="text-xs font-black text-white truncate max-w-full mt-1.5">{sortedMembers[0].name}</span>
                       <span className="text-sm font-black text-amber-300">{sortedMembers[0].points} pt</span>
                     </div>
                   )}
@@ -2053,9 +2155,14 @@ const [rulesPage, setRulesPage] = useState('intro');
                       onClick={() => setInspectedMemberId(sortedMembers[2].id)}
                       className="bg-slate-900/90 hover:bg-slate-800 border border-amber-700/50 rounded-xl p-2 flex flex-col items-center cursor-pointer transition active:scale-95"
                     >
-                      <span className="text-[9px] font-black bg-amber-700 text-white px-1.5 rounded mb-1">P3</span>
-                      <BeerGlassAvatar type={sortedMembers[2].glassType} size="sm" crushed={isCrushedCanActive(sortedMembers[2])} />
-                      <span className="text-xs font-bold text-white truncate max-w-full mt-1">{sortedMembers[2].name}</span>
+                      <span className="text-[9px] font-black bg-amber-700 text-white px-1.5 rounded mb-1.5">P3</span>
+                      <BeerGlassAvatar
+                        type={sortedMembers[2].glassType}
+                        size="sm"
+                        crushed={isCrushedCanActive(sortedMembers[2])}
+                        streakLevel={getMemberStreakLevel(sortedMembers[2], clockTick)}
+                      />
+                      <span className="text-xs font-bold text-white truncate max-w-full mt-1.5">{sortedMembers[2].name}</span>
                       <span className="text-xs font-black text-amber-500">{sortedMembers[2].points} pt</span>
                     </div>
                   )}
@@ -2073,23 +2180,68 @@ const [rulesPage, setRulesPage] = useState('intro');
                     const gap = isLeader ? 'POLE' : `-${(leaderPoints - member.points).toFixed(1)} pt`;
                     const isMe = member.id === currentUser.id;
                     const hasCanPenalty = isCrushedCanActive(member);
+                    const streakCount = getActiveSessionStreak(member, clockTick);
+                    const streakLevel = getMemberStreakLevel(member, clockTick);
+
+                    const rowBgClass = streakLevel === 'comet'
+                      ? 'bg-gradient-to-r from-indigo-950/90 via-purple-900/55 to-cyan-950/80 border-l-4 border-l-cyan-300'
+                      : streakLevel === 'fire'
+                      ? 'bg-gradient-to-r from-orange-950/65 via-red-950/40 to-slate-900 border-l-4 border-l-orange-500'
+                      : isMe
+                      ? 'bg-amber-500/10'
+                      : '';
+
+                    const nameColorClass = streakLevel === 'comet'
+                      ? 'text-transparent bg-clip-text bg-gradient-to-r from-cyan-200 via-white to-amber-300 font-black drop-shadow'
+                      : streakLevel === 'fire'
+                      ? 'text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-orange-400 to-red-400 font-black'
+                      : isMe
+                      ? 'text-amber-300 font-bold'
+                      : 'text-white font-bold';
 
                     return (
                       <div
                         key={member.id}
                         onClick={() => setInspectedMemberId(member.id)}
-                        className={`px-3 py-2.5 flex items-center justify-between cursor-pointer hover:bg-slate-800/60 transition ${isMe ? 'bg-amber-500/10' : ''}`}
+                        className={`px-3 py-3 flex items-center justify-between cursor-pointer hover:bg-slate-800/60 transition relative overflow-hidden ${rowBgClass}`}
                       >
-                        <div className="flex items-center gap-2.5">
+                        {/* Scia luminosa di Cometa che attraversa la riga (5+ birre) */}
+                        {streakLevel === 'comet' && (
+                          <div className="pointer-events-none absolute inset-0 overflow-hidden">
+                            <div className="sn-comet-row-beam w-1/2 h-full bg-gradient-to-r from-transparent via-cyan-300/25 to-transparent" />
+                          </div>
+                        )}
+
+                        <div className="flex items-center gap-3 relative z-10">
                           <span className={`w-5 text-center text-xs font-black ${isLeader ? 'text-amber-400' : 'text-slate-500'}`}>
                             {idx + 1}
                           </span>
-                          <BeerGlassAvatar type={member.glassType} size="sm" crushed={hasCanPenalty} />
+                          <BeerGlassAvatar
+                            type={member.glassType}
+                            size="sm"
+                            crushed={hasCanPenalty}
+                            streakLevel={streakLevel}
+                          />
                           <div>
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className={`text-xs font-bold ${isMe ? 'text-amber-300' : 'text-white'}`}>
+                              <span className={`text-xs ${nameColorClass}`}>
                                 {member.name}
                               </span>
+
+                              {/* Targhetta ON FIRE (3ª e 4ª Birra) */}
+                              {streakLevel === 'fire' && (
+                                <span className="px-1.5 py-0.5 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-full text-[8px] font-black uppercase tracking-wider shadow animate-pulse">
+                                  🔥 ON FIRE ({streakCount})
+                                </span>
+                              )}
+
+                              {/* Targhetta INARRESTABILE (5+ Birre) */}
+                              {streakLevel === 'comet' && (
+                                <span className="px-2 py-0.5 bg-gradient-to-r from-cyan-400 via-purple-500 to-amber-400 text-slate-950 rounded-full text-[8px] font-black uppercase tracking-wider shadow-md animate-pulse">
+                                  ☄️ INARRESTABILE ({streakCount})
+                                </span>
+                              )}
+
                               {hasCanPenalty && (
                                 <span className="px-1.5 py-0.2 bg-red-500/20 border border-red-500/50 text-red-300 rounded text-[9px] font-black">
                                   🥫 24h
@@ -2111,13 +2263,13 @@ const [rulesPage, setRulesPage] = useState('intro');
                                 </span>
                               )}
                             </div>
-                            <span className="text-[10px] text-slate-400 block">
+                            <span className="text-[10px] text-slate-400 block mt-0.5">
                               {member.beers} birre • {(member.liters ?? (member.beers * 0.5)).toFixed(1)}L
                               {member.captainActive && (member.captainVaultPoints || 0) > 0 ? ` • Cassaforte CAP: +${member.captainVaultPoints} pt` : ''}
                             </span>
                           </div>
                         </div>
-                        <div className="text-right">
+                        <div className="text-right relative z-10">
                           <div className="text-sm font-black text-amber-400">{member.points} pt</div>
                           <div className={`text-[9px] font-extrabold px-1.5 rounded inline-block ${isLeader ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-800 text-slate-400'}`}>
                             {gap}
@@ -2779,10 +2931,11 @@ const [rulesPage, setRulesPage] = useState('intro');
                 <div className="flex items-center justify-between bg-slate-950 border border-slate-800 rounded-2xl p-3">
                   <div className="flex items-center gap-3 min-w-0">
                     <BeerGlassAvatar
-                      type={inspectedMember.glassType}
-                      size="lg"
-                      crushed={isCrushedCanActive(inspectedMember)}
-                    />
+                   type={inspectedMember.glassType}
+                   size="lg"
+                   crushed={isCrushedCanActive(inspectedMember)}
+                   streakLevel={getMemberStreakLevel(inspectedMember, clockTick)}
+                 />
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
                         <h3 className="text-base font-black text-white truncate">
