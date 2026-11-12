@@ -2061,7 +2061,7 @@ const newCount = prevCount + 1;
             </div>
           )} 
 
-          {/* SELETTORE A 8 BICCHIERI */}
+         {/* SELETTORE A 8 BICCHIERI */}
           {showGlassPicker && (
             <div className="pt-2 border-t border-slate-800 space-y-2">
               <span className="text-[10px] uppercase font-black text-amber-400 block">
@@ -2077,14 +2077,23 @@ const newCount = prevCount + 1;
                       const updated = { ...currentUser, glassType: g.id };
                       setCurrentUser(updated);
                       setAccounts(prev => prev.map(a => a.id === currentUser.id ? updated : a));
-                      if (activeLeagueId) {
-                        setLeagues(prev => prev.map(l => l.id === activeLeagueId ? {
+
+                      setLeagues(prev => prev.map(l => {
+                        const isMatch = (m) => m.id === currentUser.id || m.name?.toLowerCase() === currentUser.username?.toLowerCase();
+                        const hasUser = (l.members || []).some(isMatch);
+                        if (!hasUser) return l;
+
+                        const updatedL = {
                           ...l,
-                          members: l.members.map(m => m.id === currentUser.id ? { ...m, glassType: g.id } : m)
-                        } : l));
-                      }
+                          members: (l.members || []).map(m => isMatch(m) ? { ...m, glassType: g.id } : m),
+                          feed: (l.feed || []).map(item => (item.playerId === currentUser.id || item.playerName?.toLowerCase() === currentUser.username?.toLowerCase()) ? { ...item, glassType: g.id } : item)
+                        };
+                        pushLeagueToCloud(updatedL);
+                        return updatedL;
+                      }));
+
                       setShowGlassPicker(false);
-                      showToast(`🍺 Hai scelto ${g.shortName}!`, 'success');
+                      showToast(`🍺 Immagine profilo aggiornata: ${g.shortName}!`, 'success');
                     }}
                     className={`p-1.5 rounded-xl border flex flex-col items-center transition ${
                       currentUser.glassType === g.id 
