@@ -950,7 +950,10 @@ const [rulesPage, setRulesPage] = useState('intro');
 // --- STATI E FUNZIONI PER CAMBIO NOME E BOLLETTINO MEDICO GIOCATORE ---
   const [showEditNameModal, setShowEditNameModal] = useState(false);
   const [editNicknameValue, setEditNicknameValue] = useState('');
-  const [inspectedMemberId, setInspectedMemberId] = useState(null);
+const [inspectedMemberId, setInspectedMemberId] = useState(null);
+  const [albumMember, setAlbumMember] = useState(null);
+  const [albumFilterMode, setAlbumFilterMode] = useState('player'); // 'player' | 'all'
+  const [zoomedMemory, setZoomedMemory] = useState(null);
 
   const inspectedMember = useMemo(() => {
     if (!inspectedMemberId || !activeLeague) return null;
@@ -1077,11 +1080,46 @@ const handleGodForceVar = (beerItem, mode) => {
           };
         }
       });
-      const updated = { ...l, feed: updatedFeed, members: updatedMembers };
+
+      const drinkDate = new Date(beerItem.createdAtMs || nowMs);
+      const newMemory = mode === 'approve' ? {
+        id: beerItem.id,
+        playerId: beerItem.playerId,
+        playerName: beerItem.playerName,
+        glassType: beerItem.glassType || 'weiss',
+        beerName: beerItem.beerName || 'Birra Fresca',
+        formatLabel: beerItem.formatLabel || '',
+        abvLabel: beerItem.abvLabel || '',
+        styleLabel: beerItem.styleLabel || '',
+        photoUrl: beerItem.photoUrl || null,
+        points: beerItem.points,
+        liters: drinkL,
+        timestampMs: beerItem.createdAtMs || nowMs,
+        dateStr: drinkDate.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' }),
+        timeStr: beerItem.timestamp || drinkDate.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
+      } : null;
+
+      const updatedHistory = newMemory ? [newMemory, ...(l.history || [])] : (l.history || []);
+      const updated = { ...l, feed: updatedFeed, members: updatedMembers, history: updatedHistory };
       pushLeagueToCloud(updated);
       return updated;
     }));
-    showToast(mode === 'approve' ? '⚡ Birra convalidata istantaneamente (God Mode)!' : '🗑️ Foto eliminata e contatore scalato (-1)!', 'success');
+    showToast(mode === 'approve' ? '⚡ Birra convalidata e salvata nell\'Album Sempre Noi!' : '🗑️ Foto eliminata e contatore scalato (-1)!', 'success');
+  };
+
+  const handleDeleteAlbumMemory = (memoryId) => {
+    if (!activeLeagueId || !memoryId) return;
+    setLeagues(prev => prev.map(l => {
+      if (l.id !== activeLeagueId) return l;
+      const updated = {
+        ...l,
+        history: (l.history || []).filter(h => h.id !== memoryId)
+      };
+      pushLeagueToCloud(updated);
+      return updated;
+    }));
+    setZoomedMemory(null);
+    showToast('🗑️ Foto rimossa dall\'Album Sempre Noi.', 'warning');
   };
   const handleLogout = () => {
     if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
@@ -1377,9 +1415,22 @@ const newCount = prevCount + 1;
         }
       }
 
+      const drinkDate = new Date(target.createdAtMs || nowMs);
       const updatedHistory = reached2 ? [{
-        id: target.id, playerId: target.playerId, playerName: target.playerName,
-        points: target.points, liters: drinkL, timestampMs: target.createdAtMs || nowMs
+        id: target.id,
+        playerId: target.playerId,
+        playerName: target.playerName,
+        glassType: target.glassType || 'weiss',
+        beerName: target.beerName || 'Birra Fresca',
+        formatLabel: target.formatLabel || '',
+        abvLabel: target.abvLabel || '',
+        styleLabel: target.styleLabel || '',
+        photoUrl: target.photoUrl || null,
+        points: target.points,
+        liters: drinkL,
+        timestampMs: target.createdAtMs || nowMs,
+        dateStr: drinkDate.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' }),
+        timeStr: target.timestamp || drinkDate.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
       }, ...(l.history || [])] : (l.history || []);
 
       const draft = { ...l, feed: updatedFeed, members: updatedMembers, history: updatedHistory, gazzetta: updatedGazzetta };
@@ -2654,40 +2705,41 @@ const newCount = prevCount + 1;
                 </span>
               </div>
 
-              {/* Fotocamera Istantanea */}
+      {/* Fotocamera Istantanea Ingrandita */}
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2.5">
                 <div className="flex items-center justify-between">
                   <label className="text-[10px] font-bold uppercase text-amber-400 flex items-center gap-1">
                     <Camera className="w-3.5 h-3.5" /> Fotocamera Istantanea (No Galleria)
                   </label>
-                  <span className="text-[9px] text-slate-400 uppercase font-bold">Obbligatoria</span>
+                  <span className="text-[9px] text-slate-400 uppercase font-bold">Formato Grande</span>
                 </div>
 
                 {isCameraOpen ? (
-                  <div className="space-y-2">
-                    <div className="relative h-56 w-full rounded-xl overflow-hidden bg-black border-2 border-amber-400">
+                  <div className="space-y-2.5">
+                    <div className="relative h-80 w-full rounded-2xl overflow-hidden bg-black border-2 border-amber-400 shadow-xl">
                       <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+                      <div className="pointer-events-none absolute inset-3 border border-amber-400/35 rounded-xl" />
                     </div>
                     <div className="grid grid-cols-2 gap-2">
-                      <button type="button" onClick={stopCameraStream} className="py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold">
+                      <button type="button" onClick={stopCameraStream} className="py-3 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold">
                         Annulla
                       </button>
-                      <button type="button" onClick={captureInstantPhoto} className="py-2.5 rounded-xl bg-amber-500 text-slate-950 text-xs font-black uppercase flex items-center justify-center gap-1.5">
+                      <button type="button" onClick={captureInstantPhoto} className="py-3 rounded-xl bg-amber-500 text-slate-950 text-xs font-black uppercase flex items-center justify-center gap-1.5 shadow-lg">
                         <Camera className="w-4 h-4" /> Scatta Ora!
                       </button>
                     </div>
                   </div>
                 ) : capturedPhoto ? (
-                  <div className="relative h-52 w-full rounded-xl overflow-hidden border border-emerald-500/50 bg-slate-950">
+                  <div className="relative h-80 w-full rounded-2xl overflow-hidden border-2 border-emerald-500/60 bg-slate-950 shadow-xl">
                     <img src={capturedPhoto} alt="Scatto Live" className="w-full h-full object-cover" />
                     <button
                       type="button"
                       onClick={startCamera}
-                      className="absolute bottom-2 right-2 bg-slate-950/90 text-amber-300 px-3 py-1.5 rounded-xl text-[10px] font-black border border-amber-400/40 flex items-center gap-1"
+                      className="absolute bottom-3 right-3 bg-slate-950/90 text-amber-300 px-3.5 py-2 rounded-xl text-xs font-black border border-amber-400/50 flex items-center gap-1.5 shadow-lg"
                     >
-                      <RefreshCw className="w-3 h-3" /> Riscatta Foto
+                      <RefreshCw className="w-3.5 h-3.5" /> Riscatta Foto
                     </button>
-                  </div>
+                  </div>        
                 ) : (
                   <button
                     type="button"
@@ -2774,7 +2826,7 @@ const newCount = prevCount + 1;
                         </div>
 
                       <div className={`relative w-full bg-slate-950 overflow-hidden select-none transition-all ${
-                          varVotesList.length > 0 ? 'h-56 border-y-2 border-red-500' : 'h-52'
+                         varVotesList.length > 0 ? 'h-80 border-y-2 border-red-500' : 'h-80'
                         }`}>
                           <img src={item.photoUrl} alt={item.beerName} className="w-full h-full object-cover" />
 
@@ -3110,7 +3162,39 @@ const newCount = prevCount + 1;
                   </div>
                 </div>
 
-               {/* SEZIONE LIBERA "I MIEI AVERI" + CONSOLE GOD MODE */}
+           {/* PULSANTE DORATO "ALBUM SEMPRE NOI" (LIBRO DEI RICORDI FOTOGRAFICO) */}
+                {(() => {
+                  const playerMemoriesCount = (activeLeague.history || []).filter(
+                    h => h.photoUrl && (h.playerId === inspectedMember.id || h.playerName?.toLowerCase() === inspectedMember.name?.toLowerCase())
+                  ).length;
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAlbumMember(inspectedMember);
+                        setAlbumFilterMode('player');
+                      }}
+                      className="w-full p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-slate-950 hover:from-amber-500/30 border-2 border-amber-400/70 flex items-center justify-between transition shadow-lg group"
+                    >
+                      <div className="flex items-center gap-3 text-left">
+                        <div className="w-10 h-10 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center text-lg shadow shrink-0 group-hover:scale-105 transition">
+                          📸
+                        </div>
+                        <div>
+                          <span className="text-xs font-black uppercase text-amber-300 block tracking-wide">
+                            Album Sempre Noi
+                          </span>
+                          <span className="text-[10px] text-slate-300 font-semibold block">
+                            Libro dei ricordi di {inspectedMember.name} ({playerMemoriesCount} foto confermate)
+                          </span>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-amber-400 shrink-0" />
+                    </button>
+                  );
+                })()}
+
+                {/* SEZIONE LIBERA "I MIEI AVERI" + CONSOLE GOD MODE */}
                 <OwnedItemsShowcase
                   ownedItems={inspectedMember.ownedItems || []}
                   isMe={inspectedMember.id === currentUser.id}
@@ -3141,6 +3225,216 @@ const newCount = prevCount + 1;
             </div>
           </div>
         )}
+
+        {/* =====================================================================
+            📸 MODALE "ALBUM SEMPRE NOI" (LIBRO DEI RICORDI DELLE BIRRE CONFERMATE)
+        ===================================================================== */}
+        {albumMember && (
+          <div
+            onClick={() => setAlbumMember(null)}
+            className="fixed inset-0 z-[70] bg-black/90 backdrop-blur-md flex items-center justify-center p-4"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-slate-900 border-2 border-amber-400 rounded-3xl max-w-md w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl"
+            >
+              {/* Header Album */}
+              <div className="bg-slate-950 px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-black uppercase text-amber-400 flex items-center gap-1.5">
+                    📸 Album Sempre Noi
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-bold block">
+                    Archivio storico delle bevute confermate dal VAR
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAlbumMember(null)}
+                  className="w-8 h-8 rounded-xl bg-slate-800 text-slate-300 hover:text-white text-xs font-black flex items-center justify-center"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Selettore: Solo di questo Giocatore vs Tutta la Lega */}
+              <div className="grid grid-cols-2 gap-1.5 p-2 bg-slate-950/90 border-b border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setAlbumFilterMode('player')}
+                  className={`py-2 rounded-xl text-[10px] font-black uppercase transition ${
+                    albumFilterMode === 'player'
+                      ? 'bg-amber-400 text-slate-950 shadow'
+                      : 'bg-slate-900 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  🍺 Birre di {albumMember.name}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAlbumFilterMode('all')}
+                  className={`py-2 rounded-xl text-[10px] font-black uppercase transition ${
+                    albumFilterMode === 'all'
+                      ? 'bg-amber-400 text-slate-950 shadow'
+                      : 'bg-slate-900 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  🏆 Tutta la Lega
+                </button>
+              </div>
+
+              {/* Griglia Polaroid dei Ricordi */}
+              <div className="p-3.5 overflow-y-auto flex-1">
+                {(() => {
+                  const allWithPhotos = (activeLeague.history || []).filter(h => h && h.photoUrl);
+                  const filteredMemories = albumFilterMode === 'player'
+                    ? allWithPhotos.filter(h => h.playerId === albumMember.id || h.playerName?.toLowerCase() === albumMember.name?.toLowerCase())
+                    : allWithPhotos;
+
+                  if (filteredMemories.length === 0) {
+                    return (
+                      <div className="py-12 px-4 text-center space-y-2.5">
+                        <div className="text-4xl">📖</div>
+                        <h4 className="text-xs font-black uppercase text-white">
+                          Nessuna foto ancora in archivio!
+                        </h4>
+                        <p className="text-[11px] text-slate-400 leading-relaxed">
+                          Appena una birra riceve le <strong>2 conferme in Sala VAR</strong>, la sua foto viene stampata automaticamente qui nell'<strong>Album Sempre Noi</strong> con data e orario!
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="grid grid-cols-2 gap-2.5">
+                      {filteredMemories.map(mem => {
+                        const fallbackDate = mem.timestampMs ? new Date(Number(mem.timestampMs)) : new Date();
+                        const displayDate = mem.dateStr || fallbackDate.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' });
+                        const displayTime = mem.timeStr || fallbackDate.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+
+                        return (
+                          <div
+                            key={mem.id}
+                            onClick={() => setZoomedMemory({ ...mem, displayDate, displayTime })}
+                            className="bg-slate-950 border border-slate-800 hover:border-amber-400/70 rounded-2xl overflow-hidden shadow-lg cursor-pointer transition active:scale-95 flex flex-col text-left group"
+                          >
+                            <div className="relative h-40 w-full bg-black overflow-hidden">
+                              <img
+                                src={mem.photoUrl}
+                                alt={mem.beerName || 'Birra'}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-black/40" />
+                              <span className="absolute top-2 right-2 bg-amber-400 text-slate-950 text-[9px] font-black px-2 py-0.5 rounded-md shadow">
+                                {mem.points >= 0 ? `+${mem.points}` : mem.points} pt
+                              </span>
+                              <div className="absolute bottom-1.5 left-2 right-2">
+                                <span className="text-[9px] font-mono font-bold text-amber-300 bg-slate-950/85 px-1.5 py-0.5 rounded border border-amber-400/30 inline-block">
+                                  📅 {displayDate} • {displayTime}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="p-2.5 space-y-0.5">
+                              <span className="text-[11px] font-black text-white block truncate">
+                                {mem.beerName || 'Birra Confermata'}
+                              </span>
+                              <span className="text-[9px] font-bold text-slate-400 block truncate">
+                                🍺 {mem.playerName} • {String(mem.formatLabel || '').split(' (')[0] || `${mem.liters || 0.5}L`}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              <div className="p-3 bg-slate-950 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setAlbumMember(null)}
+                  className="w-full py-2.5 rounded-xl bg-amber-500 text-slate-950 text-xs font-black uppercase"
+                >
+                  Chiudi Album Sempre Noi
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* =====================================================================
+            🔍 ZOOM POLAROID A TUTTO SCHERMO DEL SINGOLO RICORDO
+        ===================================================================== */}
+        {zoomedMemory && (
+          <div
+            onClick={() => setZoomedMemory(null)}
+            className="fixed inset-0 z-[80] bg-black/95 backdrop-blur-md flex items-center justify-center p-4"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-slate-900 border-2 border-amber-400 rounded-3xl max-w-sm w-full overflow-hidden shadow-2xl space-y-3 p-3.5 text-left"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <BeerGlassAvatar type={zoomedMemory.glassType || 'weiss'} size="sm" />
+                  <div>
+                    <span className="text-xs font-black text-white block">{zoomedMemory.playerName}</span>
+                    <span className="text-[10px] font-mono text-amber-300 font-bold">
+                      📅 {zoomedMemory.displayDate} • 🕒 Ore {zoomedMemory.displayTime}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setZoomedMemory(null)}
+                  className="w-8 h-8 rounded-full bg-slate-800 text-slate-300 hover:text-white text-xs font-black flex items-center justify-center"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="relative h-96 w-full rounded-2xl overflow-hidden bg-black border border-slate-700">
+                <img
+                  src={zoomedMemory.photoUrl}
+                  alt={zoomedMemory.beerName || 'Ricordo'}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute top-3 right-3 bg-amber-400 text-slate-950 px-3 py-1 rounded-xl text-xs font-black shadow-xl">
+                  {zoomedMemory.points >= 0 ? `+${zoomedMemory.points}` : zoomedMemory.points} PT
+                </div>
+              </div>
+
+              <div className="bg-slate-950 border border-slate-800 rounded-2xl p-3 space-y-1">
+                <h3 className="text-sm font-black text-amber-400">{zoomedMemory.beerName || 'Birra Confermata'}</h3>
+                <p className="text-[11px] text-slate-300 font-semibold">
+                  {[zoomedMemory.formatLabel, zoomedMemory.abvLabel, zoomedMemory.styleLabel].filter(Boolean).join(' • ') || `Formato ${zoomedMemory.liters || 0.5}L`}
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                {isGodMode && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteAlbumMemory(zoomedMemory.id)}
+                    className="py-2.5 px-3 rounded-xl bg-red-600/20 border border-red-500/50 text-red-300 text-xs font-black uppercase"
+                  >
+                    🗑️ Elimina
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setZoomedMemory(null)}
+                  className="flex-1 py-2.5 rounded-xl bg-amber-500 text-slate-950 text-xs font-black uppercase"
+                >
+                  Chiudi Foto
+                </button>
+              </div>
+            </div>
+          </div>
+        )}    
+        
 
         {/* MODALE CAMBIA SOPRANNOME (DENTRO LA LEGA) */}
         {showEditNameModal && (
