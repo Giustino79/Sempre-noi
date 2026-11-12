@@ -2743,61 +2743,43 @@ const newCount = prevCount + 1;
                           </span>
                         </div>
 
-                       <div className={`relative w-full bg-slate-950 overflow-hidden select-none transition-all ${
-                          varVotesList.length > 0 ? 'h-60 border-y-2 border-red-500' : 'h-52'
+                      <div className={`relative w-full bg-slate-950 overflow-hidden select-none transition-all ${
+                          varVotesList.length > 0 ? 'h-56 border-y-2 border-red-500' : 'h-52'
                         }`}>
                           <img src={item.photoUrl} alt={item.beerName} className="w-full h-full object-cover" />
 
-                          {/* GRAFICA TV SKY SPORT / DAZN (SI ATTIVA SOLO SE VIENE CHIAMATO IL VAR!) */}
+                          {/* GRAFICA TV SKY SPORT / DAZN PULITA (SOLO SE VIENE CHIAMATO IL VAR!) */}
                           {varVotesList.length > 0 && (
                             <>
-                              {/* Vignettatura TV + Mirino Regia VAR Rosso Lampeggiante */}
-                              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950 via-red-950/20 to-black/65" />
-                              <div className="pointer-events-none absolute inset-2.5 border-2 border-red-500/60 rounded-lg animate-pulse" />
+                              {/* Leggera sfumatura ai bordi + Mirino Regia VAR */}
+                              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/90 via-transparent to-black/50" />
+                              <div className="pointer-events-none absolute inset-2 border border-red-500/50 rounded-lg animate-pulse" />
 
-                              {/* TOP-LEFT: LOGO REGIA SKY/DAZN VAR CHECK + ORARIO */}
-                              <div className="absolute top-2.5 left-2.5 flex items-center rounded-md overflow-hidden shadow-xl border border-red-400/50">
-                                <div className="bg-red-600 px-2 py-0.5 flex items-center gap-1.5">
+                              {/* IN ALTO A DESTRA: VAR CHECK + ORARIO (ZERO SOVRAPPOSIZIONI) */}
+                              <div className="absolute top-2.5 right-2.5 flex items-center rounded-lg overflow-hidden shadow-xl border border-red-400/60">
+                                <div className="bg-red-600 px-2.5 py-1 flex items-center gap-1.5">
                                   <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
                                   <span className="text-[9px] font-black uppercase tracking-wider text-white">
                                     🚨 VAR CHECK • IN REVISIONE
                                   </span>
                                 </div>
-                                <div className="bg-slate-950/95 backdrop-blur-md px-2 py-0.5 text-[9px] font-mono font-bold text-amber-300">
+                                <div className="bg-slate-950/95 backdrop-blur-md px-2 py-1 text-[9px] font-mono font-bold text-amber-300">
                                   {item.timestamp}
                                 </div>
                               </div>
 
-                              {/* TOP-RIGHT: BOLLINO PUNTI CONGELATI SOTTO INDAGINE */}
-                              <div className="absolute top-2.5 right-2.5 px-2.5 py-1 rounded-lg font-black text-xs uppercase tracking-tight shadow-xl border border-red-300 bg-red-600/95 text-white backdrop-blur-md flex items-center gap-1">
-                                <span>⚠️ {item.points >= 0 ? `+${item.points}` : item.points} PT SUB IUDICE</span>
-                              </div>
-
-                              {/* BOTTOM LOWER-THIRD: TELEMETRIA BIRRA E CAPO D'ACCUSA */}
-                              <div className="absolute bottom-2 left-2.5 right-2.5 bg-slate-950/90 backdrop-blur-md border-l-4 border-red-500 rounded-r-xl px-3 py-2 shadow-2xl space-y-1">
+                              {/* IN BASSO: ON-FIELD REVIEW PER POSSIBILE + CAUSA CHIAMATA */}
+                              <div className="absolute bottom-2 left-2.5 right-2.5 bg-slate-950/90 backdrop-blur-md border-l-4 border-red-500 rounded-r-xl px-3 py-2 shadow-2xl text-left">
                                 <div className="flex items-center justify-between gap-2">
-                                  <span className="text-[10px] font-black uppercase tracking-wider text-red-400 truncate">
-                                    🖥️ ON-FIELD REVIEW • Segnalata da {varVotesList[0].voterName}
+                                  <span className="text-[9px] font-black uppercase tracking-wider text-red-400 truncate">
+                                    🖥️ ON-FIELD REVIEW PER POSSIBILE:
                                   </span>
                                   <span className="text-[8px] font-mono uppercase bg-red-500/20 text-red-200 border border-red-500/40 px-1.5 py-0.5 rounded shrink-0">
                                     VOTO {varVotesList.length}/2
                                   </span>
                                 </div>
-
-                                <div className="text-[10px] font-black text-amber-300 truncate">
+                                <div className="text-[11px] font-black text-amber-300 leading-tight mt-0.5 truncate">
                                   {varVotesList[0].reasonLabel}
-                                </div>
-
-                                <div className="flex flex-wrap items-center gap-1 pt-0.5">
-                                  <span className="text-[9px] font-black bg-slate-800/90 text-white px-1.5 py-0.5 rounded border border-slate-700">
-                                    🍺 {String(item.formatLabel || '').split(' (')[0]}
-                                  </span>
-                                  <span className="text-[9px] font-black bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded border border-amber-400/40">
-                                    🔥 {String(item.abvLabel || '').split(' (')[0]}
-                                  </span>
-                                  <span className="text-[9px] font-bold bg-sky-500/20 text-sky-200 px-1.5 py-0.5 rounded border border-sky-400/30 truncate max-w-[165px]">
-                                    {String(item.styleLabel || '').replace(/\s*\([^)]*\)/g, '')}
-                                  </span>
                                 </div>
                               </div>
                             </>
