@@ -286,10 +286,24 @@ export const CHIOSCO_ITEMS = {
  santini: [
     {
       id: 'tendina_capelli',
-      name: 'La Tendina di Tendina',
+      name: 'La Tendina (Ver. Teca)',
       rarity: 'INFINITO',
       subtitle: 'Reliquia Capillare Custodita Sottovetro',
       desc: 'Conservata in una teca blindata da museo su cuscino reale: riga in mezzo tracciata col calibro e doppia onda simmetrica che si apre come il sipario del Teatro Ariston.'
+    },
+    {
+      id: 'tendina_sole',
+      name: 'La Tendina (Opz. A • Tenda Bar)',
+      rarity: 'INFINITO',
+      subtitle: 'Tenda da Esterno con Manovella Umana',
+      desc: 'Doppia copertura omologata da dehors: sopra la tenda da sole con manovella, sotto la chioma a tendina di Tendina che ripara il tavolo dal sole e dalle sentenze del VAR.'
+    },
+    {
+      id: 'tendina_sipario',
+      name: 'La Tendina (Opz. B • Sipario)',
+      rarity: 'INFINITO',
+      subtitle: 'Bastone in Ottone e Cordoni Reali',
+      desc: 'Sorrisone d’ordinanza sormontato da un vero bastone per tende in ottone: i due ciuffi sono tenuti aperti sulle tempie da due cordoni dorati col fiocco da prima teatrale.'
     },
     {
       id: 'biliardino_manolo',
@@ -304,8 +318,16 @@ export const CHIOSCO_ITEMS = {
       rarity: 'INFINITO',
       subtitle: 'Action Figure 1:10 con Drum Incluso',
       desc: 'Sigillato nel suo blister originale da collezione: miniatura ultra-secca a torso nudo da 28 grammi netti, venduta con busta di tabacco Drum e cartine di serie.'
+    },
+    {
+      id: 'shifu_peluche',
+      name: 'Peluche Maestro Shifu',
+      rarity: 'INFINITO',
+      subtitle: 'La Guida Spirituale Suprema del Gruppo',
+      desc: 'Braccia conserte, sguardo severo che scruta l’anima dei bevitori ed etichetta nera che spunta sotto la tunica: chi cerca la pace interiore al quarto giro deve prima chiedere udienza a Shifu.'
     }
   ]
+  
 };
 
 export const ALL_CHIOSCO_ITEMS = [
@@ -1192,17 +1214,245 @@ export function ChioscoItemArtwork({ id, size = 'md' }) {
             <rect x="75" y="79" width="20" height="7" rx="1.2" fill="#f97316" stroke="#ffffff" strokeWidth="0.9" />
             <text x="85" y="84" textAnchor="middle" fill="#ffffff" fontSize="4.2" fontWeight="900">CARTINE</text>
 
-            {/* 4. Cupola del Blister in Plastica Trasparente Lucida sopra i 2 vani */}
+ {/* 4. Cupola del Blister in Plastica Trasparente Lucida sopra i 2 vani */}
             <rect x="19" y="28" width="48" height="71" rx="5.5" fill="#e0f2fe" fillOpacity="0.12" stroke="#bae6fd" strokeWidth="1.6" />
             <path d="M23 42 L35 31 M23 54 L45 31" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" opacity="0.55" />
             <rect x="69" y="35" width="32" height="56" rx="4.5" fill="#e0f2fe" fillOpacity="0.12" stroke="#bae6fd" strokeWidth="1.5" />
             <path d="M73 46 L82 37" stroke="#ffffff" strokeWidth="1.8" strokeLinecap="round" opacity="0.55" />
           </g>
         )}
+
+        {/* ⛺ TENDINA OPZIONE A: TENDA DA ESTERNO CON MANOVELLA + FACCIA DI TENDINA SOTTO */}
+        {normId === 'tendina_sole' && (
+          <g>
+            {/* 1. Struttura pergola in legno scuro e Asta Manovella laterale */}
+            <rect x="12" y="8" width="96" height="6" rx="2" fill="url(#proWood3D)" stroke="#1c0a00" strokeWidth="1.5" />
+            <path d="M98 28 V68 L104 72 V80" fill="none" stroke="url(#proGold3D)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+            <circle cx="104" cy="81" r="2.5" fill="#dc2626" />
+
+            {/* 2. Tenda da Sole da Bar a spicchi Crema/Verde + Mantovana Ondulata (come nella foto!) */}
+            <polygon points="14,14 106,14 112,30 8,30" fill="#fef3c7" stroke="#78350f" strokeWidth="1.6" strokeLinejoin="round" />
+            <polygon points="28,14 44,14 41,30 23,30" fill="#15803d" />
+            <polygon points="60,14 76,14 77,30 59,30" fill="#15803d" />
+            <polygon points="90,14 106,14 112,30 95,30" fill="#15803d" />
+            {/* Mantovana bianca ondulata sotto la tenda da esterno */}
+            <path
+              d="M8 30 H112 V36 C106 41, 100 41, 95 36 C90 41, 84 41, 79 36 C74 41, 68 41, 63 36 C58 41, 52 41, 47 36 C42 41, 36 41, 31 36 C26 41, 20 41, 15 36 C11 40, 8 39, 8 36 Z"
+              fill="#f8fafc"
+              stroke="#94a3b8"
+              strokeWidth="1.4"
+            />
+
+            {/* 3. Busto di Tendina (Maglietta nera con logo verde BALI) */}
+            <path d="M26 105 C28 85, 42 79, 60 79 C78 79, 92 85, 94 105 Z" fill="#18181b" stroke="#3f3f46" strokeWidth="1.8" />
+            <circle cx="73" cy="92" r="4.5" fill="#86efac" opacity="0.85" />
+            <text x="73" y="99" textAnchor="middle" fill="#ffffff" fontSize="4.2" fontWeight="900">BALI</text>
+
+            {/* 4. Viso di Tendina (Barbetta corta, Sopracciglia folte e Sorrisone a 32 denti) */}
+            <rect x="54" y="73" width="12" height="9" fill="url(#proMarioSkin)" />
+            <ellipse cx="36" cy="59" rx="3.8" ry="6" fill="url(#proMarioSkin)" stroke="#7c2d12" strokeWidth="1.1" />
+            <ellipse cx="84" cy="59" rx="3.8" ry="6" fill="url(#proMarioSkin)" stroke="#7c2d12" strokeWidth="1.1" />
+            <path d="M38 51 C38 35, 82 35, 82 51 C83 68, 74 78, 60 78 C46 78, 37 68, 38 51 Z" fill="url(#proMarioSkin)" stroke="#7c2d12" strokeWidth="1.5" />
+            {/* Barbetta corta sfumata e baffi */}
+            <path d="M39 59 C40 72, 48 78, 60 78 C72 78, 80 72, 81 59 C78 65, 74 67, 69 65 C65 61, 55 61, 51 65 C46 67, 42 65, 39 59 Z" fill="#27272a" opacity="0.82" />
+            {/* Sopracciglia scure marcate + Occhi sorridenti + Naso */}
+            <path d="M44 51 Q49 48.5 55 51 M65 51 Q71 48.5 76 51" stroke="#18181b" strokeWidth="2.4" strokeLinecap="round" fill="none" />
+            <ellipse cx="49.5" cy="55" rx="3.8" ry="2.5" fill="#ffffff" stroke="#451a03" strokeWidth="1" />
+            <circle cx="49.5" cy="55" r="1.8" fill="#1c1917" />
+            <ellipse cx="70.5" cy="55" rx="3.8" ry="2.5" fill="#ffffff" stroke="#451a03" strokeWidth="1" />
+            <circle cx="70.5" cy="55" r="1.8" fill="#1c1917" />
+            <path d="M58.5 54 V61.5 C57 63, 63 63, 61.5 61.5" fill="none" stroke="#7c2d12" strokeWidth="1.6" strokeLinecap="round" />
+            {/* Sorrisone bianco a 32 denti */}
+            <path d="M49 65.5 H71 C69.5 72.5, 50.5 72.5, 49 65.5 Z" fill="#ffffff" stroke="#451a03" strokeWidth="1.2" />
+            <line x1="52" y1="68.5" x2="68" y2="68.5" stroke="#cbd5e1" strokeWidth="0.9" />
+
+            {/* 5. I CAPELLI A TENDINA DI TENDINA (che fanno da seconda tenda sotto la mantovana!) */}
+            <path
+              d="M59.5 36 C45 36, 34 43, 34 57 C34 63, 36 67, 40 69 C39 61, 41 53, 46 48 C51 44, 56 41, 59.5 38 Z"
+              fill="url(#tendinaHairGrad)"
+              stroke="#1c0a00"
+              strokeWidth="1.4"
+            />
+            <path
+              d="M60.5 36 C75 36, 86 43, 86 57 C86 63, 84 67, 80 69 C81 61, 79 53, 74 48 C69 44, 64 41, 60.5 38 Z"
+              fill="url(#tendinaHairGrad)"
+              stroke="#1c0a00"
+              strokeWidth="1.4"
+            />
+            {/* Ciocche interne a tendina sulla fronte */}
+            <path d="M58.5 38 C53 44, 48 49, 47 56 M61.5 38 C67 44, 72 49, 73 56" stroke="#78350f" strokeWidth="2" strokeLinecap="round" fill="none" />
+          </g>
+        )}
+
+        {/* 🪟 TENDINA OPZIONE B: FACCIA DI TENDINA CON BASTONE PER TENDE SULLA FRONTE E CORDONI D'ORO */}
+        {normId === 'tendina_sipario' && (
+          <g>
+            {/* 1. Busto di Tendina (Maglietta nera con logo BALI) */}
+            <path d="M22 104 C25 82, 40 76, 60 76 C80 76, 95 82, 98 104 Z" fill="#18181b" stroke="#3f3f46" strokeWidth="2" />
+            <circle cx="75" cy="91" r="5" fill="#86efac" opacity="0.85" />
+            <text x="75" y="99" textAnchor="middle" fill="#ffffff" fontSize="4.5" fontWeight="900">BALI</text>
+
+            {/* 2. Viso di Tendina in primo piano */}
+            <rect x="53" y="69" width="14" height="10" fill="url(#proMarioSkin)" />
+            <ellipse cx="32" cy="52" rx="4.2" ry="6.8" fill="url(#proMarioSkin)" stroke="#7c2d12" strokeWidth="1.2" />
+            <ellipse cx="88" cy="52" rx="4.2" ry="6.8" fill="url(#proMarioSkin)" stroke="#7c2d12" strokeWidth="1.2" />
+            <path d="M34 42 C34 22, 86 22, 86 42 C87 62, 76 74, 60 74 C44 74, 33 62, 34 42 Z" fill="url(#proMarioSkin)" stroke="#7c2d12" strokeWidth="1.6" />
+            {/* Barba corta curata e baffi */}
+            <path d="M35 51 C36 66, 46 74, 60 74 C74 74, 84 66, 85 51 C81 58, 76 61, 70 59 C66 54, 54 54, 50 59 C44 61, 39 58, 35 51 Z" fill="#27272a" opacity="0.85" />
+            {/* Sopracciglia scure + Occhi + Naso + Sorrisone */}
+            <path d="M41 43 Q47 40 54 43 M66 43 Q73 40 79 43" stroke="#18181b" strokeWidth="2.6" strokeLinecap="round" fill="none" />
+            <ellipse cx="48" cy="48" rx="4.2" ry="2.8" fill="#ffffff" stroke="#451a03" strokeWidth="1.1" />
+            <circle cx="48" cy="48" r="2" fill="#1c1917" />
+            <circle cx="48.8" cy="47.3" r="0.7" fill="#ffffff" />
+            <ellipse cx="72" cy="48" rx="4.2" ry="2.8" fill="#ffffff" stroke="#451a03" strokeWidth="1.1" />
+            <circle cx="72" cy="48" r="2" fill="#1c1917" />
+            <circle cx="72.8" cy="47.3" r="0.7" fill="#ffffff" />
+            <path d="M58.5 47 V55.5 C56.5 57.5, 63.5 57.5, 61.5 55.5" fill="none" stroke="#7c2d12" strokeWidth="1.8" strokeLinecap="round" />
+            <path d="M47 60 H73 C71 68.5, 49 68.5, 47 60 Z" fill="#ffffff" stroke="#451a03" strokeWidth="1.3" />
+            <line x1="50" y1="63.5" x2="70" y2="63.5" stroke="#cbd5e1" strokeWidth="1" />
+
+            {/* 3. CAPELLI A TENDINA APPESI AL BASTONE E LEGATI AI LATI COI CORDONI D'ORO! */}
+            <path
+              d="M59 19 C41 19, 26 28, 25 48 C25 57, 29 63, 35 65 C34 55, 37 44, 44 37 C50 31, 56 26, 59 21 Z"
+              fill="url(#tendinaHairGrad)"
+              stroke="#1c0a00"
+              strokeWidth="1.6"
+            />
+            <path
+              d="M61 19 C79 19, 94 28, 95 48 C95 57, 91 63, 85 65 C86 55, 83 44, 76 37 C70 31, 64 26, 61 21 Z"
+              fill="url(#tendinaHairGrad)"
+              stroke="#1c0a00"
+              strokeWidth="1.6"
+            />
+            <path d="M57 22 C49 30, 43 38, 42 47 M63 22 C71 30, 77 38, 78 47" stroke="#92400e" strokeWidth="2.2" strokeLinecap="round" fill="none" />
+
+            {/* 4. I 2 Cordoni Dorati col Fiocco (Fermatenda Teatrali sulle tempie!) */}
+            <path d="M24 41 Q32 44 39 40" stroke="url(#proGold3D)" strokeWidth="3.5" strokeLinecap="round" fill="none" />
+            <polygon points="25,42 21,52 28,52" fill="url(#proGold3D)" stroke="#422006" strokeWidth="1" />
+            <path d="M96 41 Q88 44 81 40" stroke="url(#proGold3D)" strokeWidth="3.5" strokeLinecap="round" fill="none" />
+            <polygon points="95,42 99,52 92,52" fill="url(#proGold3D)" stroke="#422006" strokeWidth="1" />
+
+            {/* 5. Bastone per Tende in Ottone Massiccio con Pomelli Reali e Anelli sopra la testa */}
+            <rect x="14" y="16" width="92" height="4.5" rx="2" fill="url(#proGold3D)" stroke="#422006" strokeWidth="1.4" />
+            <circle cx="12" cy="18.2" r="5" fill="url(#proGold3D)" stroke="#422006" strokeWidth="1.5" />
+            <circle cx="108" cy="18.2" r="5" fill="url(#proGold3D)" stroke="#422006" strokeWidth="1.5" />
+            {/* Anelli della tenda a cui sono agganciati i capelli */}
+            {[28, 38, 48, 57, 63, 72, 82, 92].map((rx, idx) => (
+              <rect key={idx} x={rx} y="14.5" width="3" height="7.5" rx="1.2" fill="url(#proGold3D)" stroke="#422006" strokeWidth="0.9" />
+            ))}
+          </g>
+        )}
+
+        {/* 🐼 PELUCHE MAESTRO SHIFU (FEDELE AL 100% ALLA FOTO: ORECCHIE BICOLORI, BRACCIA CONSERTE, TUNICA ED ETICHETTA NERA!) */}
+        {normId === 'shifu_peluche' && (
+          <g>
+            {/* 1. Coda a anelli bianchi e marroni che scende in basso a destra (come nella foto!) */}
+            <path
+              d="M60 78 C60 92, 65 106, 75 109 C83 110, 86 100, 81 88 C78 81, 71 78, 60 78 Z"
+              fill="#f8fafc"
+              stroke="#94a3b8"
+              strokeWidth="1.5"
+            />
+            <path d="M61 84 L79 83 L81 88 L62 89 Z" fill="#b45309" />
+            <path d="M63 93 L83 92 L84 98 L65 99 Z" fill="#b45309" />
+
+            {/* 2. L'iconica ETICHETTA NERA DEL PELUCHE che spunta tra le gambe (dettaglio reale della foto!) */}
+            <g transform="rotate(8 59 83)">
+              <rect x="54" y="77" width="11" height="13" rx="1" fill="#09090b" stroke="#475569" strokeWidth="0.8" />
+              <circle cx="59.5" cy="81.5" r="2" fill="none" stroke="#e2e8f0" strokeWidth="0.8" />
+              <line x1="56.5" y1="86" x2="62.5" y2="86" stroke="#e2e8f0" strokeWidth="0.8" />
+            </g>
+
+            {/* 3. Gambe corte marroni scure, fasce verdi/grigie alle caviglie e piedini imbottiti */}
+            <rect x="40" y="74" width="13" height="15" rx="3" fill="#271206" />
+            <rect x="67" y="74" width="13" height="15" rx="3" fill="#271206" />
+            {/* Fasce caviglie */}
+            <rect x="40" y="84" width="13" height="4.5" rx="1" fill="#57534e" stroke="#292524" strokeWidth="0.9" />
+            <rect x="67" y="84" width="13" height="4.5" rx="1" fill="#57534e" stroke="#292524" strokeWidth="0.9" />
+            {/* Piedini peluche arancio-marrone con suola scura */}
+            <ellipse cx="46.5" cy="93" rx="7.5" ry="5.5" fill="#b45309" stroke="#78350f" strokeWidth="1.2" />
+            <ellipse cx="46.5" cy="96" rx="6" ry="2.5" fill="#271206" />
+            <ellipse cx="73.5" cy="93" rx="7.5" ry="5.5" fill="#b45309" stroke="#78350f" strokeWidth="1.2" />
+            <ellipse cx="73.5" cy="96" rx="6" ry="2.5" fill="#271206" />
+
+            {/* 4. Tunica Kung Fu Arancio/Caramello con Cintura Marrone Scuro e Bordo Arrotondato */}
+            <path
+              d="M39 48 H81 L85 75 C72 80, 48 80, 35 75 Z"
+              fill="#c26a27"
+              stroke="#78350f"
+              strokeWidth="1.8"
+              strokeLinejoin="round"
+            />
+            {/* Risvolto a V sul petto + Cintura marrone scuro in vita */}
+            <path d="M50 48 L58 60 L68 48" fill="none" stroke="#271206" strokeWidth="3" />
+            <rect x="38" y="59" width="44" height="7.5" rx="1.5" fill="#271206" />
+            {/* Cucitura in rilievo dell'orlo inferiore della tunica */}
+            <path d="M35 74 C48 79, 72 79, 85 74" fill="none" stroke="#e09145" strokeWidth="2.5" strokeLinecap="round" />
+
+            {/* 5. BRACCIA CONSERTE SUL PETTO CON POLSINI GRIGI E MANI SCURE (Come nella foto!) */}
+            {/* Spalle arancioni morbide */}
+            <ellipse cx="36" cy="52" rx="9" ry="7.5" fill="#c26a27" stroke="#78350f" strokeWidth="1.5" />
+            <ellipse cx="84" cy="52" rx="9" ry="7.5" fill="#c26a27" stroke="#78350f" strokeWidth="1.5" />
+            {/* Maniche interne marroni scure incrociate al centro */}
+            <rect x="44" y="47" width="32" height="11" rx="4" fill="#271206" stroke="#09090b" strokeWidth="1.2" />
+            <line x1="46" y1="52.5" x2="74" y2="52.5" stroke="#451a03" strokeWidth="1.4" />
+            {/* Polsini larghi grigio chiaro ai due lati delle braccia incrociate */}
+            <rect x="40" y="46" width="8.5" height="13" rx="2" fill="#94a3b8" stroke="#475569" strokeWidth="1.2" />
+            <rect x="71.5" y="46" width="8.5" height="13" rx="2" fill="#94a3b8" stroke="#475569" strokeWidth="1.2" />
+
+            {/* 6. GRANDI ORECCHIE A PUNTA BICOLORI (Punta marrone, fascia bianca, interno marrone) */}
+            {/* Orecchio Sinistro */}
+            <path d="M34 30 L26 8 C34 5, 45 12, 48 24 Z" fill="#f8fafc" stroke="#94a3b8" strokeWidth="1.4" strokeLinejoin="round" />
+            <path d="M29.5 17 L26 8 C31 6.5, 37 9, 41 14 Z" fill="#9a4a17" />
+            <path d="M34 26 L31 19 C36 18, 41 20, 44 24 Z" fill="#7c2d12" />
+            {/* Orecchio Destro */}
+            <path d="M86 30 L94 8 C86 5, 75 12, 72 24 Z" fill="#f8fafc" stroke="#94a3b8" strokeWidth="1.4" strokeLinejoin="round" />
+            <path d="M90.5 17 L94 8 C89 6.5, 83 9, 79 14 Z" fill="#9a4a17" />
+            <path d="M86 26 L89 19 C84 18, 79 20, 76 24 Z" fill="#7c2d12" />
+
+            {/* 7. TESTA PELOSA DEL MAESTRO SHIFU (Ciuffi bianchi laterali, mascherina marrone, occhi azzurri e bocca severa) */}
+            {/* Ciuffi di pelo bianco spettinato sulle guance e sopracciglia */}
+            <path
+              d="M28 31 L22 28 L27 35 L21 36 L28 40 C31 46, 42 50, 60 50 C78 50, 89 46, 92 40 L99 36 L93 35 L98 28 L92 31 C86 22, 75 19, 60 19 C45 19, 34 22, 28 31 Z"
+              fill="#f8fafc"
+              stroke="#cbd5e1"
+              strokeWidth="1.5"
+              strokeLinejoin="round"
+            />
+            {/* Macchiolina marrone sulla fronte */}
+            <ellipse cx="60" cy="24" rx="4.5" ry="2.2" fill="#854d0e" opacity="0.75" />
+
+            {/* Toppe marroni intorno agli occhi */}
+            <ellipse cx="46" cy="36" rx="10.5" ry="7.5" fill="#9a4a17" transform="rotate(-8 46 36)" />
+            <ellipse cx="74" cy="36" rx="10.5" ry="7.5" fill="#9a4a17" transform="rotate(8 74 36)" />
+
+            {/* Sopracciglia bianche folte da peluche */}
+            <path d="M34 30 Q45 26 55 32 M86 30 Q75 26 65 32" stroke="#ffffff" strokeWidth="3.5" strokeLinecap="round" fill="none" />
+
+            {/* Occhi Azzurri Spalancati con pupilla nera (identici alla foto!) */}
+            <circle cx="47.5" cy="35.5" r="4.2" fill="#ffffff" stroke="#1e293b" strokeWidth="0.9" />
+            <circle cx="48" cy="35.5" r="2.8" fill="#0284c7" />
+            <circle cx="48" cy="35.5" r="1.4" fill="#09090b" />
+            <circle cx="48.8" cy="34.7" r="0.7" fill="#ffffff" />
+
+            <circle cx="72.5" cy="35.5" r="4.2" fill="#ffffff" stroke="#1e293b" strokeWidth="0.9" />
+            <circle cx="72" cy="35.5" r="2.8" fill="#0284c7" />
+            <circle cx="72" cy="35.5" r="1.4" fill="#09090b" />
+            <circle cx="72.8" cy="34.7" r="0.7" fill="#ffffff" />
+
+            {/* Musetto bianco in rilievo 3D, nasino marrone e bocca imbronciata/severa */}
+            <ellipse cx="60" cy="41.5" rx="10.5" ry="7.5" fill="#ffffff" stroke="#e2e8f0" strokeWidth="1.2" />
+            <ellipse cx="60" cy="37.5" rx="3.5" ry="2.3" fill="#451a03" />
+            <path d="M53.5 43.5 Q60 41.5 66.5 43.5" stroke="#1c1917" strokeWidth="1.8" strokeLinecap="round" fill="none" />
+
+            {/* Pizzetto di pelo bianco soffice sotto il mento sopra le braccia conserte */}
+            <path d="M55 48 L58 55 L60 52 L63 56 L65 48 Z" fill="#ffffff" opacity="0.9" />
+          </g>
+        )}
       </svg>
     </div>
   );
-}           
+}                     
 
 // ============================================================================
 // 🎒 VETRINA "I MIEI AVERI" NEL BOLLETTINO MEDICO
