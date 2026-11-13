@@ -106,7 +106,7 @@ const formatCaptainTimeLeft = (expiresAtMs, nowMs) => {
   return `${hrs}h ${String(mins).padStart(2, '0')}m`;
 };
 
-function BeerGlassAvatar({ type = 'weiss', size = 'md', isRumeno = false, streakCount = 0, streak = 0, dailyCount = 0 }) {
+function BeerGlassAvatar({ type = 'weiss', size = 'md', isRumeno = false, crushed = false, streakLevel = 'none', streakCount = 0, streak = 0, dailyCount = 0 }) {
   const sizeClasses = {
     xs: 'w-8 h-8',
     sm: 'w-10 h-10',
@@ -117,9 +117,10 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md', isRumeno = false, streak
   const validTypes = ['weiss', 'lager', 'pilsner', 'keller', 'ipa', 'session_ipa', 'dipa', 'bock', 'triple', 'trappista', 'stout', 'boccione'];
   const effectiveType = validTypes.includes(type) ? type : 'weiss';
 
+  const showRumenoCan = Boolean(isRumeno || crushed);
   const activeStreak = Math.max(Number(streakCount || 0), Number(streak || 0), Number(dailyCount || 0));
-  const isComet = activeStreak >= 5;
-  const isOnFire = activeStreak >= 3 && activeStreak < 5;
+  const isComet = streakLevel === 'comet' || activeStreak >= 5;
+  const isOnFire = !isComet && (streakLevel === 'fire' || (activeStreak >= 3 && activeStreak < 5));
 
   return (
     <div
@@ -128,7 +129,7 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md', isRumeno = false, streak
           ? 'bg-gradient-to-b from-sky-950 via-indigo-950 to-slate-950 border-2 border-cyan-300 shadow-[0_0_22px_rgba(56,189,248,0.95)] scale-105'
           : isOnFire
           ? 'bg-gradient-to-b from-red-950 via-orange-950/90 to-slate-950 border-2 border-amber-400 shadow-[0_0_18px_rgba(249,115,22,0.9)] scale-105'
-          : isRumeno
+          : showRumenoCan
           ? 'bg-red-950/80 border-2 border-red-500 shadow-[0_0_12px_rgba(239,68,68,0.5)]'
           : 'bg-gradient-to-b from-slate-800/90 to-slate-950 border border-amber-400/50 shadow-inner'
       }`}
@@ -223,7 +224,7 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md', isRumeno = false, streak
       )}
 
       {/* 🥫 PASSAPORTO RUMENO PRO (LATTINA 3D METALLICA) */}
-      {isRumeno ? (
+      {showRumenoCan ? (
         <svg viewBox="0 0 48 48" className="w-full h-full relative z-10 drop-shadow">
           <defs>
             <linearGradient id="rumenoCanBody" x1="0" y1="0" x2="1" y2="0">
