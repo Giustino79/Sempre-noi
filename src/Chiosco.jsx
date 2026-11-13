@@ -283,13 +283,27 @@ export const CHIOSCO_ITEMS = {
       desc: 'Forgiato fondendo insieme 50 fusti d’acciaio e cuscino reale cremisi: chi siede su questo trono governa la classifica della lega col pugno di ferro.'
     }
   ],
-  santini: [
+ santini: [
     {
       id: 'tendina_capelli',
       name: 'La Tendina di Tendina',
       rarity: 'INFINITO',
       subtitle: 'Reliquia Capillare Custodita Sottovetro',
       desc: 'Conservata in una teca blindata da museo su cuscino reale: riga in mezzo tracciata col calibro e doppia onda simmetrica che si apre come il sipario del Teatro Ariston.'
+    },
+    {
+      id: 'biliardino_manolo',
+      name: 'Il Biliardino di Manolo',
+      rarity: 'INFINITO',
+      subtitle: 'Omino da Calciobalilla a Gambe Saldate',
+      desc: 'Infilzato direttamente nella stecca d’acciaio del biliardino: maglietta bianca d’ordinanza, braccia tatuate e blocco unico di gambe rigide prive di articolazione alle ginocchia.'
+    },
+    {
+      id: 'smerdino_action',
+      name: 'Smerdino Tascabile',
+      rarity: 'INFINITO',
+      subtitle: 'Action Figure 1:10 con Drum Incluso',
+      desc: 'Sigillato nel suo blister originale da collezione: miniatura ultra-secca a torso nudo da 28 grammi netti, venduta con busta di tabacco Drum e cartine di serie.'
     }
   ]
 };
@@ -1036,17 +1050,159 @@ export function ChioscoItemArtwork({ id, size = 'md' }) {
             <path d="M26 32 L42 18 M26 48 L56 18" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" opacity="0.55" />
             <path d="M82 80 L94 68" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" opacity="0.4" />
 
-            {/* 5. Piedistallo da Museo in Legno Massello e Oro con Targa "TENDINA" */}
+{/* 5. Piedistallo da Museo in Legno Massello e Oro con Targa "TENDINA" */}
             <polygon points="15,86 105,86 110,93 10,93" fill="url(#proGold3D)" stroke="#422006" strokeWidth="1.8" />
             <rect x="12" y="93" width="96" height="15" rx="3" fill="url(#proWood3D)" stroke="#1c0a00" strokeWidth="2.2" />
             <rect x="31" y="95.5" width="58" height="10" rx="2" fill="url(#proGold3D)" stroke="#422006" strokeWidth="1.4" />
             <text x="60" y="103" textAnchor="middle" fill="#1c0a00" fontSize="7.5" fontWeight="900" letterSpacing="1">TENDINA</text>
           </g>
         )}
+
+        {/* ⚽ IL BILIARDINO DI MANOLO (OMINO CALCIOBALILLA CON VISO DI MANOLO, STECCHE E GAMBE SALDATE) */}
+        {normId === 'biliardino_manolo' && (
+          <g>
+            {/* 1. Campo verde del Biliardino alla base con righe bianche e pallina */}
+            <polygon points="14,96 106,96 114,109 6,109" fill="#15803d" stroke="url(#proGold3D)" strokeWidth="1.8" strokeLinejoin="round" />
+            <line x1="16" y1="102.5" x2="104" y2="102.5" stroke="#ffffff" strokeWidth="1.5" opacity="0.8" />
+            <circle cx="84" cy="102" r="5.5" fill="#ffffff" stroke="#94a3b8" strokeWidth="1.2" />
+
+            {/* 2. Stecche d'acciaio cromato del Biliardino (senza molle) */}
+            <line x1="4" y1="42" x2="116" y2="42" stroke="#475569" strokeWidth="3.5" strokeLinecap="round" opacity="0.45" />
+            <rect x="2" y="55" width="116" height="6.5" rx="3" fill="url(#proChrome3D)" stroke="#0f172a" strokeWidth="1.5" />
+            <line x1="6" y1="57" x2="114" y2="57" stroke="#ffffff" strokeWidth="1.4" opacity="0.85" />
+            {/* Boccole nere ferma-omino sulla stecca */}
+            <rect x="31" y="53.5" width="5" height="9.5" rx="1.2" fill="#09090b" stroke="#475569" strokeWidth="1" />
+            <rect x="84" y="53.5" width="5" height="9.5" rx="1.2" fill="#09090b" stroke="#475569" strokeWidth="1" />
+
+            {/* 3. BLOCCO UNICO GAMBE DRITTE SALDATE DA BILIARDINO (Zero ginocchia!) */}
+            {/* Pantaloncini neri rigidi */}
+            <path d="M46 73 H74 L72 83 H48 Z" fill="#09090b" stroke="#334155" strokeWidth="1.4" />
+            {/* Gambe fuse in un pezzo unico con scanalatura centrale */}
+            <path d="M48.5 83 H71.5 L69.5 100 H50.5 Z" fill="url(#proMarioSkin)" stroke="#7c2d12" strokeWidth="1.4" />
+            <rect x="49.5" y="91" width="21" height="8" fill="#ffffff" stroke="#cbd5e1" strokeWidth="1" />
+            <line x1="49.5" y1="93.5" x2="70.5" y2="93.5" stroke="#ef4444" strokeWidth="1.5" />
+            <line x1="60" y1="75" x2="60" y2="100" stroke="#451a03" strokeWidth="1.6" opacity="0.7" />
+            {/* Piedino unico squadrato da calcetto */}
+            <polygon points="48,100 72,100 74,106 46,106" fill="#0f172a" stroke="url(#proGold3D)" strokeWidth="1.4" />
+
+            {/* 4. Busto rigido da Biliardino con la Maglietta Bianca di Manolo e Braccia Tatuate */}
+            {/* Braccia tatuate agganciate alla stecca */}
+            <rect x="36" y="52" width="8.5" height="15" rx="3.5" fill="url(#proMarioSkin)" stroke="#451a03" strokeWidth="1.2" />
+            <path d="M37 56 L43 59 M37 60 L43 63 M37 64 L43 61" stroke="#1e293b" strokeWidth="1.4" opacity="0.75" />
+            <rect x="75.5" y="52" width="8.5" height="15" rx="3.5" fill="url(#proMarioSkin)" stroke="#451a03" strokeWidth="1.2" />
+            <path d="M77 55 L83 58 M77 59 L83 62 M77 63 L83 60" stroke="#0f172a" strokeWidth="1.6" opacity="0.8" />
+            {/* Maglietta Bianca "CRISTIANO RONALDO" */}
+            <path d="M38 45 C38 42, 46 40, 60 40 C74 40, 82 42, 82 45 L77 56 H74 V73 H46 V56 H43 Z" fill="#f8fafc" stroke="#94a3b8" strokeWidth="1.6" strokeLinejoin="round" />
+            <text x="60" y="51.5" textAnchor="middle" fill="#475569" fontSize="4.6" fontWeight="900">♥ MONEY &</text>
+            <text x="60" y="57.5" textAnchor="middle" fill="#334155" fontSize="5" fontWeight="900">CRISTIANO</text>
+            <text x="60" y="63.5" textAnchor="middle" fill="#334155" fontSize="5.2" fontWeight="900">RONALDO</text>
+
+            {/* 5. TESTA DI MANOLO (Frangetta mossa, Occhiali senza montatura, Baffetto e Sorrisone) */}
+            <rect x="55.5" y="36" width="9" height="6" rx="2" fill="url(#proMarioSkin)" />
+            {/* Orecchie + Orecchini a cerchietto */}
+            <ellipse cx="42" cy="26" rx="3.2" ry="5" fill="url(#proMarioSkin)" stroke="#7c2d12" strokeWidth="1" />
+            <circle cx="41.5" cy="31" r="1.5" fill="none" stroke="#facc15" strokeWidth="1.1" />
+            <ellipse cx="78" cy="26" rx="3.2" ry="5" fill="url(#proMarioSkin)" stroke="#7c2d12" strokeWidth="1" />
+            <circle cx="78.5" cy="31" r="1.5" fill="none" stroke="#facc15" strokeWidth="1.1" />
+            {/* Viso */}
+            <path d="M43 20 C43 9, 77 9, 77 20 C78 32, 71 39, 60 39 C49 39, 42 32, 43 20 Z" fill="url(#proMarioSkin)" stroke="#7c2d12" strokeWidth="1.4" />
+            {/* Capelli scuri con frangetta a ciocche sulla fronte */}
+            <path d="M42 22 C41 11, 49 6, 60 6 C71 6, 79 11, 78 22 C76 16, 73 15, 70 19 C68 14, 65 15, 62 19 C59 14, 56 15, 53 19 C50 14, 46 15, 42 22 Z" fill="#18181b" stroke="#09090b" strokeWidth="1" />
+            {/* Occhi sorridenti */}
+            <path d="M48 23.5 Q52 21.5 55.5 23.5 M64.5 23.5 Q68 21.5 72 23.5" stroke="#18181b" strokeWidth="1.6" strokeLinecap="round" fill="none" />
+            {/* Occhiali rettangolari senza montatura (Rimless) con ponte dorato e riflesso lente */}
+            <rect x="46" y="20" width="11.5" height="6.8" rx="1.5" fill="#e0f2fe" fillOpacity="0.28" stroke="#fde047" strokeWidth="0.9" />
+            <rect x="62.5" y="20" width="11.5" height="6.8" rx="1.5" fill="#e0f2fe" fillOpacity="0.28" stroke="#fde047" strokeWidth="0.9" />
+            <line x1="57.5" y1="22.5" x2="62.5" y2="22.5" stroke="#facc15" strokeWidth="1.3" />
+            <line x1="43" y1="22.5" x2="46" y2="22.5" stroke="#facc15" strokeWidth="1.2" />
+            <line x1="74" y1="22.5" x2="77" y2="22.5" stroke="#facc15" strokeWidth="1.2" />
+            <line x1="48" y1="21.5" x2="51" y2="25" stroke="#ffffff" strokeWidth="1.2" strokeLinecap="round" opacity="0.8" />
+            <line x1="64.5" y1="21.5" x2="67.5" y2="25" stroke="#ffffff" strokeWidth="1.2" strokeLinecap="round" opacity="0.8" />
+            {/* Naso, Baffetti sottili e Sorrisone a 32 denti */}
+            <path d="M58.8 23.5 V27.5 C58 28.5, 62 28.5, 61.2 27.5" fill="none" stroke="#7c2d12" strokeWidth="1.3" strokeLinecap="round" />
+            <path d="M51 30.2 Q60 28.2 69 30.2" stroke="#27272a" strokeWidth="1.8" strokeLinecap="round" fill="none" />
+            <path d="M51.5 31.5 H68.5 C67.5 36.5, 52.5 36.5, 51.5 31.5 Z" fill="#ffffff" stroke="#7f1d1d" strokeWidth="1.1" />
+            <line x1="54" y1="33.5" x2="66" y2="33.5" stroke="#cbd5e1" strokeWidth="0.8" />
+          </g>
+        )}
+
+        {/* 📦 SMERDINO TASCABILE (ACTION FIGURE DI MATTEINO IN BLISTER TRASPARENTE + PACCHETTO DI DRUM) */}
+        {normId === 'smerdino_action' && (
+          <g>
+            {/* 1. Cartoncino esterno da Collezione (Blister Card) */}
+            <rect x="13" y="7" width="94" height="101" rx="8" fill="#0f172a" stroke="url(#proGold3D)" strokeWidth="2.4" />
+            <rect x="16" y="10" width="88" height="95" rx="6" fill="#1e1b4b" stroke="#ec4899" strokeWidth="1" opacity="0.9" />
+            {/* Foro da appendere sullo scaffale */}
+            <path d="M51 13 H69 C71 13, 71 17, 69 17 H63 L60 14.5 L57 17 H51 C49 17, 49 13, 51 13 Z" fill="#020617" stroke="#475569" strokeWidth="1" />
+            {/* Titolo Scatola Action Figure */}
+            <text x="60" y="25.5" textAnchor="middle" fill="#fde047" fontSize="8.2" fontWeight="900" letterSpacing="0.6">SMERDINO • 1:10</text>
+
+            {/* 2. Scomparto Sinistro: Miniatura Ultra-Secca di Matteino a Torso Nudo */}
+            <rect x="20" y="29" width="46" height="69" rx="5" fill="#09090b" stroke="#475569" strokeWidth="1.2" />
+
+            {/* Gambe secchissime e Pantaloncini Mimetici con striscia arancione (come in foto!) */}
+            <line x1="38" y1="78" x2="37" y2="94" stroke="url(#proMarioSkin)" strokeWidth="3.2" strokeLinecap="round" />
+            <line x1="48" y1="78" x2="49" y2="94" stroke="url(#proMarioSkin)" strokeWidth="3.2" strokeLinecap="round" />
+            <path d="M34 66 H52 L53 79 H45 L43 73 L41 79 H33 Z" fill="#365314" stroke="#1a2e05" strokeWidth="1.2" />
+            <circle cx="38" cy="71" r="2.2" fill="#78350f" />
+            <circle cx="47" cy="74" r="2.5" fill="#14532d" />
+            {/* Striscia arancione laterale sui pantaloncini */}
+            <line x1="34" y1="67" x2="33.3" y2="78" stroke="#f97316" strokeWidth="1.8" />
+            <line x1="52" y1="67" x2="52.7" y2="78" stroke="#f97316" strokeWidth="1.8" />
+
+            {/* Torso nudo ultra-minuto e secco con costole in vista */}
+            <path d="M35 49 H51 L49 66 H37 Z" fill="url(#proMarioSkin)" stroke="#9a3412" strokeWidth="1.1" />
+            <path d="M38 54 Q43 55.5 48 54 M38.5 58 Q43 59.5 47.5 58" stroke="#c2410c" strokeWidth="0.9" fill="none" opacity="0.65" />
+            <circle cx="39.5" cy="53" r="0.8" fill="#9a3412" />
+            <circle cx="46.5" cy="53" r="0.8" fill="#9a3412" />
+            <circle cx="43" cy="63" r="0.9" fill="#9a3412" />
+            {/* Braccia sottili lungo il corpo */}
+            <path d="M35 50 L31 66 M51 50 L55 64" stroke="url(#proMarioSkin)" strokeWidth="3" strokeLinecap="round" />
+
+            {/* Testa di Matteino (Capelli scuri aperti, sopracciglia folte, sorriso e sigaretta rollata) */}
+            <rect x="41" y="45" width="4" height="5" fill="url(#proMarioSkin)" />
+            <path d="M34 36 C34 28, 52 28, 52 36 C52.5 43, 48 47, 43 47 C38 47, 33.5 43, 34 36 Z" fill="url(#proMarioSkin)" stroke="#9a3412" strokeWidth="1.1" />
+            {/* Capelli neri/castano scuro divisi */}
+            <path d="M33.5 37 C32.5 30, 37 26.5, 43 26.5 C49 26.5, 53.5 30, 52.5 37 C51 32, 47 30.5, 43 31.5 C39 30.5, 35 32, 33.5 37 Z" fill="#18181b" />
+            {/* Sopracciglia folte scure + Occhi + Sorriso */}
+            <path d="M36.5 35.5 Q39 34 41.5 35.5 M44.5 35.5 Q47 34 49.5 35.5" stroke="#09090b" strokeWidth="1.6" strokeLinecap="round" fill="none" />
+            <circle cx="39" cy="37.5" r="1.1" fill="#09090b" />
+            <circle cx="47" cy="37.5" r="1.1" fill="#09090b" />
+            <path d="M39.5 42 Q43 44.8 46.5 42 Z" fill="#ffffff" stroke="#7c2d12" strokeWidth="0.9" />
+            {/* Sigaretta rollata in bocca con brace accesa */}
+            <line x1="46" y1="43" x2="54" y2="41.5" stroke="#ffffff" strokeWidth="1.8" strokeLinecap="round" />
+            <circle cx="54.5" cy="41.4" r="1.1" fill="#ef4444" />
+
+            {/* 3. Scomparto Destro: Busta di Tabacco DRUM Ufficiale + Cartine */}
+            <rect x="70" y="36" width="30" height="54" rx="4" fill="#09090b" stroke="#475569" strokeWidth="1.1" />
+            <text x="85" y="33.5" textAnchor="middle" fill="#38bdf8" fontSize="5" fontWeight="900">ACCESSORIO</text>
+            {/* Fili di tabacco biondo/scuro che spuntano dalla busta */}
+            <path d="M75 44 Q80 39 85 43 Q90 38 95 44" stroke="#b45309" strokeWidth="2.2" fill="none" strokeLinecap="round" />
+            {/* Busta Blu Classica DRUM */}
+            <rect x="73" y="44" width="24" height="32" rx="2.5" fill="#1e3a8a" stroke="#60a5fa" strokeWidth="1.3" />
+            <path d="M73 44 H97 L95 53 H75 Z" fill="#2563eb" stroke="#93c5fd" strokeWidth="0.9" />
+            {/* Mezzaluna/Tamburo dorato e scritta DRUM */}
+            <circle cx="85" cy="56" r="4.5" fill="#facc15" opacity="0.9" />
+            <rect x="75" y="54" width="20" height="6.5" rx="1" fill="#1e3a8a" />
+            <text x="85" y="59" textAnchor="middle" fill="#ffffff" fontSize="6" fontWeight="900" letterSpacing="0.5">DRUM</text>
+            {/* Targhetta bianca avvertenza sul fondo della busta */}
+            <rect x="74.5" y="66" width="21" height="8" rx="1" fill="#ffffff" stroke="#09090b" strokeWidth="0.8" />
+            <text x="85" y="71.5" textAnchor="middle" fill="#09090b" fontSize="4.2" fontWeight="900">100% SECCO</text>
+            {/* Libretti di cartine sotto la busta */}
+            <rect x="75" y="79" width="20" height="7" rx="1.2" fill="#f97316" stroke="#ffffff" strokeWidth="0.9" />
+            <text x="85" y="84" textAnchor="middle" fill="#ffffff" fontSize="4.2" fontWeight="900">CARTINE</text>
+
+            {/* 4. Cupola del Blister in Plastica Trasparente Lucida sopra i 2 vani */}
+            <rect x="19" y="28" width="48" height="71" rx="5.5" fill="#e0f2fe" fillOpacity="0.12" stroke="#bae6fd" strokeWidth="1.6" />
+            <path d="M23 42 L35 31 M23 54 L45 31" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" opacity="0.55" />
+            <rect x="69" y="35" width="32" height="56" rx="4.5" fill="#e0f2fe" fillOpacity="0.12" stroke="#bae6fd" strokeWidth="1.5" />
+            <path d="M73 46 L82 37" stroke="#ffffff" strokeWidth="1.8" strokeLinecap="round" opacity="0.55" />
+          </g>
+        )}
       </svg>
     </div>
   );
-}
+}           
 
 // ============================================================================
 // 🎒 VETRINA "I MIEI AVERI" NEL BOLLETTINO MEDICO
