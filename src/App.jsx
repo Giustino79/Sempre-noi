@@ -3197,7 +3197,19 @@ const newCount = prevCount + 1;
                       <div key={item.id} className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-lg">
                         <div className="p-3 flex items-center justify-between border-b border-slate-800/80">
                           <div className="flex items-center gap-2.5">
-                            <BeerGlassAvatar type={item.glassType} size="sm" crushed={item.isRumeno} />
+                            {(() => {
+                              const varMember = (activeLeague.members || []).find(
+                                m => m.id === item.playerId || m.name?.toLowerCase() === item.playerName?.toLowerCase()
+                              );
+                              return (
+                                <BeerGlassAvatar
+                                  type={varMember?.glassType || item.glassType}
+                                  size="sm"
+                                  crushed={Boolean(item.isRumeno || isCrushedCanActive(varMember))}
+                                  streakLevel={getMemberStreakLevel(varMember, clockTick)}
+                                />
+                              );
+                            })()}
                             <div>
                               <span className="text-xs font-black text-white block">{item.playerName}</span>
                               <span className="text-[10px] text-slate-400">{item.timestamp} • {item.location}</span>
