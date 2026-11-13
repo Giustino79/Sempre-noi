@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Lock, Sparkles, X, Award, Wrench, Eye, Crown } from 'lucide-react';
+import { Lock, Sparkles, X, Award, Wrench, Eye, Crown, Flame } from 'lucide-react';
 
 // ============================================================================
-// 🎨 CONFIGURAZIONE RARITÀ (COMUNE, RARO, MITICO, LEGGENDARIO)
+// 🎨 CONFIGURAZIONE RARITÀ (COMUNE, RARO, MITICO, LEGGENDARIO + INFINITO/ULTRA)
 // ============================================================================
 export const RARITY_STYLES = {
   COMUNE: {
@@ -36,11 +36,19 @@ export const RARITY_STYLES = {
     cardBg: 'from-amber-500/30 via-slate-900 to-slate-950',
     modalBorder: 'border-amber-400 shadow-2xl shadow-amber-500/50',
     radialBg: 'radial-gradient(circle, rgba(251,191,36,0.42) 0%, rgba(15,23,42,0) 70%)'
+  },
+  INFINITO: {
+    label: '♾️ INFINITO',
+    badgeBg: 'bg-gradient-to-r from-rose-500 via-fuchsia-400 to-cyan-300 text-slate-950',
+    cardBorder: 'border-rose-400 hover:border-cyan-300 shadow-[0_0_20px_rgba(244,63,94,0.35)]',
+    cardBg: 'from-rose-950/70 via-fuchsia-950/40 to-slate-950',
+    modalBorder: 'border-cyan-300 shadow-[0_0_35px_rgba(244,63,94,0.6)]',
+    radialBg: 'radial-gradient(circle, rgba(244,63,94,0.42) 0%, rgba(56,189,248,0.22) 45%, rgba(15,23,42,0) 72%)'
   }
 };
 
 // ============================================================================
-// 📦 CATALOGO UFFICIALE DEI 32 OGGETTI (4 CATEGORIE x 8 OGGETTI)
+// 📦 CATALOGO UFFICIALE DEL CHIOSCO (5 CATEGORIE: CAVATAPPI, CALICI, CIMELI, TRONI, SANTINI)
 // ============================================================================
 export const CHIOSCO_ITEMS = {
   cavatappi: [
@@ -274,6 +282,15 @@ export const CHIOSCO_ITEMS = {
       subtitle: 'Game of Beers • Dominio Assoluto',
       desc: 'Forgiato fondendo insieme 50 fusti d’acciaio e cuscino reale cremisi: chi siede su questo trono governa la classifica della lega col pugno di ferro.'
     }
+  ],
+  santini: [
+    {
+      id: 'tendina_capelli',
+      name: 'La Tendina di Tendina',
+      rarity: 'INFINITO',
+      subtitle: 'Reliquia Capillare Custodita Sottovetro',
+      desc: 'Conservata in una teca blindata da museo su cuscino reale: riga in mezzo tracciata col calibro e doppia onda simmetrica che si apre come il sipario del Teatro Ariston.'
+    }
   ]
 };
 
@@ -281,10 +298,10 @@ export const ALL_CHIOSCO_ITEMS = [
   ...CHIOSCO_ITEMS.cavatappi,
   ...CHIOSCO_ITEMS.calici,
   ...CHIOSCO_ITEMS.cimeli,
-  ...CHIOSCO_ITEMS.postazioni
+  ...CHIOSCO_ITEMS.postazioni,
+  ...CHIOSCO_ITEMS.santini
 ];
 
-// Normalizza eventuali vecchi ID salvati in precedenza
 const normalizeChioscoId = (rawId) => {
   if (rawId === 'boccale_f1') return 'bicchiere_50_74';
   if (rawId === 'divano_74') return 'divano_dima';
@@ -292,7 +309,7 @@ const normalizeChioscoId = (rawId) => {
 };
 
 // ============================================================================
-// ✨ MOTORE GRAFICO UFFICIALE V.2 PRO 3D (TUTTI I 32 OGGETTI)
+// ✨ MOTORE GRAFICO UFFICIALE V.2 PRO 3D (TUTTI GLI OGGETTI + SANTINI)
 // ============================================================================
 export function ChioscoItemArtwork({ id, size = 'md' }) {
   const sizeClass = size === 'xl' ? 'w-36 h-36' : size === 'sm' ? 'w-14 h-14' : 'w-24 h-24';
@@ -358,6 +375,12 @@ export function ChioscoItemArtwork({ id, size = 'md' }) {
             <stop offset="0%" stopColor="#f5efe4" />
             <stop offset="60%" stopColor="#dfd3be" />
             <stop offset="100%" stopColor="#b8a689" />
+          </linearGradient>
+          <linearGradient id="tendinaHairGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#78350f" />
+            <stop offset="35%" stopColor="#451a03" />
+            <stop offset="75%" stopColor="#290f02" />
+            <stop offset="100%" stopColor="#09090b" />
           </linearGradient>
           <pattern id="proCarbon" width="5" height="5" patternUnits="userSpaceOnUse">
             <rect width="5" height="5" fill="#09090b" />
@@ -586,7 +609,6 @@ export function ChioscoItemArtwork({ id, size = 'md' }) {
           </g>
         )}
 
-        {/* 🥤 BICCHIERE DA 50CL DEL 74 (PLASTICA TRASPARENTE CON BIRRA VISIBILE DENTRO!) */}
         {normId === 'bicchiere_50_74' && (
           <g>
             <path d="M33.5 34 L39.5 101 H80.5 L86.5 34 Z" fill="url(#proBeer3D)" opacity="0.86" />
@@ -752,39 +774,28 @@ export function ChioscoItemArtwork({ id, size = 'md' }) {
           </g>
         )}
 
-        {/* 🏛️ BUSTO D'ORO DI MARIO (CON NASO SCOLPITO E BOCCA BEN VISIBILE IN ORO 24K!) */}
         {normId === 'busto_mario' && (
           <g>
-            {/* Raggiera solare divina dietro al busto */}
             <circle cx="60" cy="48" r="45" fill="#facc15" fillOpacity="0.16" stroke="url(#proGold3D)" strokeWidth="2" strokeDasharray="5 3" />
-            {/* Piedistallo Imperiale con targa "MARIVS • 74" */}
             <rect x="28" y="95" width="64" height="15" rx="3.5" fill="url(#proGold3D)" stroke="#422006" strokeWidth="2.2" />
             <text x="60" y="105.5" textAnchor="middle" fill="#422006" fontSize="7.8" fontWeight="900" letterSpacing="0.8">MARIVS • 74</text>
-            {/* Busto e spalle fuse in oro 24k */}
             <path d="M20 95 C23 73, 39 68, 60 68 C81 68, 97 73, 100 95 Z" fill="url(#proGold3D)" stroke="#422006" strokeWidth="2.2" />
             <path d="M32 73 C46 84, 74 84, 88 73" fill="none" stroke="#854d0e" strokeWidth="2.2" />
             <text x="73" y="88" textAnchor="middle" fill="#422006" fontSize="6.8" fontWeight="900">THE BOYS</text>
-            {/* Orecchie d'oro e Testa cesellata */}
             <ellipse cx="34" cy="44" rx="4.5" ry="7" fill="url(#proGold3D)" stroke="#422006" strokeWidth="1.5" />
             <ellipse cx="86" cy="44" rx="4.5" ry="7" fill="url(#proGold3D)" stroke="#422006" strokeWidth="1.5" />
             <path d="M36 35 C36 14, 84 14, 84 35 C85 55, 76 69, 60 69 C44 69, 35 55, 36 35 Z" fill="url(#proGold3D)" stroke="#422006" strokeWidth="2.2" />
-            {/* Riflesso speculare sulla fronte d'oro */}
             <ellipse cx="53" cy="22" rx="11" ry="4.5" fill="#ffffff" opacity="0.75" />
-            {/* Corona d'Alloro Imperiale Verde Smeraldo */}
             <path d="M33 40 C29 29, 34 20, 43 16 M87 40 C91 29, 86 20, 77 16" stroke="#15803d" strokeWidth="4" strokeLinecap="round" fill="none" />
             <circle cx="34" cy="31" r="2.8" fill="#22c55e" /><circle cx="38" cy="22" r="2.8" fill="#22c55e" />
             <circle cx="86" cy="31" r="2.8" fill="#22c55e" /><circle cx="82" cy="22" r="2.8" fill="#22c55e" />
-            {/* Sopracciglia e Sguardo laterale scolpiti nell'oro */}
             <path d="M43 34 C47 31.5, 53 32, 56 34 M64 34 C67 32, 73 31.5, 77 34" stroke="#422006" strokeWidth="2.6" strokeLinecap="round" fill="none" />
             <ellipse cx="49.5" cy="39.5" rx="4.5" ry="3.1" fill="#fef9c3" stroke="#422006" strokeWidth="1.2" />
             <circle cx="51.2" cy="39.5" r="2" fill="#422006" />
             <ellipse cx="70.5" cy="39.5" rx="4.5" ry="3.1" fill="#fef9c3" stroke="#422006" strokeWidth="1.2" />
             <circle cx="72.2" cy="39.5" r="2" fill="#422006" />
-            {/* Naso Imperiale scolpito al centro */}
             <path d="M58 39 V47.5 C55.5 50, 64.5 50, 62 47.5" fill="none" stroke="#422006" strokeWidth="2" strokeLinecap="round" />
-            {/* Barba e Baffi in Oro Antico */}
             <path d="M36 44 C36 61, 45 70, 60 70 C75 70, 84 61, 84 44 C80 50, 76 53, 70 52 C66 47, 54 47, 50 52 C44 53, 40 50, 36 44 Z" fill="#ca8a04" stroke="#422006" strokeWidth="1.8" />
-            {/* Bocca Imperiale Scolpita e Sorriso Fiero (ben visibile!) */}
             <path d="M51 54.5 C55 52.5, 65 52.5, 69 54.5 C67 60, 53 60, 51 54.5 Z" fill="#422006" stroke="#fde047" strokeWidth="1.3" />
             <path d="M53.5 55.5 H66.5" stroke="#fef9c3" strokeWidth="1.6" strokeLinecap="round" />
             <path d="M55 60.5 C58 62, 62 62, 65 60.5" stroke="#fde047" strokeWidth="1.2" fill="none" strokeLinecap="round" />
@@ -859,7 +870,6 @@ export function ChioscoItemArtwork({ id, size = 'md' }) {
           </g>
         )}
 
-        {/* 🛋️ DIVANO DI CASA DI DIMA */}
         {normId === 'divano_dima' && (
           <g>
             <polygon points="3,89 117,89 119,109 1,109" fill="#7f1d1d" stroke="#d97706" strokeWidth="1.5" strokeLinejoin="round" />
@@ -889,7 +899,6 @@ export function ChioscoItemArtwork({ id, size = 'md' }) {
           </g>
         )}
 
-        {/* 🪑 SEDIA DA PESCATORE DEL 74 (LEGGENDARIA) */}
         {normId === 'sedia_pescatore_74' && (
           <g>
             <circle cx="58" cy="56" r="45" fill="#facc15" fillOpacity="0.14" />
@@ -927,6 +936,111 @@ export function ChioscoItemArtwork({ id, size = 'md' }) {
             <rect x="33" y="67" width="54" height="17" rx="4" fill="url(#proRuby3D)" stroke="url(#proGold3D)" strokeWidth="2.5" />
             <polygon points="14,92 106,92 114,108 6,108" fill="url(#proGold3D)" stroke="#422006" strokeWidth="2.5" />
             <polygon points="47,46 53,34 60,42 67,34 73,46" fill="url(#proGold3D)" stroke="#422006" strokeWidth="1.6" />
+          </g>
+        )}
+
+        {/* ==================== 5. SANTINI / RELIQUIE INFINITE ==================== */}
+        {/* 💇‍♂️ LA TENDINA DI TENDINA (TECA DI CRISTALLO DA MUSEO CON SOLO LA CAPIGLIATURA A TENDINA!) */}
+        {normId === 'tendina_capelli' && (
+          <g>
+            {/* 1. Sfondo interno della teca (velluto scuro da museo) */}
+            <rect x="22" y="16" width="76" height="72" rx="8" fill="#09090b" fillOpacity="0.55" />
+
+            {/* 2. Cuscino Reale in velluto cremisi e oro dentro la teca */}
+            <path d="M26 84 C32 73, 88 73, 94 84 Z" fill="url(#proRuby3D)" stroke="url(#proGold3D)" strokeWidth="1.8" />
+            {/* Asta dorata reggi-capigliatura al centro del cuscino */}
+            <rect x="57" y="56" width="6" height="22" rx="2" fill="url(#proGold3D)" stroke="#422006" strokeWidth="1.2" />
+            <ellipse cx="60" cy="78" rx="11" ry="3.5" fill="url(#proGold3D)" stroke="#422006" strokeWidth="1.2" />
+            {/* Calotta neutra interna porta-parrucca (appena visibile sotto la riga) */}
+            <ellipse cx="60" cy="48" rx="15" ry="12" fill="#334155" opacity="0.45" />
+
+            {/* 3. SOLO LA CAPIGLIATURA A TENDINA (Fedele alla foto: riga centrale netta e due onde simmetriche) */}
+            {/* Tenda di Capelli Sinistra */}
+            <path
+              d="M59.2 26 C44 25, 31 35, 30 53 C29 63, 33 70, 39 73 C38 64, 41 55, 46 49 C51 43, 56 38, 59.2 31 Z"
+              fill="url(#tendinaHairGrad)"
+              stroke="#1c0a00"
+              strokeWidth="1.6"
+              strokeLinejoin="round"
+            />
+            {/* Tenda di Capelli Destra */}
+            <path
+              d="M60.8 26 C76 25, 89 35, 90 53 C91 63, 87 70, 81 73 C82 64, 79 55, 74 49 C69 43, 64 38, 60.8 31 Z"
+              fill="url(#tendinaHairGrad)"
+              stroke="#1c0a00"
+              strokeWidth="1.6"
+              strokeLinejoin="round"
+            />
+
+            {/* Ciocche interne a tendina che scendono verso il centro (come nella foto!) */}
+            <path
+              d="M58.5 30 C52 38, 46 47, 45 59"
+              stroke="#78350f"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              fill="none"
+            />
+            <path
+              d="M61.5 30 C68 38, 74 47, 75 59"
+              stroke="#78350f"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              fill="none"
+            />
+
+            {/* Riflessi lucidi 3D sulle due onde di capelli castani */}
+            <path
+              d="M54 28 C42 31, 35 41, 34 55"
+              stroke="#b45309"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              fill="none"
+              opacity="0.85"
+            />
+            <path
+              d="M66 28 C78 31, 85 41, 86 55"
+              stroke="#b45309"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              fill="none"
+              opacity="0.85"
+            />
+            <path
+              d="M48 31 C39 36, 36 45, 36 53 M72 31 C81 36, 84 45, 84 53"
+              stroke="#fde68a"
+              strokeWidth="1"
+              strokeLinecap="round"
+              fill="none"
+              opacity="0.45"
+            />
+
+            {/* Riga centrale millimetrica */}
+            <line x1="60" y1="25" x2="60" y2="33" stroke="#fde68a" strokeWidth="1.4" strokeLinecap="round" opacity="0.85" />
+
+            {/* 4. TECA DI CRISTALLO TRASPARENTE SOPRA LA CAPIGLIATURA (Effetto Vetro Museo) */}
+            <rect
+              x="20"
+              y="14"
+              width="80"
+              height="74"
+              rx="8"
+              fill="#e0f2fe"
+              fillOpacity="0.13"
+              stroke="#bae6fd"
+              strokeWidth="2.2"
+            />
+            {/* Spigoli interni della teca in prospettiva 3D */}
+            <line x1="25" y1="18" x2="25" y2="84" stroke="#ffffff" strokeWidth="1.2" opacity="0.35" />
+            <line x1="95" y1="18" x2="95" y2="84" stroke="#ffffff" strokeWidth="1.2" opacity="0.25" />
+            {/* Fasci di luce diagonali sul vetro della teca */}
+            <path d="M26 32 L42 18 M26 48 L56 18" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" opacity="0.55" />
+            <path d="M82 80 L94 68" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" opacity="0.4" />
+
+            {/* 5. Piedistallo da Museo in Legno Massello e Oro con Targa "TENDINA" */}
+            <polygon points="15,86 105,86 110,93 10,93" fill="url(#proGold3D)" stroke="#422006" strokeWidth="1.8" />
+            <rect x="12" y="93" width="96" height="15" rx="3" fill="url(#proWood3D)" stroke="#1c0a00" strokeWidth="2.2" />
+            <rect x="31" y="95.5" width="58" height="10" rx="2" fill="url(#proGold3D)" stroke="#422006" strokeWidth="1.4" />
+            <text x="60" y="103" textAnchor="middle" fill="#1c0a00" fontSize="7.5" fontWeight="900" letterSpacing="1">TENDINA</text>
           </g>
         )}
       </svg>
@@ -1208,7 +1322,7 @@ export function GodPinModal({ isOpen, onClose, onUnlock }) {
 }
 
 // ============================================================================
-// 🏪 COMPONENTE PRINCIPALE DEL CHIOSCO (SOLO GRAFICA PRO 3D UFFICIALE)
+// 🏪 COMPONENTE PRINCIPALE DEL CHIOSCO (ORA A 5 CATEGORIE CON I SANTINI!)
 // ============================================================================
 export default function Chiosco({ isGodMode = false, ownedItems = [], onToggleOwnItem }) {
   const [activeCategory, setActiveCategory] = useState('cavatappi');
@@ -1218,7 +1332,8 @@ export default function Chiosco({ isGodMode = false, ownedItems = [], onToggleOw
     { id: 'cavatappi', label: 'Cavatappi', icon: Wrench },
     { id: 'calici', label: 'Calici', icon: Sparkles },
     { id: 'cimeli', label: 'Cimeli', icon: Award },
-    { id: 'postazioni', label: 'Troni', icon: Crown }
+    { id: 'postazioni', label: 'Troni', icon: Crown },
+    { id: 'santini', label: 'Santini', icon: Flame }
   ];
 
   const isItemOwned = (item) => {
@@ -1240,26 +1355,31 @@ export default function Chiosco({ isGodMode = false, ownedItems = [], onToggleOw
       {/* INTESTAZIONE DEL CHIOSCO */}
       <div className="bg-gradient-to-r from-amber-500/20 via-slate-900 to-slate-950 border border-amber-500/40 rounded-2xl px-3.5 py-2.5 shadow-xl flex items-center justify-between">
         <span className="text-xs font-black uppercase text-amber-400 flex items-center gap-1.5">
-          <Sparkles className="w-4 h-4" /> Il Chiosco Ufficiale • 32 Carte
+          <Sparkles className="w-4 h-4" /> Il Chiosco Ufficiale • {ALL_CHIOSCO_ITEMS.length} Carte
         </span>
         <span className="text-[9px] font-black uppercase bg-slate-950 text-amber-300 border border-amber-400/40 px-2 py-0.5 rounded-full">
           {isGodMode ? '⚡ Tutto Gratis' : 'Tocca una carta'}
         </span>
       </div>
 
-      {/* SELETTORE DELLE 4 CATEGORIE */}
-      <div className="grid grid-cols-4 gap-1.5 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
+      {/* SELETTORE DELLE 5 CATEGORIE */}
+      <div className="grid grid-cols-5 gap-1 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
         {categories.map(cat => {
           const IconComp = cat.icon;
           const isSelected = activeCategory === cat.id;
+          const isSantiniTab = cat.id === 'santini';
           return (
             <button
               key={cat.id}
               type="button"
               onClick={() => setActiveCategory(cat.id)}
-              className={`py-2.5 px-1.5 rounded-xl text-[10px] font-black uppercase flex flex-col items-center justify-center gap-1 transition ${
+              className={`py-2 px-1 rounded-xl text-[9px] font-black uppercase flex flex-col items-center justify-center gap-1 transition ${
                 isSelected
-                  ? 'bg-gradient-to-br from-amber-400 to-amber-500 text-slate-950 shadow-lg shadow-amber-500/20'
+                  ? isSantiniTab
+                    ? 'bg-gradient-to-br from-rose-500 via-fuchsia-400 to-cyan-300 text-slate-950 shadow-lg shadow-rose-500/30'
+                    : 'bg-gradient-to-br from-amber-400 to-amber-500 text-slate-950 shadow-lg shadow-amber-500/20'
+                  : isSantiniTab
+                  ? 'text-rose-300 hover:text-white bg-rose-950/30 border border-rose-500/30'
                   : 'text-slate-400 hover:text-white bg-slate-900/60'
               }`}
             >
@@ -1270,7 +1390,7 @@ export default function Chiosco({ isGodMode = false, ownedItems = [], onToggleOw
         })}
       </div>
 
-      {/* GRIGLIA 2x4 DEGLI 8 OGGETTI */}
+      {/* GRIGLIA DEGLI OGGETTI DELLA CATEGORIA ATTIVA */}
       <div className="grid grid-cols-2 gap-3">
         {currentItems.map(item => {
           const style = RARITY_STYLES[item.rarity] || RARITY_STYLES.COMUNE;
