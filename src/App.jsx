@@ -134,48 +134,72 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md', isRumeno = false, crushe
           : 'bg-gradient-to-b from-slate-800/90 to-slate-950 border border-amber-400/50 shadow-inner'
       }`}
     >
-      {/* 🔥 EFFETTO PRO: FIAMME VIVE MULTI-STRATO (3-4 BIRRE) */}
+      {/* 🔥 EFFETTO PRO: CORONA DI FIAMME SUL CONTORNO (IL CENTRO RESTA 100% LIBERO!) */}
       {isOnFire && (
         <svg
           viewBox="0 0 64 64"
-          className="pointer-events-none absolute -inset-2.5 w-[calc(100%+20px)] h-[calc(100%+20px)] z-20 overflow-visible drop-shadow-[0_0_8px_rgba(249,115,22,0.95)]"
+          className="pointer-events-none absolute -inset-3 w-[calc(100%+24px)] h-[calc(100%+24px)] z-20 overflow-visible drop-shadow-[0_0_7px_rgba(249,115,22,0.95)]"
         >
           <defs>
-            <linearGradient id="proFireOuter" x1="0" y1="1" x2="0" y2="0">
-              <stop offset="0%" stopColor="#991b1b" />
-              <stop offset="45%" stopColor="#ef4444" />
-              <stop offset="85%" stopColor="#f97316" />
-              <stop offset="100%" stopColor="#facc15" />
+            <linearGradient id="proFireRingOuter" x1="0" y1="1" x2="0" y2="0">
+              <stop offset="0%" stopColor="#dc2626" />
+              <stop offset="50%" stopColor="#f97316" />
+              <stop offset="100%" stopColor="#fde047" />
             </linearGradient>
-            <linearGradient id="proFireInner" x1="0" y1="1" x2="0" y2="0">
-              <stop offset="0%" stopColor="#ea580c" />
-              <stop offset="55%" stopColor="#facc15" />
-              <stop offset="100%" stopColor="#fef9c3" />
+            <linearGradient id="proFireRingInner" x1="0" y1="1" x2="0" y2="0">
+              <stop offset="0%" stopColor="#f97316" />
+              <stop offset="65%" stopColor="#facc15" />
+              <stop offset="100%" stopColor="#ffffff" />
             </linearGradient>
           </defs>
-          {/* Lingue di fuoco esterne laterali e superiori */}
+
+          {/* Fiamma Laterale Sinistra (abbraccia il bordo sinistro senza entrare al centro) */}
           <path
-            d="M10 48 C4 36, 7 22, 13 13 C13 21, 17 24, 16 31 C19 19, 26 9, 32 2 C37 10, 44 18, 47 30 C47 22, 50 19, 51 12 C57 22, 60 36, 54 48 C58 40, 56 30, 51 26 C53 38, 48 49, 41 54 C46 47, 45 39, 41 34 C41 44, 36 52, 32 55 C28 52, 23 44, 23 34 C19 39, 18 47, 23 54 C16 49, 11 38, 13 26 C8 30, 6 40, 10 48 Z"
-            fill="url(#proFireOuter)"
-            opacity="0.88"
+            d="M11 52 C3 44, 1 32, 6 22 C3 26, 2 16, 9 9 C7 16, 10 20, 12 14 C10 24, 10 38, 12 49 Z"
+            fill="url(#proFireRingOuter)"
             className="animate-pulse"
           />
-          {/* Fiamme interne dorate sulla corona e alla base */}
           <path
-            d="M14 52 C10 43, 12 31, 17 24 C17 31, 21 35, 23 41 C25 32, 29 24, 32 16 C35 24, 39 32, 41 41 C43 35, 47 31, 47 24 C52 31, 54 43, 50 52 C44 58, 20 58, 14 52 Z"
-            fill="url(#proFireInner)"
-            opacity="0.75"
+            d="M11.5 47 C6 40, 5 30, 8.5 21 C7 26, 9 29, 11.5 24 C10.5 32, 10.5 40, 11.5 47 Z"
+            fill="url(#proFireRingInner)"
           />
-          {/* Scintille incandescenti */}
-          <circle cx="14" cy="12" r="1.6" fill="#fef08a" className="animate-ping" />
-          <circle cx="50" cy="11" r="1.4" fill="#fde047" />
-          <circle cx="32" cy="5" r="1.8" fill="#ffffff" />
-          <circle cx="8" cy="28" r="1.2" fill="#fb923c" />
-          <circle cx="56" cy="26" r="1.2" fill="#fb923c" />
+
+          {/* Fiamma Laterale Destra (abbraccia il bordo destro senza entrare al centro) */}
+          <path
+            d="M53 52 C61 44, 63 32, 58 22 C61 26, 62 16, 55 9 C57 16, 54 20, 52 14 C54 24, 54 38, 52 49 Z"
+            fill="url(#proFireRingOuter)"
+            className="animate-pulse"
+          />
+          <path
+            d="M52.5 47 C58 40, 59 30, 55.5 21 C57 26, 55 29, 52.5 24 C53.5 32, 53.5 40, 52.5 47 Z"
+            fill="url(#proFireRingInner)"
+          />
+
+          {/* Corona di Fuoco Superiore (spunta sopra il bordo alto dell'avatar) */}
+          <path
+            d="M11 13 C14 5, 19 3, 22 9 C25 2, 29 -2, 32 -3 C35 -2, 39 2, 42 9 C45 3, 50 5, 53 13 C46 10, 39 9, 32 9 C25 9, 18 10, 11 13 Z"
+            fill="url(#proFireRingOuter)"
+          />
+          <path
+            d="M18 11 C21 6, 25 5, 27 9 C29 3, 31 0, 32 -1 C33 0, 35 3, 37 9 C39 5, 43 6, 46 11 C39 9.5, 25 9.5, 18 11 Z"
+            fill="url(#proFireRingInner)"
+          />
+
+          {/* Braci ardenti sul bordo inferiore */}
+          <path
+            d="M12 52 C18 57, 25 59, 32 59 C39 59, 46 57, 52 52 C46 54.5, 39 55.5, 32 55.5 C25 55.5, 18 54.5, 12 52 Z"
+            fill="url(#proFireRingOuter)"
+          />
+
+          {/* Scintille esterne */}
+          <circle cx="20" cy="2" r="1.4" fill="#fef08a" className="animate-ping" />
+          <circle cx="45" cy="2" r="1.3" fill="#fde047" />
+          <circle cx="3" cy="26" r="1.3" fill="#fb923c" />
+          <circle cx="61" cy="26" r="1.3" fill="#fb923c" />
         </svg>
       )}
 
-      {/* ☄️ EFFETTO PRO: SUPERNOVA COMETA COSMICA (5+ BIRRE) */}
+      {/* ☄️ EFFETTO PRO: SUPERNOVA COMETA COSMICA SUL CONTORNO (5+ BIRRE) */}
       {isComet && (
         <svg
           viewBox="0 0 64 64"
@@ -183,8 +207,8 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md', isRumeno = false, crushe
         >
           <defs>
             <linearGradient id="proCometTail" x1="0" y1="1" x2="1" y2="0">
-              <stop offset="0%" stopColor="#1d4ed8" stopOpacity="0.15" />
-              <stop offset="45%" stopColor="#0ea5e9" stopOpacity="0.85" />
+              <stop offset="0%" stopColor="#1d4ed8" stopOpacity="0.2" />
+              <stop offset="45%" stopColor="#0ea5e9" stopOpacity="0.9" />
               <stop offset="80%" stopColor="#67e8f9" />
               <stop offset="100%" stopColor="#fef08a" />
             </linearGradient>
@@ -195,65 +219,122 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md', isRumeno = false, crushe
               <stop offset="100%" stopColor="#0284c7" stopOpacity="0" />
             </radialGradient>
           </defs>
-          {/* Scia orbitale di plasma che avvolge il bicchiere */}
+          {/* Arco cosmico superiore-sinistro (esterno al bicchiere) */}
           <path
-            d="M6 54 C2 38, 12 16, 36 8 C46 5, 54 6, 58 10 C50 10, 38 15, 26 27 C15 38, 12 49, 18 56 C12 57, 8 56, 6 54 Z"
+            d="M7 48 C1 32, 8 10, 30 4 C42 1, 51 4, 56 9 C47 7, 34 9, 21 17 C11 24, 8 36, 11 46 Z"
             fill="url(#proCometTail)"
             className="animate-pulse"
           />
+          {/* Arco cosmico inferiore-destro (esterno al bicchiere) */}
           <path
-            d="M58 12 C62 28, 52 48, 28 56 C18 59, 10 58, 6 54 C14 54, 26 49, 38 37 C49 26, 52 15, 46 8 C52 7, 56 9, 58 12 Z"
+            d="M57 16 C63 32, 56 54, 34 60 C22 63, 13 60, 8 55 C17 57, 30 55, 43 47 C53 40, 56 28, 53 18 Z"
             fill="url(#proCometTail)"
-            opacity="0.7"
+            opacity="0.8"
           />
-          {/* Nucleo abbagliante della Cometa in alto a destra */}
-          <circle cx="52" cy="11" r="9" fill="url(#proCometCore)" />
+          {/* Nucleo abbagliante della Cometa sull'angolo alto-destro */}
+          <circle cx="53" cy="10" r="8" fill="url(#proCometCore)" />
           <path
-            d="M52 1 L54 8.5 L61.5 11 L54 13.5 L52 21 L50 13.5 L42.5 11 L50 8.5 Z"
+            d="M53 1 L54.8 7.8 L61.5 10 L54.8 12.2 L53 19 L51.2 12.2 L44.5 10 L51.2 7.8 Z"
             fill="#ffffff"
           />
-          {/* Stella secondaria in basso a sinistra + Polvere cosmica */}
+          {/* Stella secondaria sull'angolo basso-sinistro */}
           <path
-            d="M11 47 L12.2 51 L16.2 52.2 L12.2 53.4 L11 57.4 L9.8 53.4 L5.8 52.2 L9.8 51 Z"
+            d="M10 49 L11.2 53 L15.2 54.2 L11.2 55.4 L10 59.4 L8.8 55.4 L4.8 54.2 L8.8 53 Z"
             fill="#67e8f9"
           />
-          <circle cx="18" cy="12" r="1.5" fill="#fef08a" className="animate-ping" />
-          <circle cx="55" cy="46" r="1.5" fill="#bae6fd" />
-          <circle cx="8" cy="28" r="1.2" fill="#38bdf8" />
+          <circle cx="16" cy="7" r="1.5" fill="#fef08a" className="animate-ping" />
+          <circle cx="57" cy="48" r="1.4" fill="#bae6fd" />
         </svg>
       )}
 
-      {/* 🥫 PASSAPORTO RUMENO PRO (LATTINA 3D METALLICA) */}
+      {/* 🥫 PASSAPORTO RUMENO PRO: LATTINA 3D SCHIACCIATA / ACCARTOCCIATA */}
       {showRumenoCan ? (
-        <svg viewBox="0 0 48 48" className="w-full h-full relative z-10 drop-shadow">
+        <svg viewBox="0 0 48 48" className="w-full h-full relative z-10 drop-shadow-[0_3px_5px_rgba(0,0,0,0.7)]">
           <defs>
-            <linearGradient id="rumenoCanBody" x1="0" y1="0" x2="1" y2="0">
+            <linearGradient id="crushedCanGreen" x1="0" y1="0" x2="1" y2="1">
               <stop offset="0%" stopColor="#064e3b" />
               <stop offset="30%" stopColor="#10b981" />
-              <stop offset="55%" stopColor="#059669" />
-              <stop offset="85%" stopColor="#047857" />
+              <stop offset="55%" stopColor="#047857" />
+              <stop offset="80%" stopColor="#065f46" />
               <stop offset="100%" stopColor="#022c22" />
             </linearGradient>
-            <linearGradient id="rumenoSilver" x1="0" y1="0" x2="1" y2="0">
+            <linearGradient id="crushedDentShadow" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#022c22" />
+              <stop offset="50%" stopColor="#064e3b" />
+              <stop offset="100%" stopColor="#059669" />
+            </linearGradient>
+            <linearGradient id="rumenoSilver3D" x1="0" y1="0" x2="1" y2="0">
               <stop offset="0%" stopColor="#64748b" />
-              <stop offset="45%" stopColor="#f8fafc" />
-              <stop offset="100%" stopColor="#475569" />
+              <stop offset="50%" stopColor="#f8fafc" />
+              <stop offset="100%" stopColor="#334155" />
             </linearGradient>
           </defs>
-          {/* Corpo cilindrico lattina */}
-          <path d="M13 10 L15 7 H33 L35 10 V39 L33 42 H15 L13 39 Z" fill="url(#rumenoCanBody)" stroke="#a7f3d0" strokeWidth="0.8" />
-          {/* Anello superiore e inferiore in alluminio */}
-          <ellipse cx="24" cy="7.5" rx="9.5" ry="2.2" fill="url(#rumenoSilver)" stroke="#334155" strokeWidth="0.8" />
-          <ellipse cx="24" cy="7.5" rx="6" ry="1.1" fill="none" stroke="#475569" strokeWidth="0.7" />
-          <path d="M14.5 40.5 Q24 43.5 33.5 40.5 L35 39 H13 Z" fill="url(#rumenoSilver)" />
-          {/* Fascia diagonale ignorante + Bollino Rosso */}
-          <path d="M13 20 L35 15 V27 L13 32 Z" fill="#fef08a" opacity="0.95" />
-          <path d="M13 22 L35 17 V25 L13 30 Z" fill="#dc2626" />
-          <text x="24" y="25.5" textAnchor="middle" fill="#ffffff" fontSize="6.5" fontWeight="900" letterSpacing="0.5">-2 PT</text>
-          {/* Riflesso verticale metallico + gocce condensa */}
-          <rect x="16" y="10" width="2.2" height="29" fill="#ffffff" opacity="0.35" rx="1" />
-          <circle cx="31" cy="13" r="1" fill="#ecfdf5" opacity="0.8" />
-          <circle cx="30" cy="34" r="1.2" fill="#ecfdf5" opacity="0.8" />
+
+          {/* Corpo lattina schiacciata a metà (sagoma piegata a zig-zag) */}
+          <path
+            d="M11 11 L34 8 L36 16 L29 23.5 L37 31 L34 41 L13 42 L11 33 L18.5 24.5 L10 17 Z"
+            fill="url(#crushedCanGreen)"
+            stroke="#6ee7b7"
+            strokeWidth="0.9"
+            strokeLinejoin="round"
+          />
+
+          {/* Conca profonda dell'ammaccatura centrale (effetto schiacciato 3D) */}
+          <polygon
+            points="10,17 25,19 29,23.5 18.5,24.5"
+            fill="url(#crushedDentShadow)"
+          />
+          <polygon
+            points="18.5,24.5 29,23.5 37,31 22,29.5"
+            fill="#022c22"
+            opacity="0.75"
+          />
+
+          {/* Fascia Gialla/Rossa piegata che segue la schiacciatura */}
+          <polygon
+            points="13.5,19.5 32.5,16.5 29,23.5 34.5,28.5 14,31.5 18.5,24.5"
+            fill="#facc15"
+          />
+          <polygon
+            points="14.8,21 31.5,18.2 29,23.5 33.2,27.2 15.2,29.8 18.5,24.5"
+            fill="#dc2626"
+          />
+
+          {/* Linee di piega metalliche lucide sulla schiacciatura */}
+          <path
+            d="M10.5 17 L25 19.5 L35.5 16 M18.5 24.5 L29 23.5 M11.5 33 L23 29 L36.5 31"
+            stroke="#ecfdf5"
+            strokeWidth="1.1"
+            strokeLinecap="round"
+            fill="none"
+            opacity="0.75"
+          />
+
+          {/* Bollino "-5" storto per l'urto */}
+          <g transform="rotate(-8 24 24.5)">
+            <rect x="17.5" y="20.5" width="13" height="7.5" rx="2" fill="#7f1d1d" stroke="#fef08a" strokeWidth="0.9" />
+            <text x="24" y="26" textAnchor="middle" fill="#ffffff" fontSize="6" fontWeight="900">-5 PT</text>
+          </g>
+
+          {/* Coperchio superiore in alluminio inclinato + foro apertura + linguetta storta */}
+          <g transform="rotate(-7 22.5 9.5)">
+            <ellipse cx="22.5" cy="9.5" rx="11.5" ry="2.8" fill="url(#rumenoSilver3D)" stroke="#334155" strokeWidth="0.9" />
+            <ellipse cx="20" cy="9.5" rx="3.8" ry="1.3" fill="#0f172a" />
+            {/* Linguetta sollevata */}
+            <path d="M24 9.5 L28 6.5 L30 8 L25.5 10.2 Z" fill="#e2e8f0" stroke="#475569" strokeWidth="0.6" />
+          </g>
+
+          {/* Base inferiore in alluminio ammaccata */}
+          <path
+            d="M12.5 40.5 Q23.5 44 34.5 39.8 L34 42 Q23.5 45.2 13 42.5 Z"
+            fill="url(#rumenoSilver3D)"
+            stroke="#334155"
+            strokeWidth="0.7"
+          />
+
+          {/* Goccia di birra che schizza fuori dalla lattina schiacciata */}
+          <path d="M16 6 C16 4, 18 3, 18 5 C18 6.5, 16 6.5, 16 6 Z" fill="#fbbf24" />
+          <circle cx="14" cy="36" r="1.1" fill="#ffffff" opacity="0.55" />
         </svg>
       ) : (
         <svg viewBox="0 0 48 48" className="w-full h-full relative z-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)]">
