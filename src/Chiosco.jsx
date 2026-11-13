@@ -286,24 +286,17 @@ export const CHIOSCO_ITEMS = {
  santini: [
     {
       id: 'tendina_capelli',
-      name: 'La Tendina (Ver. Teca)',
+      name: 'La Sacra Tendina',
       rarity: 'INFINITO',
       subtitle: 'Reliquia Capillare Custodita Sottovetro',
       desc: 'Conservata in una teca blindata da museo su cuscino reale: riga in mezzo tracciata col calibro e doppia onda simmetrica che si apre come il sipario del Teatro Ariston.'
     },
     {
       id: 'tendina_sole',
-      name: 'La Tendina (Opz. A • Tenda Bar)',
+      name: 'La Tendina di Tendina',
       rarity: 'INFINITO',
       subtitle: 'Tenda da Esterno con Manovella Umana',
       desc: 'Doppia copertura omologata da dehors: sopra la tenda da sole con manovella, sotto la chioma a tendina di Tendina che ripara il tavolo dal sole e dalle sentenze del VAR.'
-    },
-    {
-      id: 'tendina_sipario',
-      name: 'La Tendina (Opz. B • Sipario)',
-      rarity: 'INFINITO',
-      subtitle: 'Bastone in Ottone e Cordoni Reali',
-      desc: 'Sorrisone d’ordinanza sormontato da un vero bastone per tende in ottone: i due ciuffi sono tenuti aperti sulle tempie da due cordoni dorati col fiocco da prima teatrale.'
     },
     {
       id: 'biliardino_manolo',
@@ -1284,64 +1277,6 @@ export function ChioscoItemArtwork({ id, size = 'md' }) {
           </g>
         )}
 
-        {/* 🪟 TENDINA OPZIONE B: FACCIA DI TENDINA CON BASTONE PER TENDE SULLA FRONTE E CORDONI D'ORO */}
-        {normId === 'tendina_sipario' && (
-          <g>
-            {/* 1. Busto di Tendina (Maglietta nera con logo BALI) */}
-            <path d="M22 104 C25 82, 40 76, 60 76 C80 76, 95 82, 98 104 Z" fill="#18181b" stroke="#3f3f46" strokeWidth="2" />
-            <circle cx="75" cy="91" r="5" fill="#86efac" opacity="0.85" />
-            <text x="75" y="99" textAnchor="middle" fill="#ffffff" fontSize="4.5" fontWeight="900">BALI</text>
-
-            {/* 2. Viso di Tendina in primo piano */}
-            <rect x="53" y="69" width="14" height="10" fill="url(#proMarioSkin)" />
-            <ellipse cx="32" cy="52" rx="4.2" ry="6.8" fill="url(#proMarioSkin)" stroke="#7c2d12" strokeWidth="1.2" />
-            <ellipse cx="88" cy="52" rx="4.2" ry="6.8" fill="url(#proMarioSkin)" stroke="#7c2d12" strokeWidth="1.2" />
-            <path d="M34 42 C34 22, 86 22, 86 42 C87 62, 76 74, 60 74 C44 74, 33 62, 34 42 Z" fill="url(#proMarioSkin)" stroke="#7c2d12" strokeWidth="1.6" />
-            {/* Barba corta curata e baffi */}
-            <path d="M35 51 C36 66, 46 74, 60 74 C74 74, 84 66, 85 51 C81 58, 76 61, 70 59 C66 54, 54 54, 50 59 C44 61, 39 58, 35 51 Z" fill="#27272a" opacity="0.85" />
-            {/* Sopracciglia scure + Occhi + Naso + Sorrisone */}
-            <path d="M41 43 Q47 40 54 43 M66 43 Q73 40 79 43" stroke="#18181b" strokeWidth="2.6" strokeLinecap="round" fill="none" />
-            <ellipse cx="48" cy="48" rx="4.2" ry="2.8" fill="#ffffff" stroke="#451a03" strokeWidth="1.1" />
-            <circle cx="48" cy="48" r="2" fill="#1c1917" />
-            <circle cx="48.8" cy="47.3" r="0.7" fill="#ffffff" />
-            <ellipse cx="72" cy="48" rx="4.2" ry="2.8" fill="#ffffff" stroke="#451a03" strokeWidth="1.1" />
-            <circle cx="72" cy="48" r="2" fill="#1c1917" />
-            <circle cx="72.8" cy="47.3" r="0.7" fill="#ffffff" />
-            <path d="M58.5 47 V55.5 C56.5 57.5, 63.5 57.5, 61.5 55.5" fill="none" stroke="#7c2d12" strokeWidth="1.8" strokeLinecap="round" />
-            <path d="M47 60 H73 C71 68.5, 49 68.5, 47 60 Z" fill="#ffffff" stroke="#451a03" strokeWidth="1.3" />
-            <line x1="50" y1="63.5" x2="70" y2="63.5" stroke="#cbd5e1" strokeWidth="1" />
-
-            {/* 3. CAPELLI A TENDINA APPESI AL BASTONE E LEGATI AI LATI COI CORDONI D'ORO! */}
-            <path
-              d="M59 19 C41 19, 26 28, 25 48 C25 57, 29 63, 35 65 C34 55, 37 44, 44 37 C50 31, 56 26, 59 21 Z"
-              fill="url(#tendinaHairGrad)"
-              stroke="#1c0a00"
-              strokeWidth="1.6"
-            />
-            <path
-              d="M61 19 C79 19, 94 28, 95 48 C95 57, 91 63, 85 65 C86 55, 83 44, 76 37 C70 31, 64 26, 61 21 Z"
-              fill="url(#tendinaHairGrad)"
-              stroke="#1c0a00"
-              strokeWidth="1.6"
-            />
-            <path d="M57 22 C49 30, 43 38, 42 47 M63 22 C71 30, 77 38, 78 47" stroke="#92400e" strokeWidth="2.2" strokeLinecap="round" fill="none" />
-
-            {/* 4. I 2 Cordoni Dorati col Fiocco (Fermatenda Teatrali sulle tempie!) */}
-            <path d="M24 41 Q32 44 39 40" stroke="url(#proGold3D)" strokeWidth="3.5" strokeLinecap="round" fill="none" />
-            <polygon points="25,42 21,52 28,52" fill="url(#proGold3D)" stroke="#422006" strokeWidth="1" />
-            <path d="M96 41 Q88 44 81 40" stroke="url(#proGold3D)" strokeWidth="3.5" strokeLinecap="round" fill="none" />
-            <polygon points="95,42 99,52 92,52" fill="url(#proGold3D)" stroke="#422006" strokeWidth="1" />
-
-            {/* 5. Bastone per Tende in Ottone Massiccio con Pomelli Reali e Anelli sopra la testa */}
-            <rect x="14" y="16" width="92" height="4.5" rx="2" fill="url(#proGold3D)" stroke="#422006" strokeWidth="1.4" />
-            <circle cx="12" cy="18.2" r="5" fill="url(#proGold3D)" stroke="#422006" strokeWidth="1.5" />
-            <circle cx="108" cy="18.2" r="5" fill="url(#proGold3D)" stroke="#422006" strokeWidth="1.5" />
-            {/* Anelli della tenda a cui sono agganciati i capelli */}
-            {[28, 38, 48, 57, 63, 72, 82, 92].map((rx, idx) => (
-              <rect key={idx} x={rx} y="14.5" width="3" height="7.5" rx="1.2" fill="url(#proGold3D)" stroke="#422006" strokeWidth="0.9" />
-            ))}
-          </g>
-        )}
 
         {/* 🐼 PELUCHE MAESTRO SHIFU (FEDELE AL 100% ALLA FOTO: ORECCHIE BICOLORI, BRACCIA CONSERTE, TUNICA ED ETICHETTA NERA!) */}
         {normId === 'shifu_peluche' && (
