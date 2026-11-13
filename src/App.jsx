@@ -106,232 +106,471 @@ const formatCaptainTimeLeft = (expiresAtMs, nowMs) => {
   return `${hrs}h ${String(mins).padStart(2, '0')}m`;
 };
 
-function BeerGlassAvatar({ type = 'weiss', size = 'md', crushed = false, streakLevel = 'none' }) {
-  const effectiveType = crushed ? 'crushed_can' : type;
+function BeerGlassAvatar({ type = 'weiss', size = 'md', isRumeno = false, streakCount = 0, streak = 0, dailyCount = 0 }) {
   const sizeClasses = {
-    sm: 'w-8 h-8 p-1',
-    md: 'w-11 h-11 p-1.5',
-    lg: 'w-14 h-14 p-2'
-  }[size] || 'w-11 h-11 p-1.5';
+    xs: 'w-8 h-8',
+    sm: 'w-10 h-10',
+    md: 'w-12 h-12',
+    lg: 'w-14 h-14',
+    xl: 'w-16 h-16'
+  };
+  const validTypes = ['weiss', 'lager', 'pilsner', 'keller', 'ipa', 'session_ipa', 'dipa', 'bock', 'triple', 'trappista', 'stout', 'boccione'];
+  const effectiveType = validTypes.includes(type) ? type : 'weiss';
 
-  const borderStyle = streakLevel === 'comet'
-    ? 'bg-indigo-950/90 border-cyan-300 shadow-[0_0_16px_rgba(34,211,238,0.85)]'
-    : streakLevel === 'fire'
-    ? 'bg-orange-950/80 border-orange-400 shadow-[0_0_14px_rgba(249,115,22,0.85)]'
-    : effectiveType === 'crushed_can'
-    ? 'bg-red-950/80 border-red-500/70'
-    : 'bg-slate-900 border-slate-700';
+  const activeStreak = Math.max(Number(streakCount || 0), Number(streak || 0), Number(dailyCount || 0));
+  const isComet = activeStreak >= 5;
+  const isOnFire = activeStreak >= 3 && activeStreak < 5;
 
   return (
-    <div className={`${sizeClasses} aspect-square rounded-2xl ${borderStyle} border flex items-center justify-center shrink-0 relative overflow-visible`}>
-      {/* EFFETTO FIAMME DINAMICHE A PIÙ FIAMMETTE INDIPENDENTI (3ª e 4ª BIRRA) */}
-      {streakLevel === 'fire' && (
-        <svg viewBox="0 0 64 64" className="absolute -inset-2.5 w-[calc(100%+20px)] h-[calc(100%+20px)] pointer-events-none z-20 overflow-visible">
+    <div
+      className={`${sizeClasses[size] || sizeClasses.md} relative rounded-2xl flex items-center justify-center p-1 select-none shrink-0 transition-all duration-300 ${
+        isComet
+          ? 'bg-gradient-to-b from-sky-950 via-indigo-950 to-slate-950 border-2 border-cyan-300 shadow-[0_0_22px_rgba(56,189,248,0.95)] scale-105'
+          : isOnFire
+          ? 'bg-gradient-to-b from-red-950 via-orange-950/90 to-slate-950 border-2 border-amber-400 shadow-[0_0_18px_rgba(249,115,22,0.9)] scale-105'
+          : isRumeno
+          ? 'bg-red-950/80 border-2 border-red-500 shadow-[0_0_12px_rgba(239,68,68,0.5)]'
+          : 'bg-gradient-to-b from-slate-800/90 to-slate-950 border border-amber-400/50 shadow-inner'
+      }`}
+    >
+      {/* 🔥 EFFETTO PRO: FIAMME VIVE MULTI-STRATO (3-4 BIRRE) */}
+      {isOnFire && (
+        <svg
+          viewBox="0 0 64 64"
+          className="pointer-events-none absolute -inset-2.5 w-[calc(100%+20px)] h-[calc(100%+20px)] z-20 overflow-visible drop-shadow-[0_0_8px_rgba(249,115,22,0.95)]"
+        >
           <defs>
-            <linearGradient id="snFlameRed" x1="0%" y1="100%" x2="0%" y2="0%">
-              <stop offset="0%" stopColor="#dc2626" />
-              <stop offset="55%" stopColor="#f97316" />
-              <stop offset="100%" stopColor="#fde047" />
+            <linearGradient id="proFireOuter" x1="0" y1="1" x2="0" y2="0">
+              <stop offset="0%" stopColor="#991b1b" />
+              <stop offset="45%" stopColor="#ef4444" />
+              <stop offset="85%" stopColor="#f97316" />
+              <stop offset="100%" stopColor="#facc15" />
             </linearGradient>
-            <linearGradient id="snFlameGold" x1="0%" y1="100%" x2="0%" y2="0%">
-              <stop offset="0%" stopColor="#f97316" />
-              <stop offset="50%" stopColor="#facc15" />
+            <linearGradient id="proFireInner" x1="0" y1="1" x2="0" y2="0">
+              <stop offset="0%" stopColor="#ea580c" />
+              <stop offset="55%" stopColor="#facc15" />
               <stop offset="100%" stopColor="#fef9c3" />
             </linearGradient>
           </defs>
-
-          {/* Gruppo 1: Fiammette laterali basse e alte (Ritmo A) */}
-          <g className="sn-flame-a">
-            <path d="M8 48 C2 40, 4 28, 10 21 C9 29, 13 33, 12 44 Z" fill="url(#snFlameRed)" />
-            <path d="M56 48 C62 40, 60 28, 54 21 C55 29, 51 33, 52 44 Z" fill="url(#snFlameRed)" />
-            <path d="M18 13 C15 7, 19 2, 23 -1 C22 5, 25 8, 23 13 Z" fill="url(#snFlameGold)" />
-            <path d="M46 13 C49 7, 45 2, 41 -1 C42 5, 39 8, 41 13 Z" fill="url(#snFlameGold)" />
-          </g>
-
-          {/* Gruppo 2: Fiammette intermedie e cresta superiore (Ritmo B sfasato) */}
-          <g className="sn-flame-b">
-            <path d="M11 33 C5 24, 9 14, 15 8 C13 16, 17 21, 15 30 Z" fill="url(#snFlameGold)" />
-            <path d="M53 33 C59 24, 55 14, 49 8 C51 16, 47 21, 49 30 Z" fill="url(#snFlameGold)" />
-            <path d="M29 10 C27 3, 32 -3, 33 -5 C35 -1, 37 4, 35 10 Z" fill="url(#snFlameRed)" />
-          </g>
-
-          {/* Gruppo 3: Lingue di fuoco vive interne (Ritmo C veloce) */}
-          <g className="sn-flame-c">
-            <path d="M14 55 C9 49, 10 41, 15 36 C14 42, 18 46, 17 53 Z" fill="url(#snFlameGold)" />
-            <path d="M50 55 C55 49, 54 41, 49 36 C50 42, 46 46, 47 53 Z" fill="url(#snFlameGold)" />
-            <path d="M31 11 C30 6, 32 1, 33 -1 C34 2, 35 6, 33 11 Z" fill="#fef08a" />
-          </g>
-
-          {/* Scintille che salgono */}
-          <circle cx="11" cy="14" r="1.6" fill="#fde047" className="sn-spark-1" />
-          <circle cx="53" cy="12" r="1.5" fill="#fb923c" className="sn-spark-2" />
-          <circle cx="25" cy="2" r="1.4" fill="#fef08a" className="sn-spark-2" />
-          <circle cx="39" cy="1" r="1.7" fill="#fde047" className="sn-spark-1" />
+          {/* Lingue di fuoco esterne laterali e superiori */}
+          <path
+            d="M10 48 C4 36, 7 22, 13 13 C13 21, 17 24, 16 31 C19 19, 26 9, 32 2 C37 10, 44 18, 47 30 C47 22, 50 19, 51 12 C57 22, 60 36, 54 48 C58 40, 56 30, 51 26 C53 38, 48 49, 41 54 C46 47, 45 39, 41 34 C41 44, 36 52, 32 55 C28 52, 23 44, 23 34 C19 39, 18 47, 23 54 C16 49, 11 38, 13 26 C8 30, 6 40, 10 48 Z"
+            fill="url(#proFireOuter)"
+            opacity="0.88"
+            className="animate-pulse"
+          />
+          {/* Fiamme interne dorate sulla corona e alla base */}
+          <path
+            d="M14 52 C10 43, 12 31, 17 24 C17 31, 21 35, 23 41 C25 32, 29 24, 32 16 C35 24, 39 32, 41 41 C43 35, 47 31, 47 24 C52 31, 54 43, 50 52 C44 58, 20 58, 14 52 Z"
+            fill="url(#proFireInner)"
+            opacity="0.75"
+          />
+          {/* Scintille incandescenti */}
+          <circle cx="14" cy="12" r="1.6" fill="#fef08a" className="animate-ping" />
+          <circle cx="50" cy="11" r="1.4" fill="#fde047" />
+          <circle cx="32" cy="5" r="1.8" fill="#ffffff" />
+          <circle cx="8" cy="28" r="1.2" fill="#fb923c" />
+          <circle cx="56" cy="26" r="1.2" fill="#fb923c" />
         </svg>
       )}
 
-      {/* EFFETTO SCIA DI STELLE E COMETA (5+ BIRRE) */}
-      {streakLevel === 'comet' && (
-        <svg viewBox="0 0 64 64" className="absolute -inset-2.5 w-[calc(100%+20px)] h-[calc(100%+20px)] pointer-events-none z-20 overflow-visible">
+      {/* ☄️ EFFETTO PRO: SUPERNOVA COMETA COSMICA (5+ BIRRE) */}
+      {isComet && (
+        <svg
+          viewBox="0 0 64 64"
+          className="pointer-events-none absolute -inset-3 w-[calc(100%+24px)] h-[calc(100%+24px)] z-20 overflow-visible drop-shadow-[0_0_10px_rgba(56,189,248,0.95)]"
+        >
           <defs>
-            <linearGradient id="cometTailGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#22d3ee" stopOpacity="1" />
-              <stop offset="50%" stopColor="#a855f7" stopOpacity="0.8" />
-              <stop offset="100%" stopColor="#facc15" stopOpacity="0" />
+            <linearGradient id="proCometTail" x1="0" y1="1" x2="1" y2="0">
+              <stop offset="0%" stopColor="#1d4ed8" stopOpacity="0.15" />
+              <stop offset="45%" stopColor="#0ea5e9" stopOpacity="0.85" />
+              <stop offset="80%" stopColor="#67e8f9" />
+              <stop offset="100%" stopColor="#fef08a" />
+            </linearGradient>
+            <radialGradient id="proCometCore" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#ffffff" />
+              <stop offset="45%" stopColor="#fef08a" />
+              <stop offset="80%" stopColor="#38bdf8" />
+              <stop offset="100%" stopColor="#0284c7" stopOpacity="0" />
+            </radialGradient>
+          </defs>
+          {/* Scia orbitale di plasma che avvolge il bicchiere */}
+          <path
+            d="M6 54 C2 38, 12 16, 36 8 C46 5, 54 6, 58 10 C50 10, 38 15, 26 27 C15 38, 12 49, 18 56 C12 57, 8 56, 6 54 Z"
+            fill="url(#proCometTail)"
+            className="animate-pulse"
+          />
+          <path
+            d="M58 12 C62 28, 52 48, 28 56 C18 59, 10 58, 6 54 C14 54, 26 49, 38 37 C49 26, 52 15, 46 8 C52 7, 56 9, 58 12 Z"
+            fill="url(#proCometTail)"
+            opacity="0.7"
+          />
+          {/* Nucleo abbagliante della Cometa in alto a destra */}
+          <circle cx="52" cy="11" r="9" fill="url(#proCometCore)" />
+          <path
+            d="M52 1 L54 8.5 L61.5 11 L54 13.5 L52 21 L50 13.5 L42.5 11 L50 8.5 Z"
+            fill="#ffffff"
+          />
+          {/* Stella secondaria in basso a sinistra + Polvere cosmica */}
+          <path
+            d="M11 47 L12.2 51 L16.2 52.2 L12.2 53.4 L11 57.4 L9.8 53.4 L5.8 52.2 L9.8 51 Z"
+            fill="#67e8f9"
+          />
+          <circle cx="18" cy="12" r="1.5" fill="#fef08a" className="animate-ping" />
+          <circle cx="55" cy="46" r="1.5" fill="#bae6fd" />
+          <circle cx="8" cy="28" r="1.2" fill="#38bdf8" />
+        </svg>
+      )}
+
+      {/* 🥫 PASSAPORTO RUMENO PRO (LATTINA 3D METALLICA) */}
+      {isRumeno ? (
+        <svg viewBox="0 0 48 48" className="w-full h-full relative z-10 drop-shadow">
+          <defs>
+            <linearGradient id="rumenoCanBody" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#064e3b" />
+              <stop offset="30%" stopColor="#10b981" />
+              <stop offset="55%" stopColor="#059669" />
+              <stop offset="85%" stopColor="#047857" />
+              <stop offset="100%" stopColor="#022c22" />
+            </linearGradient>
+            <linearGradient id="rumenoSilver" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#64748b" />
+              <stop offset="45%" stopColor="#f8fafc" />
+              <stop offset="100%" stopColor="#475569" />
             </linearGradient>
           </defs>
-          <g className="sn-comet-orbit">
-            <circle cx="32" cy="32" r="27" fill="none" stroke="url(#cometTailGrad)" strokeWidth="2.8" strokeDasharray="42 35" strokeLinecap="round" />
-            <circle cx="32" cy="5" r="3.2" fill="#ffffff" />
-            <circle cx="32" cy="5" r="5.5" fill="#22d3ee" opacity="0.55" />
-            <polygon points="56,24 58,28 62,29 58,31 56,35 54,31 50,29 54,28" fill="#fde047" />
-            <polygon points="8,38 9.5,41 13,42 9.5,43.5 8,47 6.5,43.5 3,42 6.5,41" fill="#38bdf8" />
-          </g>
-          <polygon points="12,10 13.5,13 17,14 13.5,15.5 12,19 10.5,15.5 7,14 10.5,13" fill="#facc15" className="sn-star-twinkle" />
-          <polygon points="52,48 53.2,50.5 56,51.5 53.2,52.5 52,55 50.8,52.5 48,51.5 50.8,50.5" fill="#e879f9" className="sn-star-twinkle" />
+          {/* Corpo cilindrico lattina */}
+          <path d="M13 10 L15 7 H33 L35 10 V39 L33 42 H15 L13 39 Z" fill="url(#rumenoCanBody)" stroke="#a7f3d0" strokeWidth="0.8" />
+          {/* Anello superiore e inferiore in alluminio */}
+          <ellipse cx="24" cy="7.5" rx="9.5" ry="2.2" fill="url(#rumenoSilver)" stroke="#334155" strokeWidth="0.8" />
+          <ellipse cx="24" cy="7.5" rx="6" ry="1.1" fill="none" stroke="#475569" strokeWidth="0.7" />
+          <path d="M14.5 40.5 Q24 43.5 33.5 40.5 L35 39 H13 Z" fill="url(#rumenoSilver)" />
+          {/* Fascia diagonale ignorante + Bollino Rosso */}
+          <path d="M13 20 L35 15 V27 L13 32 Z" fill="#fef08a" opacity="0.95" />
+          <path d="M13 22 L35 17 V25 L13 30 Z" fill="#dc2626" />
+          <text x="24" y="25.5" textAnchor="middle" fill="#ffffff" fontSize="6.5" fontWeight="900" letterSpacing="0.5">-2 PT</text>
+          {/* Riflesso verticale metallico + gocce condensa */}
+          <rect x="16" y="10" width="2.2" height="29" fill="#ffffff" opacity="0.35" rx="1" />
+          <circle cx="31" cy="13" r="1" fill="#ecfdf5" opacity="0.8" />
+          <circle cx="30" cy="34" r="1.2" fill="#ecfdf5" opacity="0.8" />
         </svg>
-      )}
+      ) : (
+        <svg viewBox="0 0 48 48" className="w-full h-full relative z-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)]">
+          <defs>
+            {/* Gradienti Liquidi 3D */}
+            <linearGradient id="goldWeissGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#d97706" />
+              <stop offset="40%" stopColor="#fbbf24" />
+              <stop offset="70%" stopColor="#fde047" />
+              <stop offset="100%" stopColor="#b45309" />
+            </linearGradient>
+            <linearGradient id="lagerGoldGrad" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#ca8a04" />
+              <stop offset="35%" stopColor="#facc15" />
+              <stop offset="65%" stopColor="#fef08a" />
+              <stop offset="100%" stopColor="#a16207" />
+            </linearGradient>
+            <linearGradient id="pilsStrawGrad" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#eab308" />
+              <stop offset="45%" stopColor="#fef08a" />
+              <stop offset="75%" stopColor="#fef9c3" />
+              <stop offset="100%" stopColor="#ca8a04" />
+            </linearGradient>
+            <linearGradient id="amberIpaGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#9a3412" />
+              <stop offset="40%" stopColor="#ea580c" />
+              <stop offset="70%" stopColor="#fb923c" />
+              <stop offset="100%" stopColor="#7c2d12" />
+            </linearGradient>
+            <linearGradient id="copperDipaGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#7c2d12" />
+              <stop offset="45%" stopColor="#c2410c" />
+              <stop offset="75%" stopColor="#f97316" />
+              <stop offset="100%" stopColor="#431407" />
+            </linearGradient>
+            <linearGradient id="rubyBockGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#450a0a" />
+              <stop offset="45%" stopColor="#991b1b" />
+              <stop offset="70%" stopColor="#dc2626" />
+              <stop offset="100%" stopColor="#2a0404" />
+            </linearGradient>
+            <linearGradient id="trappistGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#292524" />
+              <stop offset="45%" stopColor="#78350f" />
+              <stop offset="75%" stopColor="#b45309" />
+              <stop offset="100%" stopColor="#1c1917" />
+            </linearGradient>
+            <linearGradient id="stoutBlackGrad" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#09090b" />
+              <stop offset="35%" stopColor="#27272a" />
+              <stop offset="70%" stopColor="#18181b" />
+              <stop offset="100%" stopColor="#000000" />
+            </linearGradient>
+            <linearGradient id="foam3DGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#ffffff" />
+              <stop offset="65%" stopColor="#f8fafc" />
+              <stop offset="100%" stopColor="#cbd5e1" />
+            </linearGradient>
+            <linearGradient id="warmFoamGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#fffbeb" />
+              <stop offset="65%" stopColor="#fde68a" />
+              <stop offset="100%" stopColor="#d97706" />
+            </linearGradient>
+            <linearGradient id="glassBaseGrad" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#94a3b8" stopOpacity="0.6" />
+              <stop offset="50%" stopColor="#f8fafc" stopOpacity="0.9" />
+              <stop offset="100%" stopColor="#64748b" stopOpacity="0.6" />
+            </linearGradient>
+          </defs>
 
-      {effectiveType === 'crushed_can' && (
-        <svg viewBox="0 0 48 48" className="w-full h-full">
-          <path d="M14 10L34 10L35 17L28 24L35 31L33 40L15 40L13 31L20 23L13 17Z" fill="#15803d" stroke="#cbd5e1" strokeWidth="1.6" strokeLinejoin="round" />
-          <ellipse cx="24" cy="10" rx="10" ry="2.5" fill="#e2e8f0" stroke="#94a3b8" strokeWidth="1.2" />
-          <path d="M15 40C15 41.5 33 41.5 33 40" stroke="#e2e8f0" strokeWidth="2.2" strokeLinecap="round" />
-          <circle cx="24" cy="10" r="2" fill="#475569" />
-          <path d="M24 10L27 7" stroke="#f8fafc" strokeWidth="1.6" strokeLinecap="round" />
-          <path d="M16 19L27 23M20 26L31 29" stroke="#facc15" strokeWidth="1.6" strokeLinecap="round" />
-          <text x="24" y="36" textAnchor="middle" fill="#fef08a" fontSize="6.5" fontWeight="900">9%</text>
-        </svg>
-      )}
+          {/* 1. WEISS / WEIZEN (VASO BAVARESE CURVO CON NUVOLA DI SCHIUMA 3D) */}
+          {effectiveType === 'weiss' && (
+            <g>
+              {/* Fondo spessore cristallo */}
+              <path d="M17.5 39.5 H30.5 L31.5 43.5 H16.5 Z" fill="url(#glassBaseGrad)" />
+              {/* Liquido dorato torbido */}
+              <path d="M14.5 13 C14 21, 18.5 28, 17.5 39.5 H30.5 C29.5 28, 34 21, 33.5 13 Z" fill="url(#goldWeissGrad)" />
+              {/* Schiuma bavarese a 3 cupole */}
+              <path d="M13.5 14 C11.5 11, 14 7, 18 8 C19.5 5, 24.5 4.5, 27 7.5 C31 6.5, 36.5 9.5, 34.5 14 C30 15.2, 18 15.2, 13.5 14 Z" fill="url(#foam3DGrad)" />
+              {/* Bollicine vive */}
+              <circle cx="22" cy="34" r="0.9" fill="#fef9c3" opacity="0.8" />
+              <circle cx="25" cy="27" r="1.1" fill="#fef9c3" opacity="0.8" />
+              <circle cx="23" cy="20" r="0.9" fill="#ffffff" opacity="0.9" />
+              {/* Riflesso curvo del vetro + Contorno */}
+              <path d="M16.8 15.5 C16.5 22, 19.8 28, 19.2 38" stroke="#ffffff" strokeWidth="1.6" strokeLinecap="round" fill="none" opacity="0.65" />
+              <path d="M14.2 12 C13.5 21, 18.5 28, 16.5 43.5 H31.5 C29.5 28, 34.5 21, 33.8 12" stroke="#e2e8f0" strokeWidth="1.6" fill="none" strokeLinejoin="round" />
+            </g>
+          )}
 
-      {effectiveType === 'weiss' && (
-        <svg viewBox="0 0 48 48" className="w-full h-full">
-          <path d="M16 13C14.5 21 17.5 30 18 41H30C30.5 30 33.5 21 32 13H16Z" fill="#eab308" />
-          <path d="M14.5 13.5C14 9.5 17.5 7 20.5 8C22.5 6 26 6 28 8C31 7 34 9.5 33.5 13.5H14.5Z" fill="#ffffff" />
-          <path d="M15 11C13.5 20 17 30 17.5 42H30.5C31 30 34.5 20 33 11" stroke="#e2e8f0" strokeWidth="1.8" fill="none" />
-          <path d="M16.5 42.5H31.5" stroke="#cbd5e1" strokeWidth="2.5" strokeLinecap="round" />
-        </svg>
-      )}
+          {/* 2. LAGER CLASSICA (BOCCALE DA PUB CONSFACCETTATURE E GOCCIA DI SCHIUMA) */}
+          {effectiveType === 'lager' && (
+            <g>
+              {/* Manico scolpito */}
+              <path d="M33 18.5 H38.5 C40.5 18.5, 41.5 20.5, 41.5 26.5 C41.5 32.5, 40.5 34.5, 38.5 34.5 H33" stroke="#e2e8f0" strokeWidth="3" fill="none" strokeLinejoin="round" />
+              <path d="M33 18.5 H38 C39.5 18.5, 40.2 20.5, 40.2 26.5 C40.2 32.5, 39.5 34.5, 38 34.5 H33" stroke="#94a3b8" strokeWidth="1" fill="none" />
+              {/* Base in vetro */}
+              <rect x="11" y="39" width="22" height="3.5" rx="1.5" fill="url(#glassBaseGrad)" />
+              {/* Liquido Lager */}
+              <rect x="11" y="15" width="22" height="24.5" rx="1.5" fill="url(#lagerGoldGrad)" />
+              {/* Sfaccettature verticali del boccale */}
+              <line x1="17" y1="17" x2="17" y2="38" stroke="#fef9c3" strokeWidth="1.5" opacity="0.45" strokeLinecap="round" />
+              <line x1="22" y1="17" x2="22" y2="38" stroke="#ca8a04" strokeWidth="1.2" opacity="0.35" strokeLinecap="round" />
+              <line x1="27" y1="17" x2="27" y2="38" stroke="#fef9c3" strokeWidth="1.2" opacity="0.4" strokeLinecap="round" />
+              {/* Schiuma + colata laterale */}
+              <path d="M10 15.5 C9.5 11.5, 13 9, 17 10 C19.5 7, 25 7, 27.5 10 C31 9, 34.5 11.5, 34 15.5 C34 16.5, 31 16.5, 30 16.5 V21 C30 22, 28 22, 28 21 V16.5 H10 Z" fill="url(#foam3DGrad)" />
+              {/* Contorno vetro + luce */}
+              <rect x="11" y="14" width="22" height="28.5" rx="2.5" stroke="#e2e8f0" strokeWidth="1.7" fill="none" />
+              <line x1="13.5" y1="17" x2="13.5" y2="37" stroke="#ffffff" strokeWidth="1.8" strokeLinecap="round" opacity="0.65" />
+            </g>
+          )}
 
-      {effectiveType === 'lager' && (
-        <svg viewBox="0 0 48 48" className="w-full h-full">
-          <path d="M33 19H38.5C40.5 19 41.5 20.5 41.5 26C41.5 31.5 40.5 33 38.5 33H33" stroke="#cbd5e1" strokeWidth="2.8" fill="none" />
-          <rect x="12" y="15" width="21" height="26" rx="2.5" fill="#facc15" />
-          <path d="M11 15.5C11 12 13.5 10.5 16.5 11C18.5 8.5 23 8.5 25 11C28.5 10 34 11.5 34 15.5H11Z" fill="#ffffff" />
-          <rect x="12" y="14" width="21" height="27.5" rx="3" stroke="#e2e8f0" strokeWidth="1.8" fill="none" />
-        </svg>
-      )}
+          {/* 3. PILSNER / KÖLSCH (CILINDRO STANGE SLANCIATO CON FONDO GHIACCIATO E PERLAGE) */}
+          {effectiveType === 'pilsner' && (
+            <g>
+              {/* Spesso fondo in cristallo ghiacciato */}
+              <rect x="17" y="38.5" width="14" height="4.5" rx="1" fill="url(#glassBaseGrad)" />
+              <rect x="17" y="39.5" width="14" height="1.5" fill="#bae6fd" opacity="0.6" />
+              {/* Liquido paglierino brillante */}
+              <rect x="17" y="13" width="14" height="25.5" fill="url(#pilsStrawGrad)" />
+              {/* Catene di bollicine perlage */}
+              <circle cx="21" cy="35" r="0.8" fill="#ffffff" />
+              <circle cx="21.5" cy="29" r="0.9" fill="#ffffff" />
+              <circle cx="21" cy="23" r="1" fill="#ffffff" />
+              <circle cx="26" cy="33" r="0.9" fill="#ffffff" />
+              <circle cx="25.5" cy="26" r="1" fill="#ffffff" />
+              <circle cx="26" cy="19" r="0.8" fill="#ffffff" />
+              {/* Corona di schiuma compatta */}
+              <path d="M16.5 13.5 C16.5 9.5, 19.5 7.5, 24 7.5 C28.5 7.5, 31.5 9.5, 31.5 13.5 Z" fill="url(#foam3DGrad)" />
+              {/* Riflesso laser verticale + Contorno */}
+              <line x1="19.2" y1="14.5" x2="19.2" y2="37.5" stroke="#ffffff" strokeWidth="1.8" strokeLinecap="round" opacity="0.75" />
+              <rect x="17" y="9.5" width="14" height="33.5" rx="1.2" stroke="#e2e8f0" strokeWidth="1.6" fill="none" />
+            </g>
+          )}
 
-      {effectiveType === 'ipa' && (
-        <svg viewBox="0 0 48 48" className="w-full h-full">
-          <path d="M15 13L11.5 23.5L24 30L36.5 23.5L33 13H15Z" fill="#ea580c" />
-          <path d="M14.5 13.5C14.5 10.5 18 9.5 24 9.5C30 9.5 33.5 10.5 33.5 13.5H14.5Z" fill="#fff7ed" />
-          <path d="M15 10.5L11 23.5L24 30.5L37 23.5L33 10.5" stroke="#e2e8f0" strokeWidth="1.8" fill="none" />
-          <path d="M24 30.5V41.5" stroke="#cbd5e1" strokeWidth="2.4" />
-          <path d="M15.5 42.5C18 40.8 30 40.8 32.5 42.5" stroke="#e2e8f0" strokeWidth="2.6" strokeLinecap="round" />
-        </svg>
-      )}
+          {/* 4. OKTOBERFEST (BOCCALE MASSKRUG 1L CON FOSSETTE 3D E MONTAGNA DI SCHIUMA) */}
+          {effectiveType === 'keller' && (
+            <g>
+              {/* Manico gigante da 1 Litro */}
+              <path d="M34 18 H40.5 C42.8 18, 43.8 20, 43.8 27.5 C43.8 35, 42.8 37, 40.5 37 H34" stroke="#e2e8f0" strokeWidth="3.4" fill="none" strokeLinejoin="round" />
+              {/* Base pesante */}
+              <rect x="8.5" y="39.5" width="25.5" height="3.5" rx="2" fill="url(#glassBaseGrad)" />
+              {/* Liquido festbier dorato carico */}
+              <rect x="8.5" y="15" width="25.5" height="25" rx="2" fill="url(#goldWeissGrad)" />
+              {/* Griglia Fossette 3D (Oktoberfest Maßkrug) */}
+              {[19, 26.5, 33.5].map((yPos, rIdx) =>
+                [11, 18.5, 26].map((xPos, cIdx) => (
+                  <rect
+                    key={`${rIdx}-${cIdx}`}
+                    x={xPos}
+                    y={yPos}
+                    width="5.8"
+                    height="5.5"
+                    rx="1.4"
+                    fill="#fef08a"
+                    fillOpacity="0.18"
+                    stroke="#fef9c3"
+                    strokeWidth="0.9"
+                    opacity="0.75"
+                  />
+                ))
+              )}
+              {/* Montagna di schiuma strabordante */}
+              <path d="M7.5 15.5 C6.5 11, 10.5 8.5, 14.5 9.5 C17 6, 23 5.5, 26 9 C30 7.5, 36 10, 35 15.5 Z" fill="url(#foam3DGrad)" />
+              {/* Riflesso sinistro + Contorno */}
+              <line x1="10.8" y1="17" x2="10.8" y2="38.5" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" opacity="0.6" />
+              <rect x="8.5" y="14" width="25.5" height="29" rx="3" stroke="#e2e8f0" strokeWidth="1.8" fill="none" />
+            </g>
+          )}
 
-      {effectiveType === 'session_ipa' && (
-        <svg viewBox="0 0 48 48" className="w-full h-full">
-          <path d="M13.5 14L12 19.5L14 23.5L16.5 42H31.5L34 23.5L36 19.5L34.5 14H13.5Z" fill="#fde047" />
-          <path d="M13 14.5C13 11 16 9.5 24 9.5C32 9.5 35 11 35 14.5H13Z" fill="#ffffff" />
-          <path d="M13.5 11L11.8 19.5L14 23.5L16.5 42.5H31.5L34 23.5L36.2 19.5L34.5 11" stroke="#e2e8f0" strokeWidth="1.8" fill="none" />
-        </svg>
-      )}
+          {/* 5. IPA ARTIGIANALE (CALICE TEKU ANGOLATO DA DEGUSTAZIONE) */}
+          {effectiveType === 'ipa' && (
+            <g>
+              {/* Stelo lungo e piede Teku */}
+              <path d="M24 30.5 V42" stroke="url(#glassBaseGrad)" strokeWidth="2.6" />
+              <path d="M15.5 43 C18.5 41, 29.5 41, 32.5 43 Z" fill="url(#glassBaseGrad)" stroke="#e2e8f0" strokeWidth="1.2" />
+              {/* Coppa angolata Teku con IPA ambrata */}
+              <path d="M16 12.5 L11.5 23.5 L24 31 L36.5 23.5 L32 12.5 Z" fill="url(#amberIpaGrad)" />
+              {/* Schiuma densa aromatica */}
+              <path d="M15.5 13 C15.5 9.5, 19 8, 24 8 C29 8, 32.5 9.5, 32.5 13 Z" fill="url(#foam3DGrad)" />
+              {/* Riflesso geometrico Teku + Contorno */}
+              <path d="M17.2 14 L13.8 22.8 L22 28" stroke="#ffffff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" opacity="0.65" />
+              <path d="M16.5 9.5 L11.5 23.5 L24 31 L36.5 23.5 L31.5 9.5" stroke="#e2e8f0" strokeWidth="1.6" fill="none" strokeLinejoin="round" />
+            </g>
+          )}
 
-      {effectiveType === 'dipa' && (
-        <svg viewBox="0 0 48 48" className="w-full h-full">
-          <path d="M14 13C15.5 17 11 22 13 27.5C15 31.5 19.5 33 24 33C28.5 33 33 31.5 35 27.5C37 22 32.5 17 34 13H14Z" fill="#c2410c" />
-          <path d="M13.5 13.5C13.5 10.5 17.5 9.5 24 9.5C30.5 9.5 34.5 10.5 34.5 13.5H13.5Z" fill="#ffedd5" />
-          <path d="M13.5 11C15.5 16 10.5 21.5 12.8 27.5C14.8 32 19.5 33.5 24 33.5C28.5 33.5 33.2 32 35.2 27.5C37.5 21.5 32.5 16 34.5 11" stroke="#e2e8f0" strokeWidth="1.8" fill="none" />
-          <path d="M24 33.5V41.5" stroke="#cbd5e1" strokeWidth="2.6" />
-          <path d="M16 42.5C18.5 41 29.5 41 32 42.5" stroke="#e2e8f0" strokeWidth="2.6" strokeLinecap="round" />
-        </svg>
-      )}
+          {/* 6. SESSION IPA (PINTA NONIC INGLESE CON GOCCE DI CONDENSA) */}
+          {effectiveType === 'session_ipa' && (
+            <g>
+              {/* Fondo cristallo */}
+              <path d="M15.8 39.5 H32.2 L31.5 43 H16.5 Z" fill="url(#glassBaseGrad)" />
+              {/* Corpo Pinta Nonic con rigonfiamento */}
+              <path d="M13.5 13.5 L11.5 18.5 L14 23 L16 40 H32 L34 23 L36.5 18.5 L34.5 13.5 Z" fill="url(#lagerGoldGrad)" />
+              {/* Schiuma bianca */}
+              <path d="M13 14 C13 10.5, 16.5 8.5, 24 8.5 C31.5 8.5, 35 10.5, 35 14 Z" fill="url(#foam3DGrad)" />
+              {/* Riflesso sul rigonfiamento Nonic + gocce di condensa */}
+              <path d="M15.2 15 L13.8 18.5 L15.8 22.5 L17.5 38" stroke="#ffffff" strokeWidth="1.6" strokeLinecap="round" fill="none" opacity="0.65" />
+              <circle cx="28" cy="26" r="1" fill="#ffffff" opacity="0.7" />
+              <circle cx="26" cy="33" r="1.2" fill="#ffffff" opacity="0.7" />
+              <path d="M13.5 10.5 L11.5 18.5 L14 23 L16.2 43 H31.8 L34 23 L36.5 18.5 L34.5 10.5" stroke="#e2e8f0" strokeWidth="1.6" fill="none" strokeLinejoin="round" />
+            </g>
+          )}
 
-      {effectiveType === 'triple' && (
-        <svg viewBox="0 0 48 48" className="w-full h-full">
-          <path d="M11 14C11 25 16.5 30 24 30C31.5 30 37 25 37 14H11Z" fill="#d97706" />
-          <path d="M10.5 14.5C10.5 11.5 14 10 17.5 11C20 9.5 28 9.5 30.5 11C34 10 37.5 11.5 37.5 14.5H10.5Z" fill="#fffbeb" />
-          <path d="M10 12C10 25 16 30.5 24 30.5C32 30.5 38 25 38 12" stroke="#e2e8f0" strokeWidth="1.8" fill="none" />
-          <path d="M24 30.5V41" stroke="#cbd5e1" strokeWidth="2.8" />
-          <path d="M15 42.5C17 40.5 31 40.5 33 42.5" stroke="#e2e8f0" strokeWidth="2.5" strokeLinecap="round" />
-        </svg>
-      )}
+          {/* 7. DIPA - DOUBLE IPA (SNIFTER PANCIUTO RAMATO INTENSO) */}
+          {effectiveType === 'dipa' && (
+            <g>
+              {/* Stelo corto e base */}
+              <path d="M24 33.5 V42" stroke="url(#glassBaseGrad)" strokeWidth="3" />
+              <path d="M15.5 43 C18.5 41, 29.5 41, 32.5 43 Z" fill="url(#glassBaseGrad)" stroke="#e2e8f0" strokeWidth="1.3" />
+              {/* Coppa panciuta Snifter */}
+              <path d="M15 14 C10 23, 12.5 34, 24 34 C35.5 34, 38 23, 33 14 Z" fill="url(#copperDipaGrad)" />
+              {/* Schiuma avorio */}
+              <path d="M14.5 14.5 C14.5 11.2, 18.5 9.5, 24 9.5 C29.5 9.5, 33.5 11.2, 33.5 14.5 Z" fill="url(#warmFoamGrad)" />
+              {/* Riflesso curvo sulla pancia */}
+              <path d="M16.5 16.5 C13.2 22.5, 14.8 30, 20.5 32" stroke="#ffffff" strokeWidth="1.8" strokeLinecap="round" fill="none" opacity="0.6" />
+              <path d="M15.5 11.5 C9.8 22, 12 34, 24 34 C36 34, 38.2 22, 32.5 11.5" stroke="#e2e8f0" strokeWidth="1.6" fill="none" strokeLinecap="round" />
+            </g>
+          )}
 
-      {effectiveType === 'trappista' && (
-        <svg viewBox="0 0 48 48" className="w-full h-full">
-          <path d="M8.5 15C9.5 26.5 15.5 31 24 31C32.5 31 38.5 26.5 39.5 15H8.5Z" fill="#7c2d12" />
-          <path d="M8 15.5C8 12.5 13 11 24 11C35 11 40 12.5 40 15.5H8Z" fill="#fef3c7" />
-          <path d="M8 13.5C9 26.5 15.5 31.5 24 31.5C32.5 31.5 39 26.5 40 13.5" stroke="#fbbf24" strokeWidth="2" fill="none" />
-          <path d="M24 31.5V41" stroke="#cbd5e1" strokeWidth="3.2" />
-          <path d="M14 42.5C17 40.5 31 40.5 34 42.5" stroke="#fbbf24" strokeWidth="2.6" strokeLinecap="round" />
-        </svg>
-      )}
+          {/* 8. ROSSA / DOPPIO MALTO (CALICE THISTLE SCOZZESE ROSSO RUBINO) */}
+          {effectiveType === 'bock' && (
+            <g>
+              {/* Stelo e piede */}
+              <path d="M24 33 V42" stroke="url(#glassBaseGrad)" strokeWidth="2.8" />
+              <path d="M15.5 43 C18.5 41, 29.5 41, 32.5 43 Z" fill="url(#glassBaseGrad)" stroke="#e2e8f0" strokeWidth="1.3" />
+              {/* Corpo a fiore di cardo (panciuto sotto, stretto a metà e svasato sopra) */}
+              <path d="M12.5 13 L15.5 19.5 C11.5 24.5, 13 33, 24 33 C35 33, 36.5 24.5, 32.5 19.5 L35.5 13 Z" fill="url(#rubyBockGrad)" />
+              {/* Cuore rubino luminoso al centro */}
+              <ellipse cx="24" cy="26" rx="6" ry="4" fill="#ef4444" opacity="0.35" />
+              {/* Schiuma nocciola */}
+              <path d="M12 13.5 C12 10.2, 16.5 8.5, 24 8.5 C31.5 8.5, 36 10.2, 36 13.5 Z" fill="url(#warmFoamGrad)" />
+              {/* Doppio riflesso curvo */}
+              <path d="M15 14.5 L17.2 19.5 C14.5 23.5, 15.5 29.5, 20 31" stroke="#ffffff" strokeWidth="1.6" strokeLinecap="round" fill="none" opacity="0.6" />
+              <path d="M12.5 11 L15.5 19.5 C11.5 24.5, 13 33, 24 33 C35 33, 36.5 24.5, 32.5 19.5 L35.5 11" stroke="#e2e8f0" strokeWidth="1.6" fill="none" strokeLinejoin="round" />
+            </g>
+          )}
 
-     {effectiveType === 'stout' && (
-        <svg viewBox="0 0 48 48" className="w-full h-full">
-          <path d="M13 15L14.5 19L16.5 42H31.5L33.5 19L35 15H13Z" fill="#1c1917" />
-          <path d="M13 15.5V11.5C13 10 15 9.5 24 9.5C33 9.5 35 10 35 11.5V15.5H13Z" fill="#f5deb3" />
-          <path d="M13 10.5L12 16.5L14.5 20L16.5 42.5H31.5L33.5 20L36 16.5L35 10.5" stroke="#cbd5e1" strokeWidth="1.8" fill="none" />
-        </svg>
-      )}
+          {/* 9. TRIPEL BELGA (CALICE D'ABBAZIA CON BORDO DORATO) */}
+          {effectiveType === 'triple' && (
+            <g>
+              {/* Stelo con nodo in cristallo */}
+              <path d="M24 31 V42" stroke="url(#glassBaseGrad)" strokeWidth="3" />
+              <circle cx="24" cy="35.5" r="2.3" fill="url(#glassBaseGrad)" stroke="#e2e8f0" strokeWidth="1" />
+              <path d="M15 43 C18 41, 30 41, 33 43 Z" fill="url(#glassBaseGrad)" stroke="#e2e8f0" strokeWidth="1.3" />
+              {/* Coppa larga dorata */}
+              <path d="M11 14 C11 26, 16.5 31.5, 24 31.5 C31.5 31.5, 37 26, 37 14 Z" fill="url(#lagerGoldGrad)" />
+              {/* Schiuma belga abbondante */}
+              <path d="M10.5 14 C10.5 9.5, 15.5 7, 24 7 C32.5 7, 37.5 9.5, 37.5 14 Z" fill="url(#foam3DGrad)" />
+              {/* Bordo dorato reale del calice */}
+              <line x1="11" y1="14" x2="37" y2="14" stroke="#facc15" strokeWidth="1.8" />
+              {/* Riflesso coppa + Contorno */}
+              <path d="M13.8 16 C14 23.5, 17.5 28, 22 29.5" stroke="#ffffff" strokeWidth="1.8" strokeLinecap="round" fill="none" opacity="0.65" />
+              <path d="M11 11.5 C11 25.5, 16.5 31.5, 24 31.5 C31.5 31.5, 37 25.5, 37 11.5" stroke="#e2e8f0" strokeWidth="1.6" fill="none" strokeLinecap="round" />
+            </g>
+          )}
 
-      {/* 9. PILSNER / KÖLSCH (CILINDRO STANGE SLANCIATO CON PERLAGE) */}
-      {effectiveType === 'pilsner' && (
-        <svg viewBox="0 0 48 48" className="w-full h-full">
-          <rect x="17.5" y="13" width="13" height="26.5" fill="#fef08a" />
-          <path d="M17 13.5C17 10.5 19.5 9 24 9C28.5 9 31 10.5 31 13.5H17Z" fill="#ffffff" />
-          <rect x="17.5" y="39" width="13" height="3.5" fill="#cbd5e1" opacity="0.85" />
-          <rect x="17.5" y="10" width="13" height="32.5" rx="1" stroke="#e2e8f0" strokeWidth="1.8" fill="none" />
-          <circle cx="21.5" cy="33" r="0.9" fill="#ffffff" />
-          <circle cx="25.5" cy="27" r="1" fill="#ffffff" />
-          <circle cx="23" cy="20" r="0.9" fill="#ffffff" />
-        </svg>
-      )}
+          {/* 10. TRAPPISTA (COPPA MONASTICA BRUNO-AMBRATA CON FASCIA ARGENTO) */}
+          {effectiveType === 'trappista' && (
+            <g>
+              {/* Stelo massiccio */}
+              <path d="M24 30.5 V42" stroke="url(#glassBaseGrad)" strokeWidth="3.4" />
+              <ellipse cx="24" cy="35" rx="3" ry="1.6" fill="#e2e8f0" />
+              <path d="M14 43 C18 40.8, 30 40.8, 34 43 Z" fill="url(#glassBaseGrad)" stroke="#e2e8f0" strokeWidth="1.4" />
+              {/* Coppa monastica svasata */}
+              <path d="M9.5 14.5 C10.5 25.5, 16.5 30.5, 24 30.5 C31.5 30.5, 37.5 25.5, 38.5 14.5 Z" fill="url(#trappistGrad)" />
+              {/* Riflesso ambrato centrale */}
+              <ellipse cx="24" cy="23" rx="7" ry="4" fill="#d97706" opacity="0.3" />
+              {/* Schiuma crema */}
+              <path d="M9.5 14.8 C9.5 11, 15.5 9, 24 9 C32.5 9, 38.5 11, 38.5 14.8 Z" fill="url(#warmFoamGrad)" />
+              {/* Fascia argento/oro sul bordo */}
+              <line x1="9.8" y1="15" x2="38.2" y2="15" stroke="#fde68a" strokeWidth="1.5" />
+              <path d="M12.8 17 C13.8 23.5, 17.5 27.5, 22 28.8" stroke="#ffffff" strokeWidth="1.7" strokeLinecap="round" fill="none" opacity="0.55" />
+              <path d="M9.5 12.5 C10.5 25.5, 16.5 30.5, 24 30.5 C31.5 30.5, 37.5 25.5, 38.5 12.5" stroke="#e2e8f0" strokeWidth="1.7" fill="none" strokeLinecap="round" />
+            </g>
+          )}
 
-      {/* 10. KELLER / OKTOBERFEST (BOCCALE MASSKRUG 1L CON FOSSETTE) */}
-      {effectiveType === 'keller' && (
-        <svg viewBox="0 0 48 48" className="w-full h-full">
-          <path d="M34 18H40C42 18 43 20 43 27.5C43 35 42 37 40 37H34" stroke="#e2e8f0" strokeWidth="3.2" fill="none" strokeLinejoin="round" />
-          <rect x="9" y="15" width="25" height="27" rx="3" fill="#f59e0b" />
-          <path d="M8 15.5C7.5 11.5 11 9.5 14.5 10.5C17 7.5 22.5 7.5 25 10.5C29 9 35 11 35 15.5H8Z" fill="#ffffff" />
-          <rect x="12" y="19" width="5.5" height="6" rx="1.2" stroke="#fde68a" strokeWidth="1" fill="none" opacity="0.75" />
-          <rect x="19" y="19" width="5.5" height="6" rx="1.2" stroke="#fde68a" strokeWidth="1" fill="none" opacity="0.75" />
-          <rect x="26" y="19" width="5.5" height="6" rx="1.2" stroke="#fde68a" strokeWidth="1" fill="none" opacity="0.75" />
-          <rect x="12" y="27" width="5.5" height="6" rx="1.2" stroke="#fde68a" strokeWidth="1" fill="none" opacity="0.75" />
-          <rect x="19" y="27" width="5.5" height="6" rx="1.2" stroke="#fde68a" strokeWidth="1" fill="none" opacity="0.75" />
-          <rect x="26" y="27" width="5.5" height="6" rx="1.2" stroke="#fde68a" strokeWidth="1" fill="none" opacity="0.75" />
-          <rect x="9" y="14" width="25" height="28.5" rx="3" stroke="#e2e8f0" strokeWidth="2" fill="none" />
-        </svg>
-      )}
+          {/* 11. STOUT IRLANDESE (PINTA SCURA CON CREMA NITRO VELLUTATA) */}
+          {effectiveType === 'stout' && (
+            <g>
+              {/* Fondo vetro */}
+              <path d="M16.2 40 H31.8 L31.2 43 H16.8 Z" fill="url(#glassBaseGrad)" />
+              {/* Corpo nero ossidiana */}
+              <path d="M13 15 L14.5 19.5 L16.2 40.5 H31.8 L33.5 19.5 L35 15 Z" fill="url(#stoutBlackGrad)" />
+              {/* Effetto cascata di azoto sotto la schiuma */}
+              <path d="M13.2 15.5 H34.8 L34.2 18 H13.8 Z" fill="#78350f" opacity="0.45" />
+              {/* Crema densa Irlandese color avorio/cappuccino */}
+              <path d="M12.8 15.5 V11.2 C12.8 9.2, 15.5 8.2, 24 8.2 C32.5 8.2, 35.2 9.2, 35.2 11.2 V15.5 Z" fill="url(#warmFoamGrad)" />
+              {/* Riflesso lucido sul vetro scuro */}
+              <path d="M15.2 16.5 L16.3 20 L17.8 38.5" stroke="#ffffff" strokeWidth="1.7" strokeLinecap="round" fill="none" opacity="0.5" />
+              <path d="M13 10.5 L12.2 16.5 L14.5 20 L16.5 43 H31.5 L33.5 20 L35.8 16.5 L35 10.5" stroke="#cbd5e1" strokeWidth="1.6" fill="none" strokeLinejoin="round" />
+            </g>
+          )}
 
-      {/* 11. BOCK / ROSSA DOPPIO MALTO (CALICE THISTLE SCOZZESE ROSSO RUBINO) */}
-      {effectiveType === 'bock' && (
-        <svg viewBox="0 0 48 48" className="w-full h-full">
-          <path d="M13 13L15.5 19.5C12 24 13.5 32 24 32C34.5 32 36 24 32.5 19.5L35 13H13Z" fill="#991b1b" />
-          <path d="M12.5 13.5C12.5 10.5 16.5 9 24 9C31.5 9 35.5 10.5 35.5 13.5H12.5Z" fill="#fde68a" />
-          <path d="M12.5 11L15.5 19.5C11.8 24 13.2 32.5 24 32.5C34.8 32.5 36.2 24 32.5 19.5L35.5 11" stroke="#e2e8f0" strokeWidth="1.8" fill="none" strokeLinejoin="round" />
-          <path d="M24 32.5V41.5" stroke="#cbd5e1" strokeWidth="2.8" />
-          <path d="M15.5 42.5C18 40.8 30 40.8 32.5 42.5" stroke="#e2e8f0" strokeWidth="2.6" strokeLinecap="round" />
-        </svg>
-      )}
-
-      {/* 12. BOCCIONE 66CL (BOTTIGLIA IGNORANTE STILE PERONI) */}
-      {effectiveType === 'boccione' && (
-        <svg viewBox="0 0 48 48" className="w-full h-full">
-          <path d="M20.5 7H27.5L28.5 15C28.8 18.5 33.5 21 33.5 25.5V41C33.5 42.5 32.5 43.5 31 43.5H17C15.5 43.5 14.5 42.5 14.5 41V25.5C14.5 21 19.2 18.5 19.5 15L20.5 7Z" fill="#78350f" stroke="#d97706" strokeWidth="1.5" strokeLinejoin="round" />
-          {/* Tappo a corona dorato */}
-          <rect x="19.5" y="5" width="9" height="2.8" rx="1" fill="#facc15" stroke="#b45309" strokeWidth="0.8" />
-          {/* Collarino superiore */}
-          <path d="M19.8 11.5H28.2L28.6 15H19.4Z" fill="#fef2f2" stroke="#dc2626" strokeWidth="0.8" />
-          {/* Etichetta classica bianca con banda rossa e bordo oro */}
-          <rect x="15.5" y="25" width="17" height="12.5" rx="1" fill="#ffffff" stroke="#eab308" strokeWidth="1.2" />
-          <path d="M16 34.5L32 27.5" stroke="#dc2626" strokeWidth="3.8" />
-          <text x="24" y="33" textAnchor="middle" fill="#ffffff" fontSize="5.6" fontWeight="900">66cl</text>
-          {/* Riflesso vetro ghiacciato */}
-          <path d="M17.5 22V39" stroke="#fde68a" strokeWidth="1.2" strokeLinecap="round" opacity="0.45" />
+          {/* 12. BOCCIONE 66CL PRO (BOTTIGLIA 3D GHIACCIATA STILE PERONI) */}
+          {effectiveType === 'boccione' && (
+            <g>
+              {/* Corpo Bottiglia Marrone 3D */}
+              <path
+                d="M20.2 6.8 H27.8 L28.8 15 C29.2 18.5, 34 21, 34 25.5 V41 C34 42.6, 32.8 43.8, 31.2 43.8 H16.8 C15.2 43.8, 14 42.6, 14 41 V25.5 C14 21, 18.8 18.5, 19.2 15 L20.2 6.8 Z"
+                fill="url(#trappistGrad)"
+                stroke="#f59e0b"
+                strokeWidth="1.2"
+                strokeLinejoin="round"
+              />
+              {/* Tappo a corona zigrinato */}
+              <rect x="19.2" y="4.5" width="9.6" height="2.8" rx="1" fill="#facc15" stroke="#b45309" strokeWidth="0.9" />
+              {/* Collarino superiore */}
+              <path d="M19.6 11 H28.4 L28.8 15 H19.2 Z" fill="#ffffff" stroke="#dc2626" strokeWidth="0.9" />
+              <line x1="19.5" y1="13" x2="28.5" y2="13" stroke="#dc2626" strokeWidth="1.5" />
+              {/* Etichetta iconica bianca/oro con fascia diagonale rossa */}
+              <rect x="15.2" y="24.5" width="17.6" height="13" rx="1.2" fill="#ffffff" stroke="#eab308" strokeWidth="1.3" />
+              <path d="M15.8 35 L32.2 27" stroke="#dc2626" strokeWidth="4.2" />
+              <text x="24" y="33.2" textAnchor="middle" fill="#ffffff" fontSize="6" fontWeight="900">66cl</text>
+              {/* Riflesso vetro e goccioline ghiacciate */}
+              <path d="M16.8 21.5 V40.5" stroke="#fde68a" strokeWidth="1.5" strokeLinecap="round" opacity="0.55" />
+              <circle cx="30.5" cy="21" r="1" fill="#bae6fd" opacity="0.85" />
+              <circle cx="29" cy="39.5" r="1.1" fill="#bae6fd" opacity="0.85" />
+            </g>
+          )}
         </svg>
       )}
     </div>
