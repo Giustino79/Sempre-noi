@@ -422,12 +422,13 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md', isRumeno = false, streak
             </g>
           )}
 
-          {/* 5. IPA ARTIGIANALE (CALICE TEKU ANGOLATO DA DEGUSTAZIONE) */}
+          {/* 5. IPA ARTIGIANALE (CALICE TEKU ANGOLATO CON STELO IN CRISTALLO) */}
           {effectiveType === 'ipa' && (
             <g>
-              {/* Stelo lungo e piede Teku */}
-              <path d="M24 30.5 V42" stroke="url(#glassBaseGrad)" strokeWidth="2.6" />
-              <path d="M15.5 43 C18.5 41, 29.5 41, 32.5 43 Z" fill="url(#glassBaseGrad)" stroke="#e2e8f0" strokeWidth="1.2" />
+              {/* Stelo lungo scolpito e piede Teku */}
+              <path d="M22.3 30 L22.8 36.5 L21.2 42.2 H26.8 L25.2 36.5 L25.7 30 Z" fill="url(#glassBaseGrad)" stroke="#cbd5e1" strokeWidth="1" />
+              <line x1="23.6" y1="30.8" x2="23.6" y2="41.5" stroke="#ffffff" strokeWidth="1.1" strokeLinecap="round" opacity="0.85" />
+              <path d="M15.5 43 C18.5 40.8, 29.5 40.8, 32.5 43 Z" fill="url(#glassBaseGrad)" stroke="#e2e8f0" strokeWidth="1.3" />
               {/* Coppa angolata Teku con IPA ambrata */}
               <path d="M16 12.5 L11.5 23.5 L24 31 L36.5 23.5 L32 12.5 Z" fill="url(#amberIpaGrad)" />
               {/* Schiuma densa aromatica */}
@@ -455,12 +456,13 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md', isRumeno = false, streak
             </g>
           )}
 
-          {/* 7. DIPA - DOUBLE IPA (SNIFTER PANCIUTO RAMATO INTENSO) */}
+          {/* 7. DIPA - DOUBLE IPA (SNIFTER PANCIUTO CON STELO MASSICCIO) */}
           {effectiveType === 'dipa' && (
             <g>
-              {/* Stelo corto e base */}
-              <path d="M24 33.5 V42" stroke="url(#glassBaseGrad)" strokeWidth="3" />
-              <path d="M15.5 43 C18.5 41, 29.5 41, 32.5 43 Z" fill="url(#glassBaseGrad)" stroke="#e2e8f0" strokeWidth="1.3" />
+              {/* Stelo Snifter in cristallo e base */}
+              <path d="M21.6 33 L22.5 37.8 L20.8 42.2 H27.2 L25.5 37.8 L26.4 33 Z" fill="url(#glassBaseGrad)" stroke="#cbd5e1" strokeWidth="1.1" />
+              <line x1="23.5" y1="34" x2="23.5" y2="41.5" stroke="#ffffff" strokeWidth="1.2" strokeLinecap="round" opacity="0.85" />
+              <path d="M15.5 43 C18.5 40.8, 29.5 40.8, 32.5 43 Z" fill="url(#glassBaseGrad)" stroke="#e2e8f0" strokeWidth="1.3" />
               {/* Coppa panciuta Snifter */}
               <path d="M15 14 C10 23, 12.5 34, 24 34 C35.5 34, 38 23, 33 14 Z" fill="url(#copperDipaGrad)" />
               {/* Schiuma avorio */}
@@ -471,12 +473,14 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md', isRumeno = false, streak
             </g>
           )}
 
-          {/* 8. ROSSA / DOPPIO MALTO (CALICE THISTLE SCOZZESE ROSSO RUBINO) */}
+          {/* 8. ROSSA / DOPPIO MALTO (CALICE THISTLE SCOZZESE CON STELO SCOLPITO) */}
           {effectiveType === 'bock' && (
             <g>
-              {/* Stelo e piede */}
-              <path d="M24 33 V42" stroke="url(#glassBaseGrad)" strokeWidth="2.8" />
-              <path d="M15.5 43 C18.5 41, 29.5 41, 32.5 43 Z" fill="url(#glassBaseGrad)" stroke="#e2e8f0" strokeWidth="1.3" />
+              {/* Stelo Thistle tornito e piede */}
+              <path d="M21.8 32.2 L22.6 37.5 L21 42.2 H27 L25.4 37.5 L26.2 32.2 Z" fill="url(#glassBaseGrad)" stroke="#cbd5e1" strokeWidth="1.1" />
+              <ellipse cx="24" cy="36.8" rx="2.5" ry="1.1" fill="#e2e8f0" stroke="#94a3b8" strokeWidth="0.7" />
+              <line x1="23.5" y1="33" x2="23.5" y2="41.5" stroke="#ffffff" strokeWidth="1.1" strokeLinecap="round" opacity="0.85" />
+              <path d="M15.5 43 C18.5 40.8, 29.5 40.8, 32.5 43 Z" fill="url(#glassBaseGrad)" stroke="#e2e8f0" strokeWidth="1.3" />
               {/* Corpo a fiore di cardo (panciuto sotto, stretto a metà e svasato sopra) */}
               <path d="M12.5 13 L15.5 19.5 C11.5 24.5, 13 33, 24 33 C35 33, 36.5 24.5, 32.5 19.5 L35.5 13 Z" fill="url(#rubyBockGrad)" />
               {/* Cuore rubino luminoso al centro */}
@@ -489,13 +493,14 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md', isRumeno = false, streak
             </g>
           )}
 
-          {/* 9. TRIPEL BELGA (CALICE D'ABBAZIA CON BORDO DORATO) */}
+          {/* 9. TRIPEL BELGA (CALICE D'ABBAZIA CON STELO E NODO IN CRISTALLO) */}
           {effectiveType === 'triple' && (
             <g>
-              {/* Stelo con nodo in cristallo */}
-              <path d="M24 31 V42" stroke="url(#glassBaseGrad)" strokeWidth="3" />
-              <circle cx="24" cy="35.5" r="2.3" fill="url(#glassBaseGrad)" stroke="#e2e8f0" strokeWidth="1" />
-              <path d="M15 43 C18 41, 30 41, 33 43 Z" fill="url(#glassBaseGrad)" stroke="#e2e8f0" strokeWidth="1.3" />
+              {/* Stelo completo con nodo centrale e piede */}
+              <path d="M21.8 30.8 L22.6 36.5 L21 42.2 H27 L25.4 36.5 L26.2 30.8 Z" fill="url(#glassBaseGrad)" stroke="#cbd5e1" strokeWidth="1.1" />
+              <circle cx="24" cy="36" r="2.4" fill="url(#glassBaseGrad)" stroke="#e2e8f0" strokeWidth="1.1" />
+              <line x1="23.5" y1="31.5" x2="23.5" y2="41.5" stroke="#ffffff" strokeWidth="1.1" strokeLinecap="round" opacity="0.85" />
+              <path d="M15 43 C18 40.8, 30 40.8, 33 43 Z" fill="url(#glassBaseGrad)" stroke="#e2e8f0" strokeWidth="1.3" />
               {/* Coppa larga dorata */}
               <path d="M11 14 C11 26, 16.5 31.5, 24 31.5 C31.5 31.5, 37 26, 37 14 Z" fill="url(#lagerGoldGrad)" />
               {/* Schiuma belga abbondante */}
@@ -508,13 +513,14 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md', isRumeno = false, streak
             </g>
           )}
 
-          {/* 10. TRAPPISTA (COPPA MONASTICA BRUNO-AMBRATA CON FASCIA ARGENTO) */}
+          {/* 10. TRAPPISTA (COPPA MONASTICA CON STELO MASSICCIO IN CRISTALLO) */}
           {effectiveType === 'trappista' && (
             <g>
-              {/* Stelo massiccio */}
-              <path d="M24 30.5 V42" stroke="url(#glassBaseGrad)" strokeWidth="3.4" />
-              <ellipse cx="24" cy="35" rx="3" ry="1.6" fill="#e2e8f0" />
-              <path d="M14 43 C18 40.8, 30 40.8, 34 43 Z" fill="url(#glassBaseGrad)" stroke="#e2e8f0" strokeWidth="1.4" />
+              {/* Stelo monastico largo con anello e piede */}
+              <path d="M21.2 29.8 L22.4 36 L20.5 42.2 H27.5 L25.6 36 L26.8 29.8 Z" fill="url(#glassBaseGrad)" stroke="#cbd5e1" strokeWidth="1.2" />
+              <ellipse cx="24" cy="35.5" rx="3.2" ry="1.6" fill="#e2e8f0" stroke="#94a3b8" strokeWidth="0.9" />
+              <line x1="23.4" y1="30.8" x2="23.4" y2="41.5" stroke="#ffffff" strokeWidth="1.2" strokeLinecap="round" opacity="0.85" />
+              <path d="M14 43 C18 40.6, 30 40.6, 34 43 Z" fill="url(#glassBaseGrad)" stroke="#e2e8f0" strokeWidth="1.4" />
               {/* Coppa monastica svasata */}
               <path d="M9.5 14.5 C10.5 25.5, 16.5 30.5, 24 30.5 C31.5 30.5, 37.5 25.5, 38.5 14.5 Z" fill="url(#trappistGrad)" />
               {/* Riflesso ambrato centrale */}
