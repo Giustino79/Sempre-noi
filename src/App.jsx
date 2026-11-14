@@ -1108,8 +1108,10 @@ export default function App() {
   const [format, setFormat] = useState('spina50');
   const [abvTier, setAbvTier] = useState('leggera');
   const [qualityTier, setQualityTier] = useState('spina');
-  const [bonusSempreNoi, setBonusSempreNoi] = useState(false);
+const [bonusSempreNoi, setBonusSempreNoi] = useState(false);
   const [bonusGocciaDOro, setBonusGocciaDOro] = useState(() => checkGocciaWindow().isOpen);
+  const [bonusPioggia, setBonusPioggia] = useState(false); // Sempre spento di default: si attiva solo a mano!
+  const [romeWeather, setRomeWeather] = useState({ isRaining: false, desc: 'Cielo asciutto su Roma' });
   const [capturedPhoto, setCapturedPhoto] = useState(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const videoRef = useRef(null);
@@ -1130,6 +1132,44 @@ export default function App() {
       if (!checkGocciaWindow().isOpen) setBonusGocciaDOro(false);
     }, 10000);
     return () => clearInterval(timer);
+  }, []);
+
+  // Controllo Meteo Live su Roma (Open-Meteo: Centro, EUR e Roma Nord)
+  useEffect(() => {
+    const fetchRomeRain = async () => {
+      try {
+        const res = await fetch(
+          'https://api.open-meteo.com/v1/forecast?latitude=41.8919,41.8300,41.9400&longitude=12.5113,12.4700,12.5200&current=precipitation,rain,showers,weather_code&timezone=Europe%2FRome'
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        const stations = Array.isArray(data) ? data : [data];
+        const rainCodes = [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99];
+
+        const rainingNow = stations.some(st => {
+          const cur = st?.current;
+          if (!cur) return false;
+          return (
+            Number(cur.precipitation || 0) > 0 ||
+            Number(cur.rain || 0) > 0 ||
+            Number(cur.showers || 0) > 0 ||
+            rainCodes.includes(Number(cur.weather_code))
+          );
+        });
+
+        setRomeWeather({
+          isRaining: rainingNow,
+          desc: rainingNow
+            ? 'Pioggia rilevata a Roma • Attiva solo se piove nel tuo quartiere e sei fuori casa!'
+            : 'Meteo Roma asciutto • Bonus bloccato'
+        });
+        if (!rainingNow) setBonusPioggia(false);
+      } catch (e) {}
+    };
+
+    fetchRomeRain();
+    const weatherTimer = setInterval(fetchRomeRain, 10 * 60 * 1000);
+    return () => clearInterval(weatherTimer);
   }, []);
 
   const [isGodMode, setIsGodMode] = useState(() => localStorage.getItem('sempre_noi_god_mode') === 'true');
@@ -1156,9 +1196,9 @@ export default function App() {
   };
 
   const gocciaStatus = useMemo(() => isGodMode ? { isOpen: true, isTooEarly: false } : checkGocciaWindow(), [clockTick, isGodMode]);
+  const rainStatus = useMemo(() => isGodMode ? { isOpen: true, desc: 'Sbloccato (God Mode) • Attiva se piove fuori casa' } : { isOpen: romeWeather.isRaining, desc: romeWeather.desc }, [romeWeather, isGodMode]);
   const captainWindowStatus = useMemo(() => isGodMode ? { isOpen: true, reason: '' } : checkCaptainWindow(), [clockTick, isGodMode]);
   const currentWeekKey = useMemo(() => getCurrentWeekKey(), [clockTick]);
-
   const pushLeagueToCloud = async (leagueObj) => {
     if (!cleanDbUrl || !leagueObj?.id) return;
     try {
@@ -1859,24 +1899,25 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
     const mult = aMap[abvTier].mult;
     const qualityBonus = qMap[qualityTier].bonus;
     const typeBonus = tMap[safeType].bonus;
-    const gocciaBonus = gocciaStatus.isOpen && bonusGocciaDOro ? 3 : 0;
+   const gocciaBonus = gocciaStatus.isOpen && bonusGocciaDOro ? 3 : 0;
+    const rainBonus = rainStatus.isOpen && bonusPioggia ? 2 : 0;
     const isWithin4h = Boolean(myMemberProfile?.captainActive && (!myMemberProfile?.captainExpiresAtMs || clockTick < Number(myMemberProfile.captainExpiresAtMs)));
     const eligibleForCaptainDouble = isWithin4h && (myMemberProfile?.captainBeersSubmitted || 0) < 4;
 
     let subtotal = (base * mult) + qualityBonus + typeBonus;
     if (bonusSempreNoi) subtotal *= 1.3;
-    subtotal += gocciaBonus;
+    subtotal += gocciaBonus + rainBonus;
     if (eligibleForCaptainDouble) subtotal *= 2;
 
     return {
       total: Number(subtotal.toFixed(1)),
-      base, liters, mult, qualityBonus, typeBonus, gocciaBonus, eligibleForCaptainDouble,
+      base, liters, mult, qualityBonus, typeBonus, gocciaBonus, rainBonus, eligibleForCaptainDouble,
       nextCaptainSlot: eligibleForCaptainDouble ? (myMemberProfile?.captainBeersSubmitted || 0) + 1 : null,
       formatLabel: fMap[safeFormat].label,
       abvLabel: aMap[abvTier].label,
       styleLabel: `${qMap[qualityTier].label} • ${tMap[safeType].label}`
     };
-  }, [format, abvTier, qualityTier, beerTypeTier, bonusSempreNoi, bonusGocciaDOro, gocciaStatus.isOpen, myMemberProfile, clockTick]);
+  }, [format, abvTier, qualityTier, beerTypeTier, bonusSempreNoi, bonusGocciaDOro, bonusPioggia, gocciaStatus.isOpen, rainStatus.isOpen, myMemberProfile, clockTick]);
 
   const handleAddBeer = (e) => {
     e.preventDefault();
@@ -1888,7 +1929,7 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
     const isCapSlot = calculatedDrink.eligibleForCaptainDouble;
 
     const prevCount = getActiveSessionStreak(myMemberProfile, nowMs);
-const newCount = prevCount + 1;
+    const newCount = prevCount + 1;
     if (newCount >= 1 && newCount <= 3) setPersonalDisclaimer(PERSONAL_DISCLAIMERS[newCount]);
 
     const newsItems = [];
@@ -1907,6 +1948,7 @@ const newCount = prevCount + 1;
     if (isRumeno) activeBonuses.push('Passaporto Rumeno (-5pt • 🥫 24h)');
     if (bonusSempreNoi) activeBonuses.push('Sempre noi (x1.3)');
     if (gocciaStatus.isOpen && bonusGocciaDOro) activeBonuses.push("Goccia d'Oro (+3pt)");
+    if (rainStatus.isOpen && bonusPioggia) activeBonuses.push('🌧️ Terreno Scivoloso (+2pt • Solo fuori casa)');
     if (isCapSlot) activeBonuses.push(`👑 Birra Capitano ${calculatedDrink.nextCaptainSlot}/4 (x2)`);
 
     const newBeer = {
@@ -1936,7 +1978,7 @@ const newCount = prevCount + 1;
       return updated;
     }));
 
-    setBeerTitle(''); setCapturedPhoto(null); setBonusSempreNoi(false);
+    setBeerTitle(''); setCapturedPhoto(null); setBonusSempreNoi(false); setBonusPioggia(false);
     showToast(`📸 Birra inviata in Sala VAR (${calculatedDrink.total >= 0 ? `+${calculatedDrink.total}` : calculatedDrink.total} pt in palio)!`, 'success');
     setActiveTab('var');
   };
@@ -3241,7 +3283,7 @@ const newCount = prevCount + 1;
                 <span className="text-sm font-black text-emerald-400">x1,3</span>
               </div> 
 
-              {/* BONUS 2: Goccia d'Oro */}
+           {/* BONUS 2: Goccia d'Oro */}
               <div 
                 onClick={() => {
                   if (!gocciaStatus.isOpen) {
@@ -3292,6 +3334,65 @@ const newCount = prevCount + 1;
                   +3 pt
                 </span>
               </div>
+
+              {/* BONUS 3: Terreno Scivoloso (Meteo Pioggia Roma • Attivazione Manuale) */}
+              <div
+                onClick={() => {
+                  if (!rainStatus.isOpen) {
+                    showToast(
+                      '☀️ Campo asciutto a Roma! Il Bonus "Terreno Scivoloso" si sblocca solo quando piove in città.',
+                      'warning'
+                    );
+                    return;
+                  }
+                  const nextVal = !bonusPioggia;
+                  setBonusPioggia(nextVal);
+                  if (nextVal) {
+                    showToast(
+                      '🌧️ Bonus "Terreno Scivoloso" (+2 pt) attivato! Attenzione: valido solo se piove nel tuo quartiere e sei fuori casa (VAR attivo)!',
+                      'success'
+                    );
+                  }
+                }}
+                className={`relative overflow-hidden p-3.5 rounded-2xl border flex items-center justify-between transition ${
+                  !rainStatus.isOpen
+                    ? 'bg-slate-950/90 border-slate-800 text-slate-500 cursor-not-allowed opacity-85'
+                    : bonusPioggia
+                    ? 'bg-sky-950/70 border-sky-400 text-white cursor-pointer shadow-lg shadow-sky-500/15'
+                    : 'bg-slate-900 border-sky-500/40 text-slate-300 cursor-pointer hover:border-sky-400'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="relative flex items-center justify-center w-7 h-7 text-lg">
+                    <span className={!rainStatus.isOpen ? 'opacity-35 grayscale' : ''}>🌧️</span>
+                    {!rainStatus.isOpen && (
+                      <XCircle className="w-7 h-7 text-red-500 absolute inset-0 stroke-[2.5] drop-shadow" />
+                    )}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className={`text-xs font-bold ${!rainStatus.isOpen ? 'line-through text-slate-500' : 'text-white'}`}>
+                        Bonus "Terreno Scivoloso"
+                      </span>
+                      <span className={`text-[9px] font-black uppercase px-1.5 py-0.2 rounded border ${
+                        !rainStatus.isOpen
+                          ? 'bg-slate-900 text-slate-400 border-slate-700'
+                          : bonusPioggia
+                          ? 'bg-sky-400 text-slate-950 border-sky-300'
+                          : 'bg-sky-500/20 text-sky-300 border-sky-400/40'
+                      }`}>
+                        {!rainStatus.isOpen ? '☀️ Roma Asciutta' : bonusPioggia ? '🌧️ Attivo' : '🌧️ Tocca se piove qui'}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-slate-400 block">
+                      {rainStatus.desc}
+                    </span>
+                  </div>
+                </div>
+                <span className={`text-sm font-black shrink-0 ${!rainStatus.isOpen ? 'text-slate-600 line-through' : 'text-sky-400'}`}>
+                  +2 pt
+                </span>
+              </div>   
 
       {/* Fotocamera Istantanea Ingrandita */}
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2.5">
