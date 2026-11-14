@@ -58,21 +58,23 @@ const safeSetStorageLeagues = (leaguesList) => {
   }
 };
 
-// Comprime la foto in formato Polaroid (~18 KB) quando passa dalla Sala VAR all'Album Storico
+// Mantiene la foto nitida in HD (800px • Qualità 82%) quando passa dalla Sala VAR all'Album Cloud
 const compressToPolaroid = (dataUrl) => {
   return new Promise((resolve) => {
     if (!dataUrl || !String(dataUrl).startsWith('data:image')) return resolve(dataUrl);
     const img = new Image();
     img.onload = () => {
       try {
-        const maxW = 380;
+        const maxW = 800;
         const scale = Math.min(1, maxW / (img.width || maxW));
         const canvas = document.createElement('canvas');
         canvas.width = Math.round((img.width || maxW) * scale);
         canvas.height = Math.round((img.height || maxW) * scale);
         const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', 0.58));
+        resolve(canvas.toDataURL('image/jpeg', 0.82));
       } catch (err) {
         resolve(dataUrl);
       }
@@ -1813,33 +1815,121 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
     showToast('👑 Fascia da Capitano indossata! Timer 4h avviato e notizia inviata alla Gazzetta!', 'success');
   };
 
-  const startCamera = async () => {
-    setCapturedPhoto(null);
+  const [cameraFacing, setCameraFacing] = useState('environment'); // 'environment' (posteriore) | 'user' (selfie)
+  const [flashEnabled, setFlashEnabled] = useState(false);
+  const [screenFlashActive, setScreenFlashActive] = useState(false);
+
+  const applyHardwareTorch = async (streamObj, turnOn) => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+      const track = streamObj?.getVideoTracks?.()[0];
+      if (!track) return false;
+      const caps = track.getCapabilities ? track.getCapabilities() : {};
+      if (caps && caps.torch) {
+        await track.applyConstraints({ advanced: [{ torch: Boolean(turnOn) }] });
+        return true;
+      }
+    } catch (e) {}
+    return false;
+  };
+
+  const startCamera = async (overrideFacing) => {
+    const targetFacing = typeof overrideFacing === 'string' ? overrideFacing : cameraFacing;
+    setCapturedPhoto(null);
+
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: targetFacing },
+          width: { ideal: 1280 },
+          height: { ideal: 960 }
+        },
+        audio: false
+      });
       streamRef.current = stream;
+      setCameraFacing(targetFacing);
       setIsCameraOpen(true);
-      setTimeout(() => { if (videoRef.current) videoRef.current.srcObject = stream; }, 100);
-    } catch (err) { fallbackCameraInputRef.current?.click(); }
+      setTimeout(() => {
+        if (videoRef.current) videoRef.current.srcObject = stream;
+        if (flashEnabled && targetFacing === 'environment') {
+          applyHardwareTorch(stream, true);
+        }
+      }, 120);
+    } catch (err) {
+      fallbackCameraInputRef.current?.click();
+    }
+  };
+
+  const handleFlipCamera = () => {
+    const nextFacing = cameraFacing === 'environment' ? 'user' : 'environment';
+    startCamera(nextFacing);
+  };
+
+  const handleToggleFlash = async () => {
+    const nextFlash = !flashEnabled;
+    setFlashEnabled(nextFlash);
+    if (cameraFacing === 'environment' && streamRef.current) {
+      await applyHardwareTorch(streamRef.current, nextFlash);
+    }
+    showToast(
+      nextFlash
+        ? '⚡ Flash attivo! (Torcia LED posteriore / Luce Schermo sui selfie)'
+        : '🌑 Flash disattivato',
+      'success'
+    );
   };
 
   const stopCameraStream = () => {
-    if (streamRef.current) { streamRef.current.getTracks().forEach(t => t.stop()); streamRef.current = null; }
+    if (streamRef.current) {
+      applyHardwareTorch(streamRef.current, false);
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+    setScreenFlashActive(false);
     setIsCameraOpen(false);
   };
 
   const captureInstantPhoto = () => {
     if (!videoRef.current) return;
-    const rawW = videoRef.current.videoWidth || 640;
-    const rawH = videoRef.current.videoHeight || 480;
-    const scale = Math.min(1, 480 / rawW);
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.round(rawW * scale);
-    canvas.height = Math.round(rawH * scale);
-    canvas.getContext('2d').drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-    setCapturedPhoto(canvas.toDataURL('image/jpeg', 0.65));
-    stopCameraStream();
-    showToast('📸 Foto acquisita!', 'success');
+
+    const doCaptureFrame = () => {
+      if (!videoRef.current) return;
+      const rawW = videoRef.current.videoWidth || 800;
+      const rawH = videoRef.current.videoHeight || 600;
+      const scale = Math.min(1, 850 / rawW);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(rawW * scale);
+      canvas.height = Math.round(rawH * scale);
+      const ctx = canvas.getContext('2d');
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+
+      // Raddrizza l'effetto specchio se è un Selfie
+      if (cameraFacing === 'user') {
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+      }
+
+      ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+      setCapturedPhoto(canvas.toDataURL('image/jpeg', 0.84));
+      stopCameraStream();
+      showToast('📸 Foto HD acquisita!', 'success');
+    };
+
+    // Se il flash è attivo (specialmente per i selfie o telefoni senza torcia web), illumina lo schermo prima dello scatto
+    if (flashEnabled) {
+      setScreenFlashActive(true);
+      setTimeout(() => {
+        doCaptureFrame();
+        setScreenFlashActive(false);
+      }, 260);
+    } else {
+      doCaptureFrame();
+    }
   };
 
   const handleFallbackCameraCapture = (e) => {
@@ -1849,21 +1939,22 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
       const reader = new FileReader();
       reader.onload = (ev) => {
         img.onload = () => {
-          const scale = Math.min(1, 480 / img.width);
+          const scale = Math.min(1, 850 / img.width);
           const canvas = document.createElement('canvas');
           canvas.width = Math.round(img.width * scale);
           canvas.height = Math.round(img.height * scale);
           const ctx = canvas.getContext('2d');
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          setCapturedPhoto(canvas.toDataURL('image/jpeg', 0.65));
-          showToast('📸 Foto acquisita!', 'success');
+          setCapturedPhoto(canvas.toDataURL('image/jpeg', 0.84));
+          showToast('📸 Foto HD acquisita!', 'success');
         };
         img.src = ev.target.result;
       };
       reader.readAsDataURL(file);
     }
   };
-
   const [beerTypeTier, setBeerTypeTier] = useState('classica');
 
   const calculatedDrink = useMemo(() => {
@@ -3394,21 +3485,58 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
                 </span>
               </div>   
 
-      {/* Fotocamera Istantanea Ingrandita */}
+      {/* Fotocamera Istantanea Ingrandita HD con Selfie + Flash */}
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2.5">
                 <div className="flex items-center justify-between">
                   <label className="text-[10px] font-bold uppercase text-amber-400 flex items-center gap-1">
-                    <Camera className="w-3.5 h-3.5" /> Fotocamera Istantanea (No Galleria)
+                    <Camera className="w-3.5 h-3.5" /> Fotocamera Live HD (Posteriore & Selfie)
                   </label>
-                  <span className="text-[9px] text-slate-400 uppercase font-bold">Formato Grande</span>
+                  <span className="text-[9px] text-emerald-400 uppercase font-black">Qualità HD</span>
                 </div>
 
                 {isCameraOpen ? (
                   <div className="space-y-2.5">
                     <div className="relative h-80 w-full rounded-2xl overflow-hidden bg-black border-2 border-amber-400 shadow-xl">
-                      <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+                      <video
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        className={`w-full h-full object-cover ${cameraFacing === 'user' ? 'scale-x-[-1]' : ''}`}
+                      />
                       <div className="pointer-events-none absolute inset-3 border border-amber-400/35 rounded-xl" />
+
+                      {/* Luce Flash Schermo per Selfie e scatti al buio */}
+                      {screenFlashActive && (
+                        <div className="pointer-events-none absolute inset-0 bg-white z-30 animate-pulse" />
+                      )}
+
+                      {/* Barra Controlli Superiore sul Mirino: Flash ON/OFF + Gira Fotocamera (Selfie) */}
+                      <div className="absolute top-3 left-3 right-3 flex items-center justify-between z-20">
+                        <button
+                          type="button"
+                          onClick={handleToggleFlash}
+                          className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase flex items-center gap-1.5 border shadow-lg backdrop-blur-md transition ${
+                            flashEnabled
+                              ? 'bg-amber-400 text-slate-950 border-white shadow-amber-400/40'
+                              : 'bg-slate-950/85 text-slate-200 border-slate-700 hover:border-amber-400'
+                          }`}
+                        >
+                          <Sun className="w-3.5 h-3.5" />
+                          <span>{flashEnabled ? '⚡ Flash ON' : '⚡ Flash OFF'}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleFlipCamera}
+                          className="px-3 py-1.5 rounded-xl bg-slate-950/85 hover:bg-slate-900 text-amber-300 border border-amber-400/50 text-[10px] font-black uppercase flex items-center gap-1.5 shadow-lg backdrop-blur-md active:scale-95 transition"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          <span>{cameraFacing === 'user' ? '🤳 Selfie' : '📷 Gira Selfie'}</span>
+                        </button>
+                      </div>
                     </div>
+
                     <div className="grid grid-cols-2 gap-2">
                       <button type="button" onClick={stopCameraStream} className="py-3 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold">
                         Annulla
@@ -3423,12 +3551,12 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
                     <img src={capturedPhoto} alt="Scatto Live" className="w-full h-full object-cover" />
                     <button
                       type="button"
-                      onClick={startCamera}
+                      onClick={() => startCamera()}
                       className="absolute bottom-3 right-3 bg-slate-950/90 text-amber-300 px-3.5 py-2 rounded-xl text-xs font-black border border-amber-400/50 flex items-center gap-1.5 shadow-lg"
                     >
                       <RefreshCw className="w-3.5 h-3.5" /> Riscatta Foto
                     </button>
-                  </div>        
+                  </div>  
                 ) : (
                   <button
                     type="button"
