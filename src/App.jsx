@@ -188,9 +188,9 @@ const getMemberStreakLevel = (member, nowMs = Date.now()) => {
 };
 
 const formatCaptainTimeLeft = (expiresAtMs, nowMs) => {
-  if (!expiresAtMs) return '12h 00m';
+  if (!expiresAtMs) return '4h 00m';
   const diff = Number(expiresAtMs) - nowMs;
-  if (diff <= 0) return '12h scadute (Attesa VAR)';
+  if (diff <= 0) return '4h scadute (Attesa VAR)';
   const hrs = Math.floor(diff / 3600000);
   const mins = Math.floor((diff % 3600000) / 60000);
   return `${hrs}h ${String(mins).padStart(2, '0')}m`;
@@ -881,7 +881,7 @@ const getTodayDateKey = () => {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 };
 
-// --- GESTIONE AUTOMATICA SCADENZA 12 ORE CAPITANO + PULIZIA GAZZETTA 24H ---
+// --- GESTIONE AUTOMATICA SCADENZA 4 ore CAPITANO + PULIZIA GAZZETTA 24H ---
 const settleExpiredCaptainsInLeague = (leagueObj, nowMs) => {
   if (!leagueObj || !leagueObj.members) return { updatedLeague: leagueObj, changed: false, events: [] };
 
@@ -1071,9 +1071,9 @@ export default function App() {
   const [breakingNewsAlert, setBreakingNewsAlert] = useState(null);
 
   const [readNewsByLeague, setReadNewsByLeague] = useState(() => safeGetStorage('sempre_noi_read_gazzetta_map', {}));
-  const [albumPhotosMap, setAlbumPhotosMap] = useState({});
+ const [albumPhotosMap, setAlbumPhotosMap] = useState({});
   const [isLoadingAlbum, setIsLoadingAlbum] = useState(false);
-
+  const [showGhostLeaguesModal, setShowGhostLeaguesModal] = useState(false);
   const [beerTitle, setBeerTitle] = useState('');
   const [format, setFormat] = useState('spina50');
   const [abvTier, setAbvTier] = useState('leggera');
@@ -1223,9 +1223,9 @@ export default function App() {
       if (events.length > 0) {
         const ev = events[0];
         if (ev.type === 'success') {
-          showToast(`👑 12 Ore Concluse! ${ev.playerName} ha completato le 4/4 birre da Capitano: +${ev.pts} pt accreditati!`, 'success');
+          showToast(`👑 4 ore Concluse! ${ev.playerName} ha completato le 4/4 birre da Capitano: +${ev.pts} pt accreditati!`, 'success');
         } else {
-          showToast(`🚨 12 Ore Scadute! ${ev.playerName} si è fermato a ${ev.confirmedCount}/4 birre da Capitano: 0 punti per le birre e MALUS di -20 pt!`, 'danger');
+          showToast(`🚨 4 ore Scadute! ${ev.playerName} si è fermato a ${ev.confirmedCount}/4 birre da Capitano: 0 punti per le birre e MALUS di -20 pt!`, 'danger');
         }
       }
     }
@@ -1714,7 +1714,7 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
     if (hasUsedCaptainThisWeek && !myMemberProfile.captainActive) return showToast('Bonus Capitano già usato questa settimana!', 'warning');
 
     const nowMs = Date.now();
-    const expiresAtMs = nowMs + 12 * 60 * 60 * 1000;
+    const expiresAtMs = nowMs + 4 * 60 * 60 * 1000;
     setLeagues(prev => prev.map(l => {
       if (l.id !== activeLeagueId) return l;
       const updated = {
@@ -1728,7 +1728,7 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
       pushLeagueToCloud(updated);
       return updated;
     }));
-    showToast('👑 Timer 12h avviato! Le prime 4 birre valgono PUNTI DOPPI (x2) sbloccati solo a 12h se 4/4 confermate!', 'success');
+    showToast('👑 Timer 4h avviato! Le prime 4 birre valgono PUNTI DOPPI (x2) sbloccati solo a 4h se 4/4 confermate!', 'success');
   };
 
   const startCamera = async () => {
@@ -1818,8 +1818,8 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
     const qualityBonus = qMap[qualityTier].bonus;
     const typeBonus = tMap[safeType].bonus;
     const gocciaBonus = gocciaStatus.isOpen && bonusGocciaDOro ? 3 : 0;
-    const isWithin12h = Boolean(myMemberProfile?.captainActive && (!myMemberProfile?.captainExpiresAtMs || clockTick < Number(myMemberProfile.captainExpiresAtMs)));
-    const eligibleForCaptainDouble = isWithin12h && (myMemberProfile?.captainBeersSubmitted || 0) < 4;
+    const isWithin4h = Boolean(myMemberProfile?.captainActive && (!myMemberProfile?.captainExpiresAtMs || clockTick < Number(myMemberProfile.captainExpiresAtMs)));
+    const eligibleForCaptainDouble = isWithin4h && (myMemberProfile?.captainBeersSubmitted || 0) < 4;
 
     let subtotal = (base * mult) + qualityBonus + typeBonus;
     if (bonusSempreNoi) subtotal *= 1.3;
@@ -1986,7 +1986,7 @@ const newCount = prevCount + 1;
     }));
 
     if (reached2) {
-      if (isCap) showToast(`👑 Birra Capitano confermata (2/2)! Punti messi in cassaforte per fine 12h!`, 'success');
+      if (isCap) showToast(`👑 Birra Capitano confermata (2/2)! Punti messi in cassaforte per fine 4h!`, 'success');
       else showToast(`🍻 Birra confermata (2/2)! Foto rimossa dal VAR!`, 'success');
     } else {
       showToast('✅ 1ª Conferma registrata (1/2)!', 'success');
@@ -2953,7 +2953,7 @@ const newCount = prevCount + 1;
               </div>
             </div>
           )}
-          {/* TAB 2: STAPPA! (CON CAPITANO 12H, MAX 4 BIRRE x2 E MALUS -20 PT) */}
+          {/* TAB 2: STAPPA! (CON CAPITANO 4h, MAX 4 BIRRE x2 E MALUS -20 PT) */}
           {activeTab === 'stappa' && (
             <form onSubmit={handleAddBeer} className="space-y-4">
               {/* RIEPILOGO PUNTI LIVE */}
@@ -2990,10 +2990,10 @@ const newCount = prevCount + 1;
                     <Crown className={`w-5 h-5 shrink-0 ${myMemberProfile?.captainActive ? 'text-amber-400' : 'text-purple-400'}`} />
                     <div>
                       <span className="text-xs font-black uppercase text-white block">
-                        Il "Capitano" della Serata (Timer 12 Ore • Max 4 Birre x2)
+                        Il "Capitano" della Serata (Timer 4 ore • Max 4 Birre x2)
                       </span>
                       <span className="text-[10px] text-slate-300 block leading-snug mt-0.5">
-                        Scade in automatico dopo <strong>12 ore</strong>. Le tue prime <strong>4 birre</strong> valgono <strong>Punti Doppi (x2)</strong> e vengono accreditate solo allo scadere delle 12h se tutte e 4 sono confermate dal VAR. Se fallisci: <strong>0 punti per le birre e Malus di -20 pt</strong>!
+                        Scade in automatico dopo <strong>4 ore</strong>. Le tue prime <strong>4 birre</strong> valgono <strong>Punti Doppi (x2)</strong> e vengono accreditate solo allo scadere delle 4h se tutte e 4 sono confermate dal VAR. Se fallisci: <strong>0 punti per le birre e Malus di -20 pt</strong>!
                       </span>
                     </div>
                   </div>
@@ -3019,7 +3019,7 @@ const newCount = prevCount + 1;
                         </span>
                       </div>
                       <div>
-                        <span className="text-[9px] uppercase text-slate-400 font-bold block">Cassaforte (Sblocco a 12h)</span>
+                        <span className="text-[9px] uppercase text-slate-400 font-bold block">Cassaforte (Sblocco a 4h)</span>
                         <span className="text-sm font-black text-purple-300">
                           +{myMemberProfile.captainVaultPoints || 0} pt
                         </span>
@@ -3037,11 +3037,11 @@ const newCount = prevCount + 1;
 
                     {(myMemberProfile.captainBeersSubmitted || 0) >= 4 ? (
                       <div className="p-2 rounded-xl bg-emerald-950/50 border border-emerald-500/40 text-[10px] text-emerald-200 font-bold text-center">
-                        ✅ Hai già stappato le 4 birre del Capitano! Eventuali birre successive in queste 12h avranno punteggio normale (x1).
+                        ✅ Hai già stappato le 4 birre del Capitano! Eventuali birre successive in queste 4h avranno punteggio normale (x1).
                       </div>
                     ) : (
                       <div className="p-2 rounded-xl bg-slate-950/70 border border-purple-500/30 text-[10px] text-purple-200 font-semibold text-center">
-                        Slot raddoppio utilizzati: <strong>{myMemberProfile.captainBeersSubmitted || 0}/4</strong> • Alla fine delle 12h il sistema assegnerà in automatico i punti o il malus di -20 pt!
+                        Slot raddoppio utilizzati: <strong>{myMemberProfile.captainBeersSubmitted || 0}/4</strong> • Alla fine delle 4h il sistema assegnerà in automatico i punti o il malus di -20 pt!
                       </div>
                     )}
                   </div>
@@ -3060,7 +3060,7 @@ const newCount = prevCount + 1;
                     onClick={handleActivateCaptain}
                     className="w-full py-2.5 rounded-xl text-xs font-black uppercase bg-purple-600 hover:bg-purple-500 text-white shadow-md transition"
                   >
-                    👑 Attiva "Capitano della Serata" (12 Ore • 4 Birre x2)
+                    👑 Attiva "Capitano della Serata" (4 ore • 4 Birre x2)
                   </button>
                 )}
               </div>
@@ -3330,7 +3330,7 @@ const newCount = prevCount + 1;
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-300">
-                  Con <strong>2 Conferme</strong> la birra è validata (le 4 birre Capitano vanno in cassaforte fino allo scadere delle 12h). Con <strong>2 Segnalazioni VAR</strong> scatta il malus e la foto sparisce!
+                  Con <strong>2 Conferme</strong> la birra è validata (le 4 birre Capitano vanno in cassaforte fino allo scadere delle 4h). Con <strong>2 Segnalazioni VAR</strong> scatta il malus e la foto sparisce!
                 </p>
               </div>
 
@@ -3927,7 +3927,7 @@ const newCount = prevCount + 1;
                 })()}
               </div>
 
-              <div className="p-3 bg-slate-950 border-t border-slate-800">
+           <div className="p-3 bg-slate-950 border-t border-slate-800">
                 <button
                   type="button"
                   onClick={() => setAlbumMember(null)}
@@ -3938,7 +3938,147 @@ const newCount = prevCount + 1;
               </div>
             </div>
           </div>
-        )} 
+        )}
+
+        {/* =====================================================================
+            👻 PULSANTE FLOTTANTE + RADAR "SPIA TUTTE LE LEGHE" (SOLO GOD MODE)
+        ===================================================================== */}
+        {isGodMode && (
+          <div className="fixed bottom-20 right-3 z-[85] flex flex-col items-end gap-1.5">
+            {/* Avviso se ti trovi già dentro una lega altrui in modalità Fantasma */}
+            {activeLeague && !(activeLeague.members || []).some(m => m.id === currentUser?.id) && (
+              <span className="px-2.5 py-1 rounded-full bg-purple-950/95 border border-purple-400 text-purple-200 text-[9px] font-black uppercase shadow-lg">
+                👻 Sei Invisibile in questa Lega
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowGhostLeaguesModal(true)}
+              className="px-3.5 py-2 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-slate-950 font-black text-[10px] uppercase tracking-wider shadow-[0_0_20px_rgba(251,191,36,0.6)] border-2 border-white flex items-center gap-1.5 active:scale-95 transition"
+            >
+              <span>👻 Spia Leghe ({leagues.length})</span>
+            </button>
+          </div>
+        )}
+
+        {isGodMode && showGhostLeaguesModal && (
+          <div
+            onClick={() => setShowGhostLeaguesModal(false)}
+            className="fixed inset-0 z-[260] bg-black/90 backdrop-blur-md flex items-center justify-center p-4"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-slate-900 border-2 border-amber-400 rounded-3xl max-w-md w-full max-h-[88vh] flex flex-col overflow-hidden shadow-2xl"
+            >
+              {/* Header Radar Fantasma */}
+              <div className="bg-slate-950 px-4 py-3.5 border-b border-slate-800 flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-black uppercase text-amber-400 flex items-center gap-1.5">
+                    👻 Radar Globale Leghe • Modalità Fantasma
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-bold block">
+                    {leagues.length} leghe totali presenti nel database (Tu sei 100% invisibile)
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowGhostLeaguesModal(false)}
+                  className="w-8 h-8 rounded-xl bg-slate-800 text-slate-300 hover:text-white text-xs font-black flex items-center justify-center"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Lista di tutte le leghe dell'app con classifica interna */}
+              <div className="p-3.5 overflow-y-auto flex-1 space-y-3">
+                {leagues.map((lg) => {
+                  const isMyLeague = (lg.members || []).some(m => m.id === currentUser?.id);
+                  const isCurrentlyViewing = activeLeagueId === lg.id;
+                  const sortedMembers = [...(lg.members || [])].sort((a, b) => (b.points || 0) - (a.points || 0));
+                  const totalBeers = sortedMembers.reduce((sum, m) => sum + (m.beers || 0), 0);
+                  const pendingVar = (lg.feed || []).length;
+
+                  return (
+                    <div
+                      key={lg.id}
+                      className={`rounded-2xl p-3.5 border-2 space-y-2.5 ${
+                        isCurrentlyViewing
+                          ? 'bg-amber-500/10 border-amber-400'
+                          : 'bg-slate-950 border-slate-800'
+                      }`}
+                    >
+                      {/* Intestazione Lega */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <h4 className="text-sm font-black text-white uppercase">
+                              {lg.name}
+                            </h4>
+                            <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${
+                              isMyLeague
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/40'
+                                : 'bg-purple-500/20 text-purple-300 border border-purple-400/40'
+                            }`}>
+                              {isMyLeague ? '✅ Sei Membro' : '👻 Lega Esterna'}
+                            </span>
+                          </div>
+                          <span className="text-[10px] font-mono text-slate-400 block mt-0.5">
+                            Codice: <strong className="text-amber-300">{lg.inviteCode || lg.id}</strong> • 👥 {sortedMembers.length} iscritti • 🍺 {totalBeers} birre • 🖥️ {pendingVar} al VAR
+                          </span>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveLeagueId(lg.id);
+                            setActiveTab('classifica');
+                            setShowGhostLeaguesModal(false);
+                          }}
+                          className="px-2.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-[9px] font-black uppercase shrink-0 shadow"
+                        >
+                          {isCurrentlyViewing ? '👁️ Già Dentro' : '👻 Entra Fantasma'}
+                        </button>
+                      </div>
+
+                      {/* Mini-Classifica di chi c'è dentro e i loro punti */}
+                      <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2 space-y-1">
+                        {sortedMembers.length === 0 ? (
+                          <span className="text-[10px] text-slate-500 italic block text-center py-1">
+                            Nessun giocatore in questa lega
+                          </span>
+                        ) : (
+                          sortedMembers.map((m, idx) => (
+                            <div
+                              key={m.id || idx}
+                              className="flex items-center justify-between text-[10px] px-1.5 py-1 rounded-lg bg-slate-950/60"
+                            >
+                              <span className="font-bold text-white truncate">
+                                {idx + 1}. {m.name} {m.role === 'Admin' || m.role === 'Fondatore' ? '👑' : ''}
+                              </span>
+                              <span className="font-mono font-black text-amber-400 shrink-0">
+                                {m.points || 0} pt • {m.beers || 0}🍺 ({Number(m.liters ?? ((m.beers || 0) * 0.5)).toFixed(1)}L)
+                              </span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="p-3 bg-slate-950 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowGhostLeaguesModal(false)}
+                  className="w-full py-2.5 rounded-xl bg-amber-500 text-slate-950 text-xs font-black uppercase"
+                >
+                  Chiudi Radar Fantasma
+                </button>
+              </div>
+            </div>
+          </div>
+        )}  
         {/* =====================================================================
             🔍 ZOOM POLAROID A TUTTO SCHERMO DEL SINGOLO RICORDO
         ===================================================================== */}
@@ -4140,9 +4280,9 @@ const newCount = prevCount + 1;
                   </div>
 
                   <div className="p-2.5 rounded-xl bg-slate-950 border border-purple-500/30 space-y-1">
-                    <span className="text-[10px] font-black uppercase text-purple-400">2. Capitano 12 Ore</span>
-                    <div className="flex justify-between"><span>4 Birre validate nelle 12h</span><strong className="text-purple-300">Punti Doppi (x2)</strong></div>
-                    <div className="flex justify-between"><span>Meno di 4 birre a fine 12h</span><strong className="text-red-500">0 pt birre e Malus -20 pt</strong></div>
+                    <span className="text-[10px] font-black uppercase text-purple-400">2. Capitano 4 ore</span>
+                    <div className="flex justify-between"><span>4 Birre validate nelle 4h</span><strong className="text-purple-300">Punti Doppi (x2)</strong></div>
+                    <div className="flex justify-between"><span>Meno di 4 birre a fine 4h</span><strong className="text-red-500">0 pt birre e Malus -20 pt</strong></div>
                   </div>
 
                   <div className="p-2.5 rounded-xl bg-slate-950 border border-red-500/30 space-y-1">
