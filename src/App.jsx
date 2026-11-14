@@ -58,14 +58,14 @@ const safeSetStorageLeagues = (leaguesList) => {
   }
 };
 
-// Mantiene la foto nitida in HD (800px • Qualità 82%) quando passa dalla Sala VAR all'Album Cloud
+// Mantiene la foto in Full HD Nitida (1080px • Qualità 88%) quando passa dalla Sala VAR all'Album Cloud
 const compressToPolaroid = (dataUrl) => {
   return new Promise((resolve) => {
     if (!dataUrl || !String(dataUrl).startsWith('data:image')) return resolve(dataUrl);
     const img = new Image();
     img.onload = () => {
       try {
-        const maxW = 800;
+        const maxW = 1080;
         const scale = Math.min(1, maxW / (img.width || maxW));
         const canvas = document.createElement('canvas');
         canvas.width = Math.round((img.width || maxW) * scale);
@@ -74,7 +74,7 @@ const compressToPolaroid = (dataUrl) => {
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', 0.82));
+        resolve(canvas.toDataURL('image/jpeg', 0.88));
       } catch (err) {
         resolve(dataUrl);
       }
@@ -83,7 +83,6 @@ const compressToPolaroid = (dataUrl) => {
     img.src = dataUrl;
   });
 };
-
 // Salva la foto nel Cloud in una cartella separata (/albums) così la classifica resta leggerissima
 const savePhotoToCloudAlbum = async (leagueId, memoryId, rawPhotoUrl) => {
   if (!cleanDbUrl || !leagueId || !memoryId || !rawPhotoUrl) return rawPhotoUrl;
@@ -1819,17 +1818,23 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
   const [flashEnabled, setFlashEnabled] = useState(false);
   const [screenFlashActive, setScreenFlashActive] = useState(false);
 
+  // Accende/Spegne la vera Torcia LED fisica sulla fotocamera posteriore
   const applyHardwareTorch = async (streamObj, turnOn) => {
     try {
       const track = streamObj?.getVideoTracks?.()[0];
-      if (!track) return false;
-      const caps = track.getCapabilities ? track.getCapabilities() : {};
-      if (caps && caps.torch) {
-        await track.applyConstraints({ advanced: [{ torch: Boolean(turnOn) }] });
-        return true;
-      }
-    } catch (e) {}
-    return false;
+      if (!track || !track.applyConstraints) return false;
+      await track.applyConstraints({ advanced: [{ torch: Boolean(turnOn) }] });
+      return true;
+    } catch (e) {
+      try {
+        const track = streamObj?.getVideoTracks?.()[0];
+        if (track?.applyConstraints) {
+          await track.applyConstraints({ torch: Boolean(turnOn) });
+          return true;
+        }
+      } catch (_) {}
+      return false;
+    }
   };
 
   const startCamera = async (overrideFacing) => {
@@ -1837,6 +1842,7 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
     setCapturedPhoto(null);
 
     if (streamRef.current) {
+      await applyHardwareTorch(streamRef.current, false);
       streamRef.current.getTracks().forEach(t => t.stop());
       streamRef.current = null;
     }
@@ -1845,40 +1851,65 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: targetFacing },
-          width: { ideal: 1280 },
-          height: { ideal: 960 }
+          width: { ideal: 1440 },
+          height: { ideal: 1080 }
         },
         audio: false
       });
       streamRef.current = stream;
       setCameraFacing(targetFacing);
       setIsCameraOpen(true);
-      setTimeout(() => {
-        if (videoRef.current) videoRef.current.srcObject = stream;
-        if (flashEnabled && targetFacing === 'environment') {
-          applyHardwareTorch(stream, true);
+
+      setTimeout(async () => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          try { await videoRef.current.play(); } catch (_) {}
         }
-      }, 120);
+        // Aspetta 300ms che il sensore video posteriore sia attivo prima di dare tensione al LED
+        if (flashEnabled && targetFacing === 'environment') {
+          setTimeout(() => {
+            applyHardwareTorch(stream, true);
+          }, 300);
+        }
+      }, 100);
     } catch (err) {
       fallbackCameraInputRef.current?.click();
     }
   };
 
-  const handleFlipCamera = () => {
+  const handleFlipCamera = async () => {
     const nextFacing = cameraFacing === 'environment' ? 'user' : 'environment';
+    if (streamRef.current && cameraFacing === 'environment') {
+      await applyHardwareTorch(streamRef.current, false);
+    }
     startCamera(nextFacing);
   };
 
   const handleToggleFlash = async () => {
     const nextFlash = !flashEnabled;
-    setFlashEnabled(nextFlash);
+
     if (cameraFacing === 'environment' && streamRef.current) {
-      await applyHardwareTorch(streamRef.current, nextFlash);
+      const torchOk = await applyHardwareTorch(streamRef.current, nextFlash);
+      setFlashEnabled(nextFlash);
+      if (nextFlash) {
+        showToast(
+          torchOk
+            ? '🔦 Torcia LED posteriore accesa!'
+            : '⚠️ Questo obiettivo/browser blocca il LED dal web: prova su Chrome o usa il flash Selfie!',
+          torchOk ? 'success' : 'warning'
+        );
+      } else {
+        showToast('🌑 Torcia LED spenta', 'success');
+      }
+      return;
     }
+
+    // Modalità Selfie ('user'): usa il Flash Schermo solo al momento dello scatto
+    setFlashEnabled(nextFlash);
     showToast(
       nextFlash
-        ? '⚡ Flash attivo! (Torcia LED posteriore / Luce Schermo sui selfie)'
-        : '🌑 Flash disattivato',
+        ? '⚡ Flash Selfie attivo! Lo schermo illuminerà il viso al momento dello scatto.'
+        : '🌑 Flash Selfie disattivato',
       'success'
     );
   };
@@ -1893,14 +1924,14 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
     setIsCameraOpen(false);
   };
 
-  const captureInstantPhoto = () => {
+  const captureInstantPhoto = async () => {
     if (!videoRef.current) return;
 
     const doCaptureFrame = () => {
       if (!videoRef.current) return;
-      const rawW = videoRef.current.videoWidth || 800;
-      const rawH = videoRef.current.videoHeight || 600;
-      const scale = Math.min(1, 850 / rawW);
+      const rawW = videoRef.current.videoWidth || 1080;
+      const rawH = videoRef.current.videoHeight || 810;
+      const scale = Math.min(1, 1080 / rawW);
       const canvas = document.createElement('canvas');
       canvas.width = Math.round(rawW * scale);
       canvas.height = Math.round(rawH * scale);
@@ -1915,19 +1946,23 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
       }
 
       ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-      setCapturedPhoto(canvas.toDataURL('image/jpeg', 0.84));
+      setCapturedPhoto(canvas.toDataURL('image/jpeg', 0.88));
       stopCameraStream();
-      showToast('📸 Foto HD acquisita!', 'success');
+      showToast('📸 Foto Full HD (1080p) acquisita!', 'success');
     };
 
-    // Se il flash è attivo (specialmente per i selfie o telefoni senza torcia web), illumina lo schermo prima dello scatto
-    if (flashEnabled) {
+    // SOLO se siamo in modalità SELFIE ('user') usiamo il Flash Schermo bianco
+    if (flashEnabled && cameraFacing === 'user') {
       setScreenFlashActive(true);
       setTimeout(() => {
         doCaptureFrame();
         setScreenFlashActive(false);
-      }, 260);
+      }, 280);
     } else {
+      // Sulla fotocamera posteriore ('environment') usa solo il LED fisico senza mai illuminare lo schermo
+      if (flashEnabled && streamRef.current) {
+        await applyHardwareTorch(streamRef.current, true);
+      }
       doCaptureFrame();
     }
   };
@@ -1939,7 +1974,7 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
       const reader = new FileReader();
       reader.onload = (ev) => {
         img.onload = () => {
-          const scale = Math.min(1, 850 / img.width);
+          const scale = Math.min(1, 1080 / img.width);
           const canvas = document.createElement('canvas');
           canvas.width = Math.round(img.width * scale);
           canvas.height = Math.round(img.height * scale);
@@ -1947,8 +1982,8 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
           ctx.imageSmoothingEnabled = true;
           ctx.imageSmoothingQuality = 'high';
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          setCapturedPhoto(canvas.toDataURL('image/jpeg', 0.84));
-          showToast('📸 Foto HD acquisita!', 'success');
+          setCapturedPhoto(canvas.toDataURL('image/jpeg', 0.88));
+          showToast('📸 Foto Full HD (1080p) acquisita!', 'success');
         };
         img.src = ev.target.result;
       };
