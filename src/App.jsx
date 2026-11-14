@@ -2488,7 +2488,7 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
       return draft;
     }));
 
-    setVarModalBeer(null);
+   setVarModalBeer(null);
     if (reached2) {
       showToast(
         participants.length > 1
@@ -2499,11 +2499,6 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
     } else {
       showToast(`🖥️ 1ª Segnalazione VAR (1/2) per -${malus} pt!`, 'warning');
     }
-  };
-
-    setVarModalBeer(null);
-    if (reached2) showToast(`🚨 VAR Confermato (2/2)! Applicato malus -${malus} pt!`, 'danger');
-    else showToast(`🖥️ 1ª Segnalazione VAR (1/2) per -${malus} pt!`, 'warning');
   };
 
   const sortedMembers = useMemo(() => [...(activeLeague?.members || [])].sort((a, b) => b.points - a.points), [activeLeague]);
@@ -5117,3 +5112,4 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
       </div>
     </div>
   );
+}
