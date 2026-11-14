@@ -4069,18 +4069,60 @@ const newCount = prevCount + 1;
                           </span>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setActiveLeagueId(lg.id);
-                            setActiveTab('classifica');
-                            setShowGhostLeaguesModal(false);
-                          }}
-                          className="px-2.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-[9px] font-black uppercase shrink-0 shadow"
-                        >
-                          {isCurrentlyViewing ? '👁️ Già Dentro' : '👻 Entra Fantasma'}
-                        </button>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveLeagueId(lg.id);
+                              setActiveTab('classifica');
+                              setShowGhostLeaguesModal(false);
+                            }}
+                            className="px-2.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-[9px] font-black uppercase shadow"
+                          >
+                            {isCurrentlyViewing ? '👁️ Già Dentro' : '👻 Entra Fantasma'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setLeagueToDelete(leagueToDelete?.id === lg.id ? null : lg)}
+                            className="p-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/35 border border-red-500/50 text-red-300 transition"
+                            title="Elimina definitivamente questa lega"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
+
+                      {/* Box di conferma eliminazione rapida dentro il Radar Fantasma */}
+                      {leagueToDelete?.id === lg.id && (
+                        <div className="bg-red-950/90 border border-red-400 rounded-xl p-2.5 space-y-2 text-center">
+                          <p className="text-[10px] font-bold text-red-100">
+                            ⚠️ Eliminare definitivamente la lega <strong className="text-white">"{lg.name}"</strong> e tutte le sue foto dal database?
+                          </p>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setLeagueToDelete(null)}
+                              className="py-1.5 rounded-lg bg-slate-900 text-slate-300 text-[10px] font-bold"
+                            >
+                              Annulla
+                            </button>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (cleanDbUrl) {
+                                  try {
+                                    await fetch(`${cleanDbUrl}/albums/${lg.id}.json`, { method: 'DELETE' });
+                                  } catch (e) {}
+                                }
+                                handleConfirmDeleteLeague();
+                              }}
+                              className="py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white text-[10px] font-black uppercase shadow"
+                            >
+                              🗑️ Sì, Elimina Ora
+                            </button>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Mini-Classifica di chi c'è dentro e i loro punti */}
                       <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2 space-y-1">
