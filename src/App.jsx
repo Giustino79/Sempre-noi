@@ -15,6 +15,96 @@ const CLOUD_DB_URL = "https://sempre-noi-default-rtdb.europe-west1.firebasedatab
 
 const cleanDbUrl = CLOUD_DB_URL ? CLOUD_DB_URL.replace(/\/$/, "") : "";
 
+// ============================================================================
+// 🛡️ SCUDO ANTI-SCHERMO SCURO E ARCHIVIO CLOUD SEPARATO PER L'ALBUM FOTO
+// ============================================================================
+const APP_CACHE_VERSION = 'sn_v4_cloud_album';
+try {
+  if (localStorage.getItem('sempre_noi_cache_version') !== APP_CACHE_VERSION) {
+    // Rimuove solo la copia locale pesante delle leghe (le leghe vere si riscaricano da Firebase in 1 secondo)
+    localStorage.removeItem('sempre_noi_leagues_v3');
+    localStorage.setItem('sempre_noi_cache_version', APP_CACHE_VERSION);
+  }
+} catch (e) {}
+
+const safeGetStorage = (key, fallbackValue) => {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallbackValue;
+    const parsed = JSON.parse(raw);
+    return parsed !== null && parsed !== undefined ? parsed : fallbackValue;
+  } catch (e) {
+    try { localStorage.removeItem(key); } catch (_) {}
+    return fallbackValue;
+  }
+};
+
+const safeSetStorage = (key, value) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (e) {}
+};
+
+// Salva le leghe nel telefono SENZA le foto base64 dell'Album (così non supera mai i 5MB e non fa schermo scuro!)
+const safeSetStorageLeagues = (leaguesList) => {
+  try {
+    const lightLeagues = (leaguesList || []).map(l => ({
+      ...l,
+      history: (l.history || []).map(h => (h && h.photoUrl ? { ...h, hasPhoto: true, photoUrl: null } : h))
+    }));
+    localStorage.setItem('sempre_noi_leagues_v3', JSON.stringify(lightLeagues));
+  } catch (e) {
+    try { localStorage.removeItem('sempre_noi_leagues_v3'); } catch (_) {}
+  }
+};
+
+// Comprime la foto in formato Polaroid (~18 KB) quando passa dalla Sala VAR all'Album Storico
+const compressToPolaroid = (dataUrl) => {
+  return new Promise((resolve) => {
+    if (!dataUrl || !String(dataUrl).startsWith('data:image')) return resolve(dataUrl);
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const maxW = 380;
+        const scale = Math.min(1, maxW / (img.width || maxW));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round((img.width || maxW) * scale);
+        canvas.height = Math.round((img.height || maxW) * scale);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.58));
+      } catch (err) {
+        resolve(dataUrl);
+      }
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+};
+
+// Salva la foto nel Cloud in una cartella separata (/albums) così la classifica resta leggerissima
+const savePhotoToCloudAlbum = async (leagueId, memoryId, rawPhotoUrl) => {
+  if (!cleanDbUrl || !leagueId || !memoryId || !rawPhotoUrl) return rawPhotoUrl;
+  try {
+    const polaroidUrl = await compressToPolaroid(rawPhotoUrl);
+    await fetch(`${cleanDbUrl}/albums/${leagueId}/${memoryId}.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: memoryId, photoUrl: polaroidUrl, savedAtMs: Date.now() })
+    });
+    return polaroidUrl;
+  } catch (e) {
+    return rawPhotoUrl;
+  }
+};
+
+const deletePhotoFromCloudAlbum = async (leagueId, memoryId) => {
+  if (!cleanDbUrl || !leagueId || !memoryId) return;
+  try {
+    await fetch(`${cleanDbUrl}/albums/${leagueId}/${memoryId}.json`, { method: 'DELETE' });
+  } catch (e) {}
+};
+
 // Durata massima delle notizie: 24 ore
 const GAZZETTA_EXPIRY_MS = 24 * 60 * 60 * 1000;
 
@@ -950,16 +1040,16 @@ const DEFAULT_LEAGUES = [
 ];
 
 export default function App() {
-  const [accounts, setAccounts] = useState(() => JSON.parse(localStorage.getItem('sempre_noi_accounts_db') || '[]'));
-  const [currentUser, setCurrentUser] = useState(() => JSON.parse(localStorage.getItem('sempre_noi_active_user') || 'null'));
-  const [savedCreds, setSavedCreds] = useState(() => JSON.parse(localStorage.getItem('sempre_noi_remembered_creds') || '{"username":"","password":""}'));
+  const [accounts, setAccounts] = useState(() => safeGetStorage('sempre_noi_accounts_db', []));
+  const [currentUser, setCurrentUser] = useState(() => safeGetStorage('sempre_noi_active_user', null));
+  const [savedCreds, setSavedCreds] = useState(() => safeGetStorage('sempre_noi_remembered_creds', { username: '', password: '' }));
 
   const [authMode, setAuthMode] = useState('login');
-  const [authUsername, setAuthUsername] = useState(savedCreds.username || '');
-  const [authPassword, setAuthPassword] = useState(savedCreds.password || '');
+  const [authUsername, setAuthUsername] = useState(savedCreds?.username || '');
+  const [authPassword, setAuthPassword] = useState(savedCreds?.password || '');
   const [rememberMe, setRememberMe] = useState(true);
 
-  const [leagues, setLeagues] = useState(() => JSON.parse(localStorage.getItem('sempre_noi_leagues_v3') || JSON.stringify(DEFAULT_LEAGUES)));
+  const [leagues, setLeagues] = useState(() => safeGetStorage('sempre_noi_leagues_v3', DEFAULT_LEAGUES));
   const [activeLeagueId, setActiveLeagueId] = useState(null);
   const [showCreateLeagueModal, setShowCreateLeagueModal] = useState(false);
   const [showJoinLeagueModal, setShowJoinLeagueModal] = useState(false);
@@ -973,14 +1063,16 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('classifica');
   const [toastMessage, setToastMessage] = useState(null);
   const [showGlassPicker, setShowGlassPicker] = useState(false);
-const [showRulesModal, setShowRulesModal] = useState(false);
-const [rulesPage, setRulesPage] = useState('intro');
+  const [showRulesModal, setShowRulesModal] = useState(false);
+  const [rulesPage, setRulesPage] = useState('intro');
   const [clockTick, setClockTick] = useState(Date.now());
   const [personalDisclaimer, setPersonalDisclaimer] = useState(null);
   const [showGazzettaModal, setShowGazzettaModal] = useState(false);
   const [breakingNewsAlert, setBreakingNewsAlert] = useState(null);
 
-  const [readNewsByLeague, setReadNewsByLeague] = useState(() => JSON.parse(localStorage.getItem('sempre_noi_read_gazzetta_map') || '{}'));
+  const [readNewsByLeague, setReadNewsByLeague] = useState(() => safeGetStorage('sempre_noi_read_gazzetta_map', {}));
+  const [albumPhotosMap, setAlbumPhotosMap] = useState({});
+  const [isLoadingAlbum, setIsLoadingAlbum] = useState(false);
 
   const [beerTitle, setBeerTitle] = useState('');
   const [format, setFormat] = useState('spina50');
@@ -1139,13 +1231,12 @@ const [rulesPage, setRulesPage] = useState('intro');
     }
   }, [clockTick, activeLeague]);
 
-  useEffect(() => { localStorage.setItem('sempre_noi_accounts_db', JSON.stringify(accounts)); }, [accounts]);
+ useEffect(() => { safeSetStorage('sempre_noi_accounts_db', accounts); }, [accounts]);
   useEffect(() => {
-    if (currentUser) localStorage.setItem('sempre_noi_active_user', JSON.stringify(currentUser));
-    else localStorage.removeItem('sempre_noi_active_user');
+    if (currentUser) safeSetStorage('sempre_noi_active_user', currentUser);
+    else { try { localStorage.removeItem('sempre_noi_active_user'); } catch (e) {} }
   }, [currentUser]);
-  useEffect(() => { localStorage.setItem('sempre_noi_leagues_v3', JSON.stringify(leagues)); }, [leagues]);
-
+  useEffect(() => { safeSetStorageLeagues(leagues); }, [leagues]);
   useEffect(() => {
     if (!activeLeague || !latestGazzettaNews) return;
     const storageKey = `sempre_noi_seen_news_${activeLeague.id}`;
@@ -1443,9 +1534,63 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
     }));
   };
 
-const handleGodForceVar = (beerItem, mode) => {
+// Scarica le foto dall'archivio Cloud separato (/albums) SOLO quando si apre l'Album
+  // e sposta in automatico eventuali vecchie foto pesanti fuori dalla classifica!
+  const handleOpenAlbum = async (targetMember) => {
+    setAlbumMember(targetMember);
+    setAlbumFilterMode('player');
+    if (!activeLeague) return;
+
+    setIsLoadingAlbum(true);
+    const localMap = {};
+
+    // 1. Migra in automatico eventuali foto vecchie ancora salvate dentro activeLeague.history
+    let needsHistoryCleanup = false;
+    const cleanedHistory = (activeLeague.history || []).map(h => {
+      if (h && h.photoUrl && String(h.photoUrl).startsWith('data:image')) {
+        localMap[h.id] = h.photoUrl;
+        needsHistoryCleanup = true;
+        savePhotoToCloudAlbum(activeLeague.id, h.id, h.photoUrl);
+        return { ...h, hasPhoto: true, photoUrl: null };
+      }
+      return h;
+    });
+
+    if (needsHistoryCleanup) {
+      const lighterLeague = { ...activeLeague, history: cleanedHistory };
+      setLeagues(prev => prev.map(l => l.id === activeLeague.id ? lighterLeague : l));
+      pushLeagueToCloud(lighterLeague);
+    }
+
+    // 2. Scarica tutte le Polaroid della lega dalla cartella dedicata /albums
+    if (cleanDbUrl) {
+      try {
+        const res = await fetch(`${cleanDbUrl}/albums/${activeLeague.id}.json`);
+        if (res.ok) {
+          const cloudAlbums = await res.json();
+          if (cloudAlbums && typeof cloudAlbums === 'object') {
+            Object.entries(cloudAlbums).forEach(([memId, obj]) => {
+              if (obj?.photoUrl) localMap[memId] = obj.photoUrl;
+            });
+          }
+        }
+      } catch (e) {}
+    }
+
+    setAlbumPhotosMap(prev => ({ ...prev, ...localMap }));
+    setIsLoadingAlbum(false);
+  };
+
+  const handleGodForceVar = (beerItem, mode) => {
     if (!beerItem || !activeLeagueId) return;
     const nowMs = Date.now();
+
+    if (mode === 'approve' && beerItem.photoUrl) {
+      savePhotoToCloudAlbum(activeLeagueId, beerItem.id, beerItem.photoUrl).then(polaroid => {
+        setAlbumPhotosMap(prev => ({ ...prev, [beerItem.id]: polaroid }));
+      });
+    }
+
     setLeagues(prev => prev.map(l => {
       if (l.id !== activeLeagueId) return l;
       const updatedFeed = (l.feed || []).filter(item => item.id !== beerItem.id);
@@ -1479,7 +1624,8 @@ const handleGodForceVar = (beerItem, mode) => {
         formatLabel: beerItem.formatLabel || '',
         abvLabel: beerItem.abvLabel || '',
         styleLabel: beerItem.styleLabel || '',
-        photoUrl: beerItem.photoUrl || null,
+        hasPhoto: Boolean(beerItem.photoUrl),
+        photoUrl: null,
         points: beerItem.points,
         liters: drinkL,
         timestampMs: beerItem.createdAtMs || nowMs,
@@ -1492,11 +1638,17 @@ const handleGodForceVar = (beerItem, mode) => {
       pushLeagueToCloud(updated);
       return updated;
     }));
-    showToast(mode === 'approve' ? '⚡ Birra convalidata e salvata nell\'Album Sempre Noi!' : '🗑️ Foto eliminata e contatore scalato (-1)!', 'success');
+    showToast(mode === 'approve' ? '⚡ Birra convalidata e salvata nell\'Album Cloud!' : '🗑️ Foto eliminata e contatore scalato (-1)!', 'success');
   };
 
   const handleDeleteAlbumMemory = (memoryId) => {
     if (!activeLeagueId || !memoryId) return;
+    deletePhotoFromCloudAlbum(activeLeagueId, memoryId);
+    setAlbumPhotosMap(prev => {
+      const next = { ...prev };
+      delete next[memoryId];
+      return next;
+    });
     setLeagues(prev => prev.map(l => {
       if (l.id !== activeLeagueId) return l;
       const updated = {
@@ -1803,6 +1955,12 @@ const newCount = prevCount + 1;
         }
       }
 
+      if (reached2 && target.photoUrl) {
+        savePhotoToCloudAlbum(l.id, target.id, target.photoUrl).then(polaroid => {
+          setAlbumPhotosMap(prev => ({ ...prev, [target.id]: polaroid }));
+        });
+      }
+
       const drinkDate = new Date(target.createdAtMs || nowMs);
       const updatedHistory = reached2 ? [{
         id: target.id,
@@ -1813,14 +1971,14 @@ const newCount = prevCount + 1;
         formatLabel: target.formatLabel || '',
         abvLabel: target.abvLabel || '',
         styleLabel: target.styleLabel || '',
-        photoUrl: target.photoUrl || null,
+        hasPhoto: Boolean(target.photoUrl),
+        photoUrl: null,
         points: target.points,
         liters: drinkL,
         timestampMs: target.createdAtMs || nowMs,
         dateStr: drinkDate.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' }),
         timeStr: target.timestamp || drinkDate.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
       }, ...(l.history || [])] : (l.history || []);
-
       const draft = { ...l, feed: updatedFeed, members: updatedMembers, history: updatedHistory, gazzetta: updatedGazzetta };
       const { updatedLeague: finalL } = settleExpiredCaptainsInLeague(draft, nowMs);
       pushLeagueToCloud(finalL);
@@ -3562,18 +3720,15 @@ const newCount = prevCount + 1;
                   </div>
                 </div>
 
-           {/* PULSANTE DORATO "ALBUM SEMPRE NOI" (LIBRO DEI RICORDI FOTOGRAFICO) */}
+         {/* PULSANTE DORATO "ALBUM SEMPRE NOI" (LIBRO DEI RICORDI FOTOGRAFICO) */}
                 {(() => {
                   const playerMemoriesCount = (activeLeague.history || []).filter(
-                    h => h.photoUrl && (h.playerId === inspectedMember.id || h.playerName?.toLowerCase() === inspectedMember.name?.toLowerCase())
+                    h => (h.hasPhoto || h.photoUrl) && (h.playerId === inspectedMember.id || h.playerName?.toLowerCase() === inspectedMember.name?.toLowerCase())
                   ).length;
                   return (
                     <button
                       type="button"
-                      onClick={() => {
-                        setAlbumMember(inspectedMember);
-                        setAlbumFilterMode('player');
-                      }}
+                      onClick={() => handleOpenAlbum(inspectedMember)}
                       className="w-full p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-slate-950 hover:from-amber-500/30 border-2 border-amber-400/70 flex items-center justify-between transition shadow-lg group"
                     >
                       <div className="flex items-center gap-3 text-left">
@@ -3627,7 +3782,7 @@ const newCount = prevCount + 1;
         )}
 
         {/* =====================================================================
-            📸 MODALE "ALBUM SEMPRE NOI" (LIBRO DEI RICORDI DELLE BIRRE CONFERMATE)
+            📸 MODALE "ALBUM SEMPRE NOI" (CARICAMENTO ON-DEMAND DAL CLOUD /ALBUMS)
         ===================================================================== */}
         {albumMember && (
           <div
@@ -3645,7 +3800,7 @@ const newCount = prevCount + 1;
                     📸 Album Sempre Noi
                   </span>
                   <span className="text-[10px] text-slate-400 font-bold block">
-                    Archivio storico delle bevute confermate dal VAR
+                    Archivio Cloud illimitato delle bevute confermate
                   </span>
                 </div>
                 <button
@@ -3686,10 +3841,23 @@ const newCount = prevCount + 1;
               {/* Griglia Polaroid dei Ricordi */}
               <div className="p-3.5 overflow-y-auto flex-1">
                 {(() => {
-                  const allWithPhotos = (activeLeague.history || []).filter(h => h && h.photoUrl);
+                  const allWithPhotos = (activeLeague.history || []).filter(
+                    h => h && (h.hasPhoto || h.photoUrl || albumPhotosMap[h.id])
+                  );
                   const filteredMemories = albumFilterMode === 'player'
                     ? allWithPhotos.filter(h => h.playerId === albumMember.id || h.playerName?.toLowerCase() === albumMember.name?.toLowerCase())
                     : allWithPhotos;
+
+                  if (isLoadingAlbum && Object.keys(albumPhotosMap).length === 0) {
+                    return (
+                      <div className="py-12 px-4 text-center space-y-2">
+                        <RefreshCw className="w-8 h-8 text-amber-400 animate-spin mx-auto" />
+                        <p className="text-xs font-black uppercase text-amber-300">
+                          Apertura Archivio Fotografico...
+                        </p>
+                      </div>
+                    );
+                  }
 
                   if (filteredMemories.length === 0) {
                     return (
@@ -3708,6 +3876,7 @@ const newCount = prevCount + 1;
                   return (
                     <div className="grid grid-cols-2 gap-2.5">
                       {filteredMemories.map(mem => {
+                        const photoSrc = albumPhotosMap[mem.id] || mem.photoUrl;
                         const fallbackDate = mem.timestampMs ? new Date(Number(mem.timestampMs)) : new Date();
                         const displayDate = mem.dateStr || fallbackDate.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' });
                         const displayTime = mem.timeStr || fallbackDate.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
@@ -3715,15 +3884,22 @@ const newCount = prevCount + 1;
                         return (
                           <div
                             key={mem.id}
-                            onClick={() => setZoomedMemory({ ...mem, displayDate, displayTime })}
+                            onClick={() => photoSrc && setZoomedMemory({ ...mem, photoUrl: photoSrc, displayDate, displayTime })}
                             className="bg-slate-950 border border-slate-800 hover:border-amber-400/70 rounded-2xl overflow-hidden shadow-lg cursor-pointer transition active:scale-95 flex flex-col text-left group"
                           >
-                            <div className="relative h-40 w-full bg-black overflow-hidden">
-                              <img
-                                src={mem.photoUrl}
-                                alt={mem.beerName || 'Birra'}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                              />
+                            <div className="relative h-40 w-full bg-black overflow-hidden flex items-center justify-center">
+                              {photoSrc ? (
+                                <img
+                                  src={photoSrc}
+                                  alt={mem.beerName || 'Birra'}
+                                  loading="lazy"
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                />
+                              ) : (
+                                <span className="text-[10px] font-bold text-slate-500 animate-pulse">
+                                  Caricamento foto...
+                                </span>
+                              )}
                               <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-black/40" />
                               <span className="absolute top-2 right-2 bg-amber-400 text-slate-950 text-[9px] font-black px-2 py-0.5 rounded-md shadow">
                                 {mem.points >= 0 ? `+${mem.points}` : mem.points} pt
@@ -3762,8 +3938,7 @@ const newCount = prevCount + 1;
               </div>
             </div>
           </div>
-        )}
-
+        )} 
         {/* =====================================================================
             🔍 ZOOM POLAROID A TUTTO SCHERMO DEL SINGOLO RICORDO
         ===================================================================== */}
