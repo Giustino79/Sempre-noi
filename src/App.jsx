@@ -1662,56 +1662,90 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
       });
     }
 
+    const participants = (beerItem.participants && beerItem.participants.length > 0)
+      ? beerItem.participants
+      : [{
+          id: beerItem.playerId,
+          name: beerItem.playerName,
+          glassType: beerItem.glassType || 'weiss',
+          points: beerItem.points,
+          isCaptainBeer: Boolean(beerItem.isCaptainBeer),
+          captainSlot: beerItem.captainSlot || null
+        }];
+    const participantMap = new Map(participants.map(p => [p.id, p]));
+
     setLeagues(prev => prev.map(l => {
       if (l.id !== activeLeagueId) return l;
       const updatedFeed = (l.feed || []).filter(item => item.id !== beerItem.id);
       const drinkL = Number(beerItem.liters || 0.5);
       const updatedMembers = (l.members || []).map(m => {
-        if (m.id !== beerItem.playerId) return m;
+        const part = participantMap.get(m.id);
+        if (!part) return m;
+        const pPts = Number(part.points ?? beerItem.points);
         if (mode === 'approve') {
+          if (part.isCaptainBeer && m.captainActive) {
+            return {
+              ...m,
+              captainBeers: (m.captainBeers || 0) + 1,
+              captainVaultPoints: Number(((m.captainVaultPoints || 0) + pPts).toFixed(1)),
+              captainVaultLiters: Number(((m.captainVaultLiters || 0) + drinkL).toFixed(2)),
+              rumenoUntil: beerItem.isRumeno ? (nowMs + 24 * 3600000) : m.rumenoUntil
+            };
+          }
           return {
             ...m,
-            points: Number((m.points + beerItem.points).toFixed(1)),
+            points: Number((m.points + pPts).toFixed(1)),
+            weekendPts: Number(((m.weekendPts || 0) + pPts).toFixed(1)),
             beers: (m.beers || 0) + 1,
-            liters: Number(((m.liters ?? ((m.beers || 0) * 0.5)) + drinkL).toFixed(2))
+            liters: Number(((m.liters ?? ((m.beers || 0) * 0.5)) + drinkL).toFixed(2)),
+            rumenoUntil: beerItem.isRumeno ? (nowMs + 24 * 3600000) : m.rumenoUntil
           };
         } else {
           const curStreak = getActiveSessionStreak(m, nowMs);
           return {
             ...m,
             dailyCount: Math.max(0, curStreak - 1),
-            captainBeersSubmitted: beerItem.isCaptainBeer ? Math.max(0, (m.captainBeersSubmitted || 1) - 1) : m.captainBeersSubmitted
+            rumenoUntil: beerItem.isRumeno ? null : m.rumenoUntil,
+            captainBeersSubmitted: part.isCaptainBeer ? Math.max(0, (m.captainBeersSubmitted || 1) - 1) : m.captainBeersSubmitted
           };
         }
       });
 
       const drinkDate = new Date(beerItem.createdAtMs || nowMs);
-      const newMemory = mode === 'approve' ? {
-        id: beerItem.id,
-        playerId: beerItem.playerId,
-        playerName: beerItem.playerName,
-        glassType: beerItem.glassType || 'weiss',
-        beerName: beerItem.beerName || 'Birra Fresca',
-        formatLabel: beerItem.formatLabel || '',
-        abvLabel: beerItem.abvLabel || '',
-        styleLabel: beerItem.styleLabel || '',
-        hasPhoto: Boolean(beerItem.photoUrl),
-        photoUrl: null,
-        points: beerItem.points,
-        liters: drinkL,
-        timestampMs: beerItem.createdAtMs || nowMs,
-        dateStr: drinkDate.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' }),
-        timeStr: beerItem.timestamp || drinkDate.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
-      } : null;
+      const newMemories = mode === 'approve'
+        ? participants.map((part, idx) => ({
+            id: idx === 0 ? beerItem.id : `${beerItem.id}_${part.id}`,
+            photoId: beerItem.id,
+            playerId: part.id,
+            playerName: part.name,
+            glassType: part.glassType || beerItem.glassType || 'weiss',
+            beerName: beerItem.beerName || 'Birra Fresca',
+            formatLabel: beerItem.formatLabel || '',
+            abvLabel: beerItem.abvLabel || '',
+            styleLabel: beerItem.styleLabel || '',
+            hasPhoto: Boolean(beerItem.photoUrl),
+            photoUrl: null,
+            points: Number(part.points ?? beerItem.points),
+            liters: drinkL,
+            timestampMs: beerItem.createdAtMs || nowMs,
+            dateStr: drinkDate.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' }),
+            timeStr: beerItem.timestamp || drinkDate.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
+          }))
+        : [];
 
-      const updatedHistory = newMemory ? [newMemory, ...(l.history || [])] : (l.history || []);
-      const updated = { ...l, feed: updatedFeed, members: updatedMembers, history: updatedHistory };
-      pushLeagueToCloud(updated);
-      return updated;
+      const updatedHistory = newMemories.length > 0 ? [...newMemories, ...(l.history || [])] : (l.history || []);
+      const draft = { ...l, feed: updatedFeed, members: updatedMembers, history: updatedHistory };
+      const { updatedLeague: finalL } = settleExpiredCaptainsInLeague(draft, nowMs);
+      pushLeagueToCloud(finalL);
+      return finalL;
     }));
-    showToast(mode === 'approve' ? '⚡ Birra convalidata e salvata nell\'Album Cloud!' : '🗑️ Foto eliminata e contatore scalato (-1)!', 'success');
+    showToast(
+      mode === 'approve'
+        ? `⚡ Birra convalidata per ${participants.length} ${participants.length > 1 ? 'bevitori' : 'bevitore'}!`
+        : '🗑️ Foto eliminata e contatori scalati (-1)!',
+      'success'
+    );
   };
-
   const handleDeleteAlbumMemory = (memoryId) => {
     if (!activeLeagueId || !memoryId) return;
     deletePhotoFromCloudAlbum(activeLeagueId, memoryId);
@@ -1990,7 +2024,27 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
       reader.readAsDataURL(file);
     }
   };
-  const [beerTypeTier, setBeerTypeTier] = useState('classica');
+const [beerTypeTier, setBeerTypeTier] = useState('classica');
+  const [taggedMemberIds, setTaggedMemberIds] = useState([]);
+  const [showTagSelector, setShowTagSelector] = useState(false);
+
+  const handleToggleTagMember = (memberId) => {
+    setTaggedMemberIds(prev => {
+      const exists = prev.includes(memberId);
+      const next = exists ? prev.filter(id => id !== memberId) : [...prev, memberId];
+      // Se tagghi almeno 2 amici (siete 3+ membri della lega), accende in automatico "Sempre noi" (x1.3)
+      if (next.length >= 2) setBonusSempreNoi(true);
+      return next;
+    });
+  };
+
+  const isUserInBeerGroup = (beerItem, userId) => {
+    if (!beerItem || !userId) return false;
+    if (beerItem.playerId === userId) return true;
+    if (Array.isArray(beerItem.taggedIds) && beerItem.taggedIds.includes(userId)) return true;
+    if (Array.isArray(beerItem.participants) && beerItem.participants.some(p => p.id === userId)) return true;
+    return false;
+  };
 
   const calculatedDrink = useMemo(() => {
     const fMap = {
@@ -2025,18 +2079,23 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
     const mult = aMap[abvTier].mult;
     const qualityBonus = qMap[qualityTier].bonus;
     const typeBonus = tMap[safeType].bonus;
-   const gocciaBonus = gocciaStatus.isOpen && bonusGocciaDOro ? 3 : 0;
+    const gocciaBonus = gocciaStatus.isOpen && bonusGocciaDOro ? 3 : 0;
     const rainBonus = rainStatus.isOpen && bonusPioggia ? 2 : 0;
     const isWithin4h = Boolean(myMemberProfile?.captainActive && (!myMemberProfile?.captainExpiresAtMs || clockTick < Number(myMemberProfile.captainExpiresAtMs)));
     const eligibleForCaptainDouble = isWithin4h && (myMemberProfile?.captainBeersSubmitted || 0) < 4;
 
-    let subtotal = (base * mult) + qualityBonus + typeBonus;
-    if (bonusSempreNoi) subtotal *= 1.3;
-    subtotal += gocciaBonus + rainBonus;
-    if (eligibleForCaptainDouble) subtotal *= 2;
+    let baseSubtotal = (base * mult) + qualityBonus + typeBonus;
+    if (bonusSempreNoi) baseSubtotal *= 1.3;
+    baseSubtotal += gocciaBonus + rainBonus;
+
+    const singleNormalPoints = Number(baseSubtotal.toFixed(1));
+    const singleCaptainPoints = Number((baseSubtotal * 2).toFixed(1));
+    const total = eligibleForCaptainDouble ? singleCaptainPoints : singleNormalPoints;
 
     return {
-      total: Number(subtotal.toFixed(1)),
+      total,
+      singleNormalPoints,
+      singleCaptainPoints,
       base, liters, mult, qualityBonus, typeBonus, gocciaBonus, rainBonus, eligibleForCaptainDouble,
       nextCaptainSlot: eligibleForCaptainDouble ? (myMemberProfile?.captainBeersSubmitted || 0) + 1 : null,
       formatLabel: fMap[safeFormat].label,
@@ -2052,39 +2111,114 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
     const nowMs = Date.now();
     const todayKey = getTodayDateKey();
     const isRumeno = qualityTier === 'rumeno';
-    const isCapSlot = calculatedDrink.eligibleForCaptainDouble;
+
+    const validTaggedMembers = (activeLeague?.members || []).filter(
+      m => m.id !== currentUser.id && taggedMemberIds.includes(m.id)
+    );
+    const allDrinkingMembers = [
+      myMemberProfile || { id: currentUser.id, name: currentUser.username, glassType: currentUser.glassType || 'weiss' },
+      ...validTaggedMembers
+    ];
+
+    const participants = allDrinkingMembers.map(m => {
+      const mWithin4h = Boolean(m?.captainActive && (!m?.captainExpiresAtMs || nowMs < Number(m.captainExpiresAtMs)));
+      const mCapEligible = mWithin4h && (m?.captainBeersSubmitted || 0) < 4;
+      return {
+        id: m.id,
+        name: m.name,
+        glassType: m.glassType || 'weiss',
+        points: mCapEligible ? calculatedDrink.singleCaptainPoints : calculatedDrink.singleNormalPoints,
+        isCaptainBeer: mCapEligible,
+        captainSlot: mCapEligible ? (m?.captainBeersSubmitted || 0) + 1 : null
+      };
+    });
+    const participantMap = new Map(participants.map(p => [p.id, p]));
+    const namesLabel = participants.map(p => p.name).join(', ');
 
     const prevCount = getActiveSessionStreak(myMemberProfile, nowMs);
     const newCount = prevCount + 1;
     if (newCount >= 1 && newCount <= 3) setPersonalDisclaimer(PERSONAL_DISCLAIMERS[newCount]);
 
     const newsItems = [];
-    if (myMemberProfile?.lastDrinkAtMs && (nowMs - Number(myMemberProfile.lastDrinkAtMs)) >= 5 * 24 * 60 * 60 * 1000) {
-      const daysOff = Math.floor((nowMs - Number(myMemberProfile.lastDrinkAtMs)) / (24 * 60 * 60 * 1000));
-      newsItems.push({ id: 'news_pentito_' + nowMs, category: 'IL PENTITO', icon: '🚨', badgeColor: 'bg-purple-500 text-white', text: `Il rincoglionito (${currentUser.username}) è tornato a bere dopo ${daysOff} giorni di astinenza!`, timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }), dateLabel: new Date().toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }), createdAtMs: nowMs });
-    }
+    allDrinkingMembers.forEach(m => {
+      if (m?.lastDrinkAtMs && (nowMs - Number(m.lastDrinkAtMs)) >= 5 * 24 * 60 * 60 * 1000) {
+        const daysOff = Math.floor((nowMs - Number(m.lastDrinkAtMs)) / (24 * 60 * 60 * 1000));
+        newsItems.push({
+          id: `news_pentito_${m.id}_${nowMs}`,
+          category: 'IL PENTITO',
+          icon: '🚨',
+          badgeColor: 'bg-purple-500 text-white',
+          text: `Il rincoglionito (${m.name}) è tornato a bere dopo ${daysOff} giorni di astinenza!`,
+          timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
+          dateLabel: new Date().toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }),
+          createdAtMs: nowMs
+        });
+      }
+    });
+
     if (isRumeno) {
-      newsItems.push({ id: 'news_deg_' + nowMs, category: 'ALLARME DEGRADO', icon: '🥫', badgeColor: 'bg-red-600 text-white', text: `${currentUser.username} ha stappato un Passaporto Rumeno (${beerTitle.trim() || 'Ceres/Tennent\'s/Faxe'}). Chiudete le finestre!`, timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }), dateLabel: new Date().toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }), createdAtMs: nowMs });
+      newsItems.push({
+        id: 'news_deg_' + nowMs,
+        category: 'ALLARME DEGRADO',
+        icon: '🥫',
+        badgeColor: 'bg-red-600 text-white',
+        text: `${namesLabel} ${participants.length > 1 ? 'hanno stappato' : 'ha stappato'} un Passaporto Rumeno (${beerTitle.trim() || 'Ceres/Tennent\'s/Faxe'}). Chiudete le finestre!`,
+        timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
+        dateLabel: new Date().toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }),
+        createdAtMs: nowMs
+      });
     }
     if (gocciaStatus.isOpen && bonusGocciaDOro) {
-      newsItems.push({ id: 'news_colazione_' + nowMs, category: 'COLAZIONE DEI CAMPIONI', icon: '☀️', badgeColor: 'bg-amber-400 text-slate-950', text: `Non è neanche mezzogiorno e mezza e ${currentUser.username} ha già stappato. Inchinatevi!`, timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }), dateLabel: new Date().toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }), createdAtMs: nowMs });
+      newsItems.push({
+        id: 'news_colazione_' + nowMs,
+        category: 'COLAZIONE DEI CAMPIONI',
+        icon: '☀️',
+        badgeColor: 'bg-amber-400 text-slate-950',
+        text: `Non è neanche mezzogiorno e mezza e ${namesLabel} ${participants.length > 1 ? 'hanno già stappato' : 'ha già stappato'}. Inchinatevi!`,
+        timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
+        dateLabel: new Date().toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }),
+        createdAtMs: nowMs
+      });
     }
 
     const activeBonuses = [];
+    if (participants.length > 1) activeBonuses.push(`🍻 Brindisi di Gruppo (${participants.length} bevitori)`);
     if (isRumeno) activeBonuses.push('Passaporto Rumeno (-5pt • 🥫 24h)');
     if (bonusSempreNoi) activeBonuses.push('Sempre noi (x1.3)');
     if (gocciaStatus.isOpen && bonusGocciaDOro) activeBonuses.push("Goccia d'Oro (+3pt)");
     if (rainStatus.isOpen && bonusPioggia) activeBonuses.push('🌧️ Terreno Scivoloso (+2pt • Solo fuori casa)');
-    if (isCapSlot) activeBonuses.push(`👑 Birra Capitano ${calculatedDrink.nextCaptainSlot}/4 (x2)`);
+    participants.filter(p => p.isCaptainBeer).forEach(p => {
+      activeBonuses.push(`👑 CAP ${p.name} (${p.captainSlot}/4 • x2)`);
+    });
 
+    const isCapSlot = calculatedDrink.eligibleForCaptainDouble;
     const newBeer = {
-      id: 'b_' + nowMs, playerId: currentUser.id, playerName: currentUser.username, glassType: currentUser.glassType || 'weiss',
+      id: 'b_' + nowMs,
+      playerId: currentUser.id,
+      playerName: currentUser.username,
+      glassType: currentUser.glassType || 'weiss',
+      taggedIds: validTaggedMembers.map(m => m.id),
+      taggedNames: validTaggedMembers.map(m => m.name),
+      participants,
       beerName: beerTitle.trim() || (isRumeno ? 'Lattina da Battaglia' : 'Birra Fresca'),
-      formatId: format, liters: calculatedDrink.liters, formatLabel: calculatedDrink.formatLabel, abvLabel: calculatedDrink.abvLabel, styleLabel: calculatedDrink.styleLabel,
-      isRumeno, isCaptainBeer: isCapSlot, captainSlot: calculatedDrink.nextCaptainSlot, points: calculatedDrink.total,
+      formatId: format,
+      liters: calculatedDrink.liters,
+      formatLabel: calculatedDrink.formatLabel,
+      abvLabel: calculatedDrink.abvLabel,
+      styleLabel: calculatedDrink.styleLabel,
+      isRumeno,
+      isCaptainBeer: isCapSlot,
+      captainSlot: calculatedDrink.nextCaptainSlot,
+      points: calculatedDrink.total,
+      baseNormalPoints: calculatedDrink.singleNormalPoints,
       timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
-      createdAtMs: nowMs, location: bonusSempreNoi ? 'Tavolata "Sempre noi"' : 'Fotocamera Live', photoUrl: capturedPhoto,
-      bonuses: activeBonuses, approvals: [], varVotes: [], status: 'pending_var'
+      createdAtMs: nowMs,
+      location: participants.length > 1 ? `Brindisi (${participants.length} al tavolo)` : (bonusSempreNoi ? 'Tavolata "Sempre noi"' : 'Fotocamera Live'),
+      photoUrl: capturedPhoto,
+      bonuses: activeBonuses,
+      approvals: [],
+      varVotes: [],
+      status: 'pending_var'
     };
 
     setLeagues(prev => prev.map(l => {
@@ -2093,31 +2227,61 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
         ...l,
         feed: [newBeer, ...(l.feed || [])],
         gazzetta: filterActiveGazzettaNews([...newsItems, ...(l.gazzetta || [])], nowMs),
-        members: l.members.map(m => m.id === currentUser.id ? {
-          ...m,
-          rumenoUntil: isRumeno ? nowMs + 24 * 3600000 : m.rumenoUntil,
-          captainBeersSubmitted: isCapSlot ? (m.captainBeersSubmitted || 0) + 1 : m.captainBeersSubmitted,
-          lastDrinkAtMs: nowMs, dailyDate: todayKey, dailyCount: newCount
-        } : m)
+        members: l.members.map(m => {
+          const part = participantMap.get(m.id);
+          if (!part) return m;
+          const mPrevStreak = getActiveSessionStreak(m, nowMs);
+          return {
+            ...m,
+            rumenoUntil: isRumeno ? nowMs + 24 * 3600000 : m.rumenoUntil,
+            captainBeersSubmitted: part.isCaptainBeer ? (m.captainBeersSubmitted || 0) + 1 : m.captainBeersSubmitted,
+            lastDrinkAtMs: nowMs,
+            dailyDate: todayKey,
+            dailyCount: mPrevStreak + 1
+          };
+        })
       };
       pushLeagueToCloud(updated);
       return updated;
     }));
 
-    setBeerTitle(''); setCapturedPhoto(null); setBonusSempreNoi(false); setBonusPioggia(false);
-    showToast(`📸 Birra inviata in Sala VAR (${calculatedDrink.total >= 0 ? `+${calculatedDrink.total}` : calculatedDrink.total} pt in palio)!`, 'success');
+    setBeerTitle('');
+    setCapturedPhoto(null);
+    setBonusSempreNoi(false);
+    setBonusPioggia(false);
+    setTaggedMemberIds([]);
+    setShowTagSelector(false);
+    showToast(
+      participants.length > 1
+        ? `🍻 Brindisi di ${participants.length} amici inviato in Sala VAR!`
+        : `📸 Birra inviata in Sala VAR (${calculatedDrink.total >= 0 ? `+${calculatedDrink.total}` : calculatedDrink.total} pt in palio)!`,
+      'success'
+    );
     setActiveTab('var');
   };
 
   const handleApproveBeer = (beerId) => {
     const target = (activeLeague?.feed || []).find(item => item.id === beerId);
     if (!target) return;
-    if (target.playerId === currentUser.id) return showToast('⚠️ Non puoi confermare la tua birra!', 'warning');
+    if (isUserInBeerGroup(target, currentUser.id)) {
+      return showToast('⚠️ Fai parte di questo brindisi: devono confermare 2 amici esterni!', 'warning');
+    }
     if ((target.approvals || []).includes(currentUser.id)) return;
 
     const newApprovals = [...(target.approvals || []), currentUser.id];
     const reached2 = newApprovals.length >= 2;
-    const isCap = Boolean(target.isCaptainBeer);
+
+    const participants = (target.participants && target.participants.length > 0)
+      ? target.participants
+      : [{
+          id: target.playerId,
+          name: target.playerName,
+          glassType: target.glassType || 'weiss',
+          points: target.points,
+          isCaptainBeer: Boolean(target.isCaptainBeer),
+          captainSlot: target.captainSlot || null
+        }];
+    const participantMap = new Map(participants.map(p => [p.id, p]));
 
     setLeagues(prev => prev.map(l => {
       if (l.id !== activeLeagueId) return l;
@@ -2125,37 +2289,44 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
       const prevSorted = [...(l.members || [])].sort((a, b) => b.points - a.points);
       const prevLeader = prevSorted[0];
 
-      const updatedFeed = reached2 ? (l.feed || []).filter(item => item.id !== beerId) : (l.feed || []).map(item => item.id === beerId ? { ...item, approvals: newApprovals } : item);
+      const updatedFeed = reached2
+        ? (l.feed || []).filter(item => item.id !== beerId)
+        : (l.feed || []).map(item => item.id === beerId ? { ...item, approvals: newApprovals } : item);
       const drinkL = Number(target.liters || 0.5);
 
       const updatedMembers = reached2 ? l.members.map(m => {
-        if (m.id !== target.playerId) return m;
-        if (isCap && m.captainActive) {
+        const part = participantMap.get(m.id);
+        if (!part) return m;
+        const pPts = Number(part.points ?? target.points);
+        if (part.isCaptainBeer && m.captainActive) {
           return {
             ...m,
             captainBeers: (m.captainBeers || 0) + 1,
-            captainVaultPoints: Number(((m.captainVaultPoints || 0) + target.points).toFixed(1)),
+            captainVaultPoints: Number(((m.captainVaultPoints || 0) + pPts).toFixed(1)),
             captainVaultLiters: Number(((m.captainVaultLiters || 0) + drinkL).toFixed(2)),
             rumenoUntil: target.isRumeno ? (nowMs + 24 * 3600000) : m.rumenoUntil
           };
         }
         return {
           ...m,
-          points: Number((m.points + target.points).toFixed(1)),
-          weekendPts: Number((m.weekendPts + target.points).toFixed(1)),
-          beers: m.beers + 1,
-          liters: Number(((m.liters || m.beers * 0.5) + drinkL).toFixed(2)),
+          points: Number((m.points + pPts).toFixed(1)),
+          weekendPts: Number(((m.weekendPts || 0) + pPts).toFixed(1)),
+          beers: (m.beers || 0) + 1,
+          liters: Number(((m.liters ?? ((m.beers || 0) * 0.5)) + drinkL).toFixed(2)),
           rumenoUntil: target.isRumeno ? (nowMs + 24 * 3600000) : m.rumenoUntil
         };
       }) : l.members;
 
       let updatedGazzetta = filterActiveGazzettaNews(l.gazzetta || [], nowMs);
-      if (reached2 && !isCap && updatedMembers.length > 1) {
+      if (reached2 && updatedMembers.length > 1) {
         const newSorted = [...updatedMembers].sort((a, b) => b.points - a.points);
         const newLeader = newSorted[0];
-        if (prevLeader && newLeader && prevLeader.id !== newLeader.id && newLeader.id === target.playerId) {
+        if (prevLeader && newLeader && prevLeader.id !== newLeader.id && participantMap.has(newLeader.id)) {
           const overtakeNews = {
-            id: 'news_sorpasso_' + nowMs, category: 'SORPASSO IN CURVA', icon: '🏎️', badgeColor: 'bg-emerald-500 text-slate-950',
+            id: 'news_sorpasso_' + nowMs,
+            category: 'SORPASSO IN CURVA',
+            icon: '🏎️',
+            badgeColor: 'bg-emerald-500 text-slate-950',
             text: `${newLeader.name} si prende la Pole Position (${newLeader.points} pt)! ${prevLeader.name} scivola dietro!`,
             timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
             dateLabel: new Date().toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }),
@@ -2172,23 +2343,28 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
       }
 
       const drinkDate = new Date(target.createdAtMs || nowMs);
-      const updatedHistory = reached2 ? [{
-        id: target.id,
-        playerId: target.playerId,
-        playerName: target.playerName,
-        glassType: target.glassType || 'weiss',
-        beerName: target.beerName || 'Birra Fresca',
-        formatLabel: target.formatLabel || '',
-        abvLabel: target.abvLabel || '',
-        styleLabel: target.styleLabel || '',
-        hasPhoto: Boolean(target.photoUrl),
-        photoUrl: null,
-        points: target.points,
-        liters: drinkL,
-        timestampMs: target.createdAtMs || nowMs,
-        dateStr: drinkDate.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' }),
-        timeStr: target.timestamp || drinkDate.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
-      }, ...(l.history || [])] : (l.history || []);
+      const newMemories = reached2
+        ? participants.map((part, idx) => ({
+            id: idx === 0 ? target.id : `${target.id}_${part.id}`,
+            photoId: target.id,
+            playerId: part.id,
+            playerName: part.name,
+            glassType: part.glassType || target.glassType || 'weiss',
+            beerName: target.beerName || 'Birra Fresca',
+            formatLabel: target.formatLabel || '',
+            abvLabel: target.abvLabel || '',
+            styleLabel: target.styleLabel || '',
+            hasPhoto: Boolean(target.photoUrl),
+            photoUrl: null,
+            points: Number(part.points ?? target.points),
+            liters: drinkL,
+            timestampMs: target.createdAtMs || nowMs,
+            dateStr: drinkDate.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' }),
+            timeStr: target.timestamp || drinkDate.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
+          }))
+        : [];
+
+      const updatedHistory = newMemories.length > 0 ? [...newMemories, ...(l.history || [])] : (l.history || []);
       const draft = { ...l, feed: updatedFeed, members: updatedMembers, history: updatedHistory, gazzetta: updatedGazzetta };
       const { updatedLeague: finalL } = settleExpiredCaptainsInLeague(draft, nowMs);
       pushLeagueToCloud(finalL);
@@ -2196,17 +2372,22 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
     }));
 
     if (reached2) {
-      if (isCap) showToast(`👑 Birra Capitano confermata (2/2)! Punti messi in cassaforte per fine 4h!`, 'success');
-      else showToast(`🍻 Birra confermata (2/2)! Foto rimossa dal VAR!`, 'success');
+      showToast(
+        participants.length > 1
+          ? `🍻 Brindisi confermato (2/2)! Punti accreditati a tutti i ${participants.length} partecipanti!`
+          : `🍻 Birra confermata (2/2)! Foto salvata nell'Album!`,
+        'success'
+      );
     } else {
       showToast('✅ 1ª Conferma registrata (1/2)!', 'success');
     }
   };
-// --- SALA VAR: IL PROPRIETARIO RITIRA/CANCELLA LA PROPRIA FOTO CARICATA PER ERRORE ---
+
+  // --- SALA VAR: IL PROPRIETARIO RITIRA/CANCELLA LA PROPRIA FOTO CARICATA PER ERRORE ---
   const handleDeleteOwnBeer = (beerItem) => {
     if (!beerItem || !activeLeagueId) return;
     if (beerItem.playerId !== currentUser.id) {
-      showToast('⚠️ Puoi cancellare solo le foto caricate da te!', 'warning');
+      showToast('⚠️ Solo chi ha scattato la foto può ritirarla!', 'warning');
       return;
     }
     if ((beerItem.varVotes || []).length > 0) {
@@ -2215,21 +2396,25 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
     }
 
     const nowMs = Date.now();
+    const participants = (beerItem.participants && beerItem.participants.length > 0)
+      ? beerItem.participants
+      : [{ id: beerItem.playerId, isCaptainBeer: Boolean(beerItem.isCaptainBeer) }];
+    const participantMap = new Map(participants.map(p => [p.id, p]));
 
     setLeagues(prev => prev.map(l => {
       if (l.id !== activeLeagueId) return l;
       const updatedFeed = (l.feed || []).filter(item => item.id !== beerItem.id);
 
-      // Cerchiamo se il giocatore ha altre birre recenti (nelle ultime 3h) per mantenere il timer corretto
-      const myOtherBeersInVar = updatedFeed.filter(b => b.playerId === currentUser.id && b.createdAtMs);
-      const myHistoryBeers = (l.history || []).filter(h => h.playerId === currentUser.id && h.timestampMs);
-      const latestPrevMs = [
-        ...myOtherBeersInVar.map(b => Number(b.createdAtMs)),
-        ...myHistoryBeers.map(h => Number(h.timestampMs))
-      ].sort((a, b) => b - a)[0] || null;
-
       const updatedMembers = l.members.map(m => {
-        if (m.id !== currentUser.id) return m;
+        const part = participantMap.get(m.id);
+        if (!part) return m;
+
+        const mOtherBeersInVar = updatedFeed.filter(b => isUserInBeerGroup(b, m.id) && b.createdAtMs);
+        const mHistoryBeers = (l.history || []).filter(h => h.playerId === m.id && h.timestampMs);
+        const latestPrevMs = [
+          ...mOtherBeersInVar.map(b => Number(b.createdAtMs)),
+          ...mHistoryBeers.map(h => Number(h.timestampMs))
+        ].sort((a, b) => b - a)[0] || null;
 
         const currentStreak = getActiveSessionStreak(m, nowMs);
         const nextStreak = Math.max(0, currentStreak - 1);
@@ -2239,7 +2424,7 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
           dailyCount: nextStreak,
           lastDrinkAtMs: nextStreak > 0 ? (latestPrevMs || m.lastDrinkAtMs) : latestPrevMs,
           rumenoUntil: beerItem.isRumeno ? null : m.rumenoUntil,
-          captainBeersSubmitted: beerItem.isCaptainBeer
+          captainBeersSubmitted: part.isCaptainBeer
             ? Math.max(0, (m.captainBeersSubmitted || 1) - 1)
             : m.captainBeersSubmitted
         };
@@ -2250,10 +2435,13 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
       return updated;
     }));
 
-    showToast('🗑️ Foto ritirata! Contatore birre della serata riportato indietro (-1).', 'warning');
+    showToast('🗑️ Foto ritirata! Contatori riportati indietro (-1) per tutti i partecipanti.', 'warning');
   };
+
   const handleOpenVarModal = (beerItem) => {
-    if (beerItem.playerId === currentUser.id) return showToast('⚠️ Non puoi segnalare al VAR la tua stessa birra!', 'warning');
+    if (isUserInBeerGroup(beerItem, currentUser.id)) {
+      return showToast('⚠️ Fai parte di questo brindisi: non puoi chiamare il VAR!', 'warning');
+    }
     const existingFirstVote = (beerItem.varVotes || [])[0];
     setSelectedPenaltyId(existingFirstVote?.reasonId || 'simulation');
     setVarModalBeer(beerItem);
@@ -2266,21 +2454,52 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
     const reached2 = votes.length >= 2;
     const malus = Number(opt.penaltyPts);
 
+    const participants = (varModalBeer.participants && varModalBeer.participants.length > 0)
+      ? varModalBeer.participants
+      : [{ id: varModalBeer.playerId, name: varModalBeer.playerName, isCaptainBeer: Boolean(varModalBeer.isCaptainBeer) }];
+    const participantMap = new Map(participants.map(p => [p.id, p]));
+
     setLeagues(prev => prev.map(l => {
       if (l.id !== activeLeagueId) return l;
-      const updatedFeed = reached2 ? (l.feed || []).filter(item => item.id !== varModalBeer.id) : (l.feed || []).map(item => item.id === varModalBeer.id ? { ...item, varVotes: votes } : item);
-      const updatedMembers = reached2 ? l.members.map(m => m.id === varModalBeer.playerId ? {
-        ...m,
-        points: Number((m.points - malus).toFixed(1)),
-        weekendPts: Number((m.weekendPts - malus).toFixed(1)),
-        yellowCards: opt.id === 'yellow' ? (m.yellowCards || 0) + 1 : (m.yellowCards || 0),
-        simulations: opt.id === 'simulation' ? (m.simulations || 0) + 1 : (m.simulations || 0),
-        redCards: opt.id === 'red' ? m.redCards + 1 : m.redCards
-      } : m) : l.members;
+      const nowMs = Date.now();
+      const updatedFeed = reached2
+        ? (l.feed || []).filter(item => item.id !== varModalBeer.id)
+        : (l.feed || []).map(item => item.id === varModalBeer.id ? { ...item, varVotes: votes } : item);
+
+      // Con 2 voti VAR il malus e il cartellino colpiscono TUTTI i partecipanti taggati nella foto!
+      const updatedMembers = reached2 ? l.members.map(m => {
+        const part = participantMap.get(m.id);
+        if (!part) return m;
+        const curStreak = getActiveSessionStreak(m, nowMs);
+        return {
+          ...m,
+          points: Number((m.points - malus).toFixed(1)),
+          weekendPts: Number(((m.weekendPts || 0) - malus).toFixed(1)),
+          dailyCount: Math.max(0, curStreak - 1),
+          captainBeersSubmitted: part.isCaptainBeer ? Math.max(0, (m.captainBeersSubmitted || 1) - 1) : m.captainBeersSubmitted,
+          yellowCards: opt.id === 'yellow' ? (m.yellowCards || 0) + 1 : (m.yellowCards || 0),
+          simulations: opt.id === 'simulation' ? (m.simulations || 0) + 1 : (m.simulations || 0),
+          redCards: opt.id === 'red' ? (m.redCards || 0) + 1 : (m.redCards || 0)
+        };
+      }) : l.members;
+
       const draft = { ...l, feed: updatedFeed, members: updatedMembers };
       pushLeagueToCloud(draft);
       return draft;
     }));
+
+    setVarModalBeer(null);
+    if (reached2) {
+      showToast(
+        participants.length > 1
+          ? `🚨 VAR Confermato (2/2)! Stangata da -${malus} pt applicata a tutti i ${participants.length} partecipanti!`
+          : `🚨 VAR Confermato (2/2)! Applicato malus -${malus} pt!`,
+        'danger'
+      );
+    } else {
+      showToast(`🖥️ 1ª Segnalazione VAR (1/2) per -${malus} pt!`, 'warning');
+    }
+  };
 
     setVarModalBeer(null);
     if (reached2) showToast(`🚨 VAR Confermato (2/2)! Applicato malus -${malus} pt!`, 'danger');
@@ -3520,13 +3739,80 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
                 </span>
               </div>   
 
-      {/* Fotocamera Istantanea Ingrandita HD con Selfie + Flash */}
+      {/* TAG AMICI COMPATTO A SCOMPARSA (STESSA BIRRA PER TUTTI I TAGGATI) */}
+              {(() => {
+                const otherMembers = (activeLeague?.members || []).filter(m => m.id !== currentUser.id);
+                if (otherMembers.length === 0) return null;
+                const validTaggedIds = taggedMemberIds.filter(id => otherMembers.some(m => m.id === id));
+
+                return (
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden transition">
+                    <button
+                      type="button"
+                      onClick={() => setShowTagSelector(!showTagSelector)}
+                      className="w-full p-3.5 flex items-center justify-between text-left hover:bg-slate-800/60 transition"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="text-lg shrink-0">🍻</span>
+                        <div className="min-w-0">
+                          <span className="text-xs font-bold text-white block">
+                            Tagga chi prende la stessa birra
+                          </span>
+                          <span className="text-[10px] text-slate-400 block truncate">
+                            {validTaggedIds.length === 0
+                              ? 'Siete insieme? Basta 1 sola foto per accreditare i punti a tutti!'
+                              : `In foto con te: ${otherMembers.filter(m => validTaggedIds.includes(m.id)).map(m => m.name).join(', ')}`}
+                          </span>
+                        </div>
+                      </div>
+                      <span className={`px-2.5 py-1 rounded-xl text-[10px] font-black uppercase shrink-0 border ${
+                        validTaggedIds.length > 0
+                          ? 'bg-amber-400 text-slate-950 border-amber-300 shadow'
+                          : 'bg-slate-950 text-amber-300 border-amber-500/40'
+                      }`}>
+                        {validTaggedIds.length > 0 ? `+${validTaggedIds.length} Taggati` : 'Tagga +'}
+                      </span>
+                    </button>
+
+                    {showTagSelector && (
+                      <div className="px-3.5 pb-3.5 pt-2 border-t border-slate-800 bg-slate-950/70 space-y-2">
+                        <div className="flex flex-wrap gap-1.5">
+                          {otherMembers.map(friend => {
+                            const isSelected = validTaggedIds.includes(friend.id);
+                            return (
+                              <button
+                                key={friend.id}
+                                type="button"
+                                onClick={() => handleToggleTagMember(friend.id)}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 border transition active:scale-95 ${
+                                  isSelected
+                                    ? 'bg-amber-400 text-slate-950 border-white shadow-md'
+                                    : 'bg-slate-900 text-slate-300 border-slate-700 hover:border-amber-400/50'
+                                }`}
+                              >
+                                <span>{isSelected ? '✅' : '🍺'}</span>
+                                <span>{friend.name}</span>
+                                {friend.captainActive && <span title="Capitano Attivo">👑</span>}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <p className="text-[10px] text-slate-400 leading-snug">
+                          📸 <strong>Regola VAR:</strong> nella foto devono vedersi i bicchieri (o le facce) di tutti i taggati. Chi è taggato non potrà votare in Sala VAR e in caso di bocciatura il malus colpirà tutti!
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Fotocamera Istantanea Ingrandita HD con Selfie + Flash */}
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2.5">
                 <div className="flex items-center justify-between">
                   <label className="text-[10px] font-bold uppercase text-amber-400 flex items-center gap-1">
                     <Camera className="w-3.5 h-3.5" /> Fotocamera Live HD (Posteriore & Selfie)
                   </label>
-                  <span className="text-[9px] text-emerald-400 uppercase font-black">Qualità HD</span>
+                  <span className="text-[9px] text-emerald-400 uppercase font-black">Full HD 1080p</span>
                 </div>
 
                 {isCameraOpen ? (
@@ -3591,11 +3877,11 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
                     >
                       <RefreshCw className="w-3.5 h-3.5" /> Riscatta Foto
                     </button>
-                  </div>  
+                  </div>
                 ) : (
                   <button
                     type="button"
-                    onClick={startCamera}
+                    onClick={() => startCamera()}
                     className="w-full py-8 rounded-xl border-2 border-dashed border-amber-500/40 hover:border-amber-400 bg-slate-950/70 flex flex-col items-center justify-center gap-2 transition"
                   >
                     <Camera className="w-8 h-8 text-amber-400" />
@@ -3618,7 +3904,7 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
                 type="submit"
                 className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg"
               >
-                🍻 Invia in Sala VAR ({calculatedDrink.total >= 0 ? `+${calculatedDrink.total}` : calculatedDrink.total} PT in palio)
+                🍻 Invia in Sala VAR ({calculatedDrink.total >= 0 ? `+${calculatedDrink.total}` : calculatedDrink.total} PT a testa)
               </button>
             </form>
           )}
@@ -3636,7 +3922,7 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-300">
-                  Con <strong>2 Conferme</strong> la birra è validata (le 4 birre Capitano vanno in cassaforte fino allo scadere delle 4h). Con <strong>2 Segnalazioni VAR</strong> scatta il malus e la foto sparisce!
+                  Con <strong>2 Conferme</strong> la birra è validata per tutti i partecipanti. Con <strong>2 Segnalazioni VAR</strong> il malus colpisce tutto il gruppo taggato!
                 </p>
               </div>
 
@@ -3652,6 +3938,11 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
                 <div className="space-y-3.5">
                   {(activeLeague.feed || []).map(item => {
                     const isMyBeer = item.playerId === currentUser.id;
+                    const isInGroup = isUserInBeerGroup(item, currentUser.id);
+                    const participants = (item.participants && item.participants.length > 0)
+                      ? item.participants
+                      : [{ id: item.playerId, name: item.playerName }];
+                    const taggedNames = participants.slice(1).map(p => p.name);
                     const approvalsList = item.approvals || [];
                     const varVotesList = item.varVotes || [];
                     const hasApproved = approvalsList.includes(currentUser.id);
@@ -3659,8 +3950,8 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
 
                     return (
                       <div key={item.id} className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-lg">
-                        <div className="p-3 flex items-center justify-between border-b border-slate-800/80">
-                          <div className="flex items-center gap-2.5">
+                        <div className="p-3 flex items-center justify-between gap-2 border-b border-slate-800/80">
+                          <div className="flex items-center gap-2.5 min-w-0">
                             {(() => {
                               const varMember = (activeLeague.members || []).find(
                                 m => m.id === item.playerId || m.name?.toLowerCase() === item.playerName?.toLowerCase()
@@ -3674,34 +3965,39 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
                                 />
                               );
                             })()}
-                            <div>
-                              <span className="text-xs font-black text-white block">{item.playerName}</span>
-                              <span className="text-[10px] text-slate-400">{item.timestamp} • {item.location}</span>
+                            <div className="min-w-0">
+                              <span className="text-xs font-black text-white block truncate">
+                                {item.playerName}
+                                {taggedNames.length > 0 && (
+                                  <span className="text-amber-300"> + {taggedNames.join(', ')}</span>
+                                )}
+                              </span>
+                              <span className="text-[10px] text-slate-400 block truncate">
+                                {item.timestamp} • {item.location}
+                              </span>
                             </div>
                           </div>
-                          <span className={`text-xs font-black px-2.5 py-1 rounded-lg border ${
+                          <span className={`text-xs font-black px-2.5 py-1 rounded-lg border shrink-0 ${
                             item.isCaptainBeer
                               ? 'bg-purple-500/20 text-purple-300 border-purple-400/40'
                               : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
                           }`}>
-                            {item.isCaptainBeer ? `👑 CAP (${item.captainSlot}/4): ` : 'Se confermata: '}
+                            {item.isCaptainBeer ? `👑 CAP (${item.captainSlot}/4): ` : 'A testa: '}
                             {item.points >= 0 ? `+${item.points}` : item.points} pt
                           </span>
                         </div>
 
-                      <div className={`relative w-full bg-slate-950 overflow-hidden select-none transition-all ${
-                         varVotesList.length > 0 ? 'h-80 border-y-2 border-red-500' : 'h-80'
+                        <div className={`relative w-full bg-slate-950 overflow-hidden select-none transition-all ${
+                          varVotesList.length > 0 ? 'h-80 border-y-2 border-red-500' : 'h-80'
                         }`}>
                           <img src={item.photoUrl} alt={item.beerName} className="w-full h-full object-cover" />
 
                           {/* GRAFICA TV SKY SPORT / DAZN PULITA (SOLO SE VIENE CHIAMATO IL VAR!) */}
                           {varVotesList.length > 0 && (
                             <>
-                              {/* Leggera sfumatura ai bordi + Mirino Regia VAR */}
                               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/90 via-transparent to-black/50" />
                               <div className="pointer-events-none absolute inset-2 border border-red-500/50 rounded-lg animate-pulse" />
 
-                              {/* IN ALTO A DESTRA: VAR CHECK + ORARIO (ZERO SOVRAPPOSIZIONI) */}
                               <div className="absolute top-2.5 right-2.5 flex items-center rounded-lg overflow-hidden shadow-xl border border-red-400/60">
                                 <div className="bg-red-600 px-2.5 py-1 flex items-center gap-1.5">
                                   <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
@@ -3714,7 +4010,6 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
                                 </div>
                               </div>
 
-                              {/* IN BASSO: ON-FIELD REVIEW PER POSSIBILE + CAUSA CHIAMATA */}
                               <div className="absolute bottom-2 left-2.5 right-2.5 bg-slate-950/90 backdrop-blur-md border-l-4 border-red-500 rounded-r-xl px-3 py-2 shadow-2xl text-left">
                                 <div className="flex items-center justify-between gap-2">
                                   <span className="text-[9px] font-black uppercase tracking-wider text-red-400 truncate">
@@ -3763,33 +4058,39 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
                             <div className="bg-amber-500/15 border border-amber-500/40 rounded-xl p-2.5 text-[11px] text-amber-200 flex items-center gap-2">
                               <Eye className="w-4 h-4 text-amber-400 shrink-0" />
                               <span>
-                                <strong>1° Voto VAR ({varVotesList[0].voterName}):</strong> "{varVotesList[0].reasonLabel}". Con il 2° voto scatta solo questo malus e la foto sparisce!
+                                <strong>1° Voto VAR ({varVotesList[0].voterName}):</strong> "{varVotesList[0].reasonLabel}". Con il 2° voto il malus colpisce tutti i partecipanti!
                               </span>
                             </div>
                           )}
-{isGodMode && (
-                         <div className="grid grid-cols-2 gap-2 p-2 rounded-xl bg-amber-500/10 border border-amber-400/50">
-                           <button
-                             type="button"
-                             onClick={() => handleGodForceVar(item, 'approve')}
-                             className="py-1.5 px-2 rounded-lg bg-emerald-500 text-slate-950 text-[10px] font-black uppercase"
-                           >
-                             ⚡ Approva Subito
-                           </button>
-                           <button
-                             type="button"
-                             onClick={() => handleGodForceVar(item, 'delete')}
-                             className="py-1.5 px-2 rounded-lg bg-red-600 text-white text-[10px] font-black uppercase"
-                           >
-                             ⚡ Cancella Foto
-                           </button>
-                         </div>
-                       )}
-                         {isMyBeer ? (
+
+                          {isGodMode && (
+                            <div className="grid grid-cols-2 gap-2 p-2 rounded-xl bg-amber-500/10 border border-amber-400/50">
+                              <button
+                                type="button"
+                                onClick={() => handleGodForceVar(item, 'approve')}
+                                className="py-1.5 px-2 rounded-lg bg-emerald-500 text-slate-950 text-[10px] font-black uppercase"
+                              >
+                                ⚡ Approva Subito
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleGodForceVar(item, 'delete')}
+                                className="py-1.5 px-2 rounded-lg bg-red-600 text-white text-[10px] font-black uppercase"
+                              >
+                                ⚡ Cancella Foto
+                              </button>
+                            </div>
+                          )}
+
+                          {isMyBeer ? (
                             <div className="space-y-2 pt-1">
-                              <div className="py-2 px-3 rounded-xl bg-slate-950 border border-slate-800 text-slate-400 text-[11px] font-bold flex items-center justify-center gap-2">
+                              <div className="py-2 px-3 rounded-xl bg-slate-950 border border-slate-800 text-slate-400 text-[11px] font-bold flex items-center justify-center gap-2 text-center">
                                 <Clock className="w-4 h-4 text-amber-400 shrink-0" />
-                                <span>Tua bevuta: in attesa del giudizio di 2 amici della lega</span>
+                                <span>
+                                  {participants.length > 1
+                                    ? `Brindisi di gruppo (${participants.length}): in attesa di 2 amici esterni al tavolo`
+                                    : 'Tua bevuta: in attesa del giudizio di 2 amici della lega'}
+                                </span>
                               </div>
                               <button
                                 type="button"
@@ -3806,6 +4107,11 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
                                   ? 'Bloccata (Sotto indagine VAR)'
                                   : 'Hai sbagliato? Ritira ed Elimina Foto'}
                               </button>
+                            </div>
+                          ) : isInGroup ? (
+                            <div className="py-2.5 px-3 rounded-xl bg-amber-500/10 border border-amber-400/40 text-amber-200 text-[11px] font-bold flex items-center justify-center gap-2 text-center">
+                              <Clock className="w-4 h-4 text-amber-400 shrink-0" />
+                              <span>🍻 Sei taggato in questo brindisi! In attesa del giudizio di 2 amici esterni.</span>
                             </div>
                           ) : (
                             <div className="grid grid-cols-2 gap-2 pt-1">
@@ -4148,11 +4454,11 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
               <div className="p-3.5 overflow-y-auto flex-1">
                 {(() => {
                   const allWithPhotos = (activeLeague.history || []).filter(
-                    h => h && (h.hasPhoto || h.photoUrl || albumPhotosMap[h.id])
+                    h => h && (h.hasPhoto || h.photoUrl || albumPhotosMap[h.photoId || h.id])
                   );
                   const filteredMemories = albumFilterMode === 'player'
                     ? allWithPhotos.filter(h => h.playerId === albumMember.id || h.playerName?.toLowerCase() === albumMember.name?.toLowerCase())
-                    : allWithPhotos;
+                    : allWithPhotos.filter((h, idx, arr) => arr.findIndex(x => (x.photoId || x.id) === (h.photoId || h.id)) === idx);
 
                   if (isLoadingAlbum && Object.keys(albumPhotosMap).length === 0) {
                     return (
@@ -4182,7 +4488,7 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
                   return (
                     <div className="grid grid-cols-2 gap-2.5">
                       {filteredMemories.map(mem => {
-                        const photoSrc = albumPhotosMap[mem.id] || mem.photoUrl;
+                        const photoSrc = albumPhotosMap[mem.photoId || mem.id] || mem.photoUrl;
                         const fallbackDate = mem.timestampMs ? new Date(Number(mem.timestampMs)) : new Date();
                         const displayDate = mem.dateStr || fallbackDate.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' });
                         const displayTime = mem.timeStr || fallbackDate.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
@@ -4811,4 +5117,3 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
       </div>
     </div>
   );
-}
