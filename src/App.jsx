@@ -881,12 +881,13 @@ const getTodayDateKey = () => {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 };
 
-// --- GESTIONE AUTOMATICA SCADENZA 4 ore CAPITANO + PULIZIA GAZZETTA 24H ---
+// --- GESTIONE AUTOMATICA SCADENZA 4 ORE CAPITANO + GAZZETTA POKER / DISFATTA ---
 const settleExpiredCaptainsInLeague = (leagueObj, nowMs) => {
   if (!leagueObj || !leagueObj.members) return { updatedLeague: leagueObj, changed: false, events: [] };
 
   let changed = false;
   const events = [];
+  const captainNewsItems = [];
   let currentFeed = [...(leagueObj.feed || [])];
 
   const rawGazzetta = leagueObj.gazzetta || [];
@@ -900,16 +901,21 @@ const settleExpiredCaptainsInLeague = (leagueObj, nowMs) => {
 
   const updatedMembers = leagueObj.members.map(m => {
     if (!m.captainActive || !m.captainExpiresAtMs) return m;
-    if (nowMs < Number(m.captainExpiresAtMs)) return m;
 
     const confirmedCount = m.captainBeers || 0;
-    const pendingCapBeersInVar = currentFeed.filter(b => b.playerId === m.id && b.isCaptainBeer);
+    const isTimeExpired = nowMs >= Number(m.captainExpiresAtMs);
 
+    // Sblocca subito il Poker appena raggiunge 4/4 birre confermate, oppure valuta allo scadere delle 4 ore
+    if (confirmedCount < 4 && !isTimeExpired) return m;
+
+    const pendingCapBeersInVar = currentFeed.filter(b => b.playerId === m.id && b.isCaptainBeer);
     if (confirmedCount < 4 && (confirmedCount + pendingCapBeersInVar.length) >= 4) {
       return m;
     }
 
     changed = true;
+    const timeStr = new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+    const dateStr = new Date().toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
 
     if (confirmedCount >= 4) {
       const vaultPts = Number((m.captainVaultPoints || 0).toFixed(1));
@@ -918,6 +924,16 @@ const settleExpiredCaptainsInLeague = (leagueObj, nowMs) => {
         type: 'success',
         playerName: m.name,
         pts: vaultPts
+      });
+      captainNewsItems.push({
+        id: `news_cap_poker_${m.id}_${nowMs}`,
+        category: `POKER DEL CAPITANO: ${m.name.toUpperCase()}!`,
+        icon: '⚽',
+        badgeColor: 'bg-amber-400 text-slate-950',
+        text: `Il Capitano mantiene altissime le aspettative e si scola 4 birre in meno di 4 ore! ${m.name} domina la serata, incassa i punti raddoppiati e si prende la standing ovation di tutto il locale!`,
+        timestamp: timeStr,
+        dateLabel: dateStr,
+        createdAtMs: nowMs
       });
       return {
         ...m,
@@ -939,6 +955,16 @@ const settleExpiredCaptainsInLeague = (leagueObj, nowMs) => {
         playerName: m.name,
         confirmedCount
       });
+      captainNewsItems.push({
+        id: `news_cap_fail_${m.id}_${nowMs}`,
+        category: `DISFATTA CAPITANO: PIOGGIA DI FISCHI PER ${m.name.toUpperCase()}!`,
+        icon: '📢',
+        badgeColor: 'bg-red-600 text-white',
+        text: `${m.name} non mantiene le aspettative e si ferma sul più bello! Tempo scaduto, fascia ritirata tra i fischi assordanti della tifoseria e stangata da -20 punti in classifica!`,
+        timestamp: timeStr,
+        dateLabel: dateStr,
+        createdAtMs: nowMs
+      });
       return {
         ...m,
         captainActive: false,
@@ -954,6 +980,10 @@ const settleExpiredCaptainsInLeague = (leagueObj, nowMs) => {
   });
 
   if (!changed) return { updatedLeague: leagueObj, changed: false, events: [] };
+
+  if (captainNewsItems.length > 0) {
+    currentGazzetta = filterActiveGazzettaNews([...captainNewsItems, ...currentGazzetta], nowMs);
+  }
 
   if (updatedMembers.length > 1) {
     const newSorted = [...updatedMembers].sort((a, b) => b.points - a.points);
@@ -1715,10 +1745,22 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
 
     const nowMs = Date.now();
     const expiresAtMs = nowMs + 4 * 60 * 60 * 1000;
+    const captainStartNews = {
+      id: `news_cap_start_${currentUser.id}_${nowMs}`,
+      category: `FASCIA AL BRACCIO: CAPITAN ${currentUser.username.toUpperCase()} SCENDE IN CAMPO!`,
+      icon: '🎖️',
+      badgeColor: 'bg-purple-500 text-white',
+      text: `${currentUser.username} si è stretto la fascia da Capitano al braccio ed è pronto per la grande serata! Il cronometro delle 4 ore è partito: calerà il poker di birre o finirà travolto dal malus di -20 punti?`,
+      timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
+      dateLabel: new Date().toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }),
+      createdAtMs: nowMs
+    };
+
     setLeagues(prev => prev.map(l => {
       if (l.id !== activeLeagueId) return l;
       const updated = {
         ...l,
+        gazzetta: filterActiveGazzettaNews([captainStartNews, ...(l.gazzetta || [])], nowMs),
         members: l.members.map(m => m.id === currentUser.id ? {
           ...m,
           captainActive: true, captainBeers: 0, captainBeersSubmitted: 0, captainVaultPoints: 0, captainVaultLiters: 0,
@@ -1728,7 +1770,7 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
       pushLeagueToCloud(updated);
       return updated;
     }));
-    showToast('👑 Timer 4h avviato! Le prime 4 birre valgono PUNTI DOPPI (x2) sbloccati solo a 4h se 4/4 confermate!', 'success');
+    showToast('👑 Fascia da Capitano indossata! Timer 4h avviato e notizia inviata alla Gazzetta!', 'success');
   };
 
   const startCamera = async () => {
