@@ -2025,6 +2025,8 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
     }
   };
 const [beerTypeTier, setBeerTypeTier] = useState('classica');
+  const [stappaCategory, setStappaCategory] = useState('birra'); // 'birra' | 'vino_drink'
+  const [wineDrinkId, setWineDrinkId] = useState('vino_rosso');
   const [taggedMemberIds, setTaggedMemberIds] = useState([]);
   const [showTagSelector, setShowTagSelector] = useState(false);
 
@@ -2047,6 +2049,47 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
   };
 
   const calculatedDrink = useMemo(() => {
+    const gocciaBonus = gocciaStatus.isOpen && bonusGocciaDOro ? 3 : 0;
+    const rainBonus = rainStatus.isOpen && bonusPioggia ? 2 : 0;
+    const isWithin4h = Boolean(myMemberProfile?.captainActive && (!myMemberProfile?.captainExpiresAtMs || clockTick < Number(myMemberProfile.captainExpiresAtMs)));
+    const eligibleForCaptainDouble = isWithin4h && (myMemberProfile?.captainBeersSubmitted || 0) < 4;
+
+    if (stappaCategory === 'vino_drink') {
+      const wdMap = {
+        vino_rosso: { pts: 5, liters: 0.2, defaultTitle: 'Calice di Vino Rosso', formatLabel: 'Calice Vino Rosso (+5pt)', abvLabel: 'Rosso Fermo', styleLabel: 'Enoteca Sempre Noi' },
+        vino_bianco: { pts: 5, liters: 0.2, defaultTitle: 'Calice di Vino Bianco', formatLabel: 'Calice Vino Bianco (+5pt)', abvLabel: 'Bianco Fresco', styleLabel: 'Enoteca Sempre Noi' },
+        drink_leggero: { pts: 5, liters: 0.25, defaultTitle: 'Drink Leggero / Spritz', formatLabel: 'Drink Leggero (+5pt)', abvLabel: 'Aperitivo / Spritz', styleLabel: 'Cocktail Bar' },
+        drink_forte: { pts: 7, liters: 0.25, defaultTitle: 'Drink Forte', formatLabel: 'Drink Forte (+7pt)', abvLabel: 'Cocktail Carico', styleLabel: 'Cocktail Bar' }
+      };
+      const picked = wdMap[wineDrinkId] || wdMap.vino_rosso;
+      let baseSubtotal = picked.pts;
+      if (bonusSempreNoi) baseSubtotal *= 1.3;
+      baseSubtotal += gocciaBonus + rainBonus;
+
+      const singleNormalPoints = Number(baseSubtotal.toFixed(1));
+      const singleCaptainPoints = Number((baseSubtotal * 2).toFixed(1));
+      const total = eligibleForCaptainDouble ? singleCaptainPoints : singleNormalPoints;
+
+      return {
+        total,
+        singleNormalPoints,
+        singleCaptainPoints,
+        base: picked.pts,
+        liters: picked.liters,
+        mult: 1.0,
+        qualityBonus: 0,
+        typeBonus: 0,
+        gocciaBonus,
+        rainBonus,
+        eligibleForCaptainDouble,
+        nextCaptainSlot: eligibleForCaptainDouble ? (myMemberProfile?.captainBeersSubmitted || 0) + 1 : null,
+        defaultTitle: picked.defaultTitle,
+        formatLabel: picked.formatLabel,
+        abvLabel: picked.abvLabel,
+        styleLabel: picked.styleLabel
+      };
+    }
+
     const fMap = {
       piccola33: { pts: 3, liters: 0.33, label: '33cl (+3pt)' },
       spina50: { pts: 5, liters: 0.5, label: 'Media 50cl (+5pt)' },
@@ -2079,10 +2122,6 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
     const mult = aMap[abvTier].mult;
     const qualityBonus = qMap[qualityTier].bonus;
     const typeBonus = tMap[safeType].bonus;
-    const gocciaBonus = gocciaStatus.isOpen && bonusGocciaDOro ? 3 : 0;
-    const rainBonus = rainStatus.isOpen && bonusPioggia ? 2 : 0;
-    const isWithin4h = Boolean(myMemberProfile?.captainActive && (!myMemberProfile?.captainExpiresAtMs || clockTick < Number(myMemberProfile.captainExpiresAtMs)));
-    const eligibleForCaptainDouble = isWithin4h && (myMemberProfile?.captainBeersSubmitted || 0) < 4;
 
     let baseSubtotal = (base * mult) + qualityBonus + typeBonus;
     if (bonusSempreNoi) baseSubtotal *= 1.3;
@@ -2098,11 +2137,12 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
       singleCaptainPoints,
       base, liters, mult, qualityBonus, typeBonus, gocciaBonus, rainBonus, eligibleForCaptainDouble,
       nextCaptainSlot: eligibleForCaptainDouble ? (myMemberProfile?.captainBeersSubmitted || 0) + 1 : null,
+      defaultTitle: qualityTier === 'rumeno' ? 'Lattina da Battaglia' : 'Birra Fresca',
       formatLabel: fMap[safeFormat].label,
       abvLabel: aMap[abvTier].label,
       styleLabel: `${qMap[qualityTier].label} • ${tMap[safeType].label}`
     };
-  }, [format, abvTier, qualityTier, beerTypeTier, bonusSempreNoi, bonusGocciaDOro, bonusPioggia, gocciaStatus.isOpen, rainStatus.isOpen, myMemberProfile, clockTick]);
+  }, [stappaCategory, wineDrinkId, format, abvTier, qualityTier, beerTypeTier, bonusSempreNoi, bonusGocciaDOro, bonusPioggia, gocciaStatus.isOpen, rainStatus.isOpen, myMemberProfile, clockTick]);
 
   const handleAddBeer = (e) => {
     e.preventDefault();
@@ -2110,7 +2150,7 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
 
     const nowMs = Date.now();
     const todayKey = getTodayDateKey();
-    const isRumeno = qualityTier === 'rumeno';
+    const isRumeno = stappaCategory === 'birra' && qualityTier === 'rumeno';
 
     const validTaggedMembers = (activeLeague?.members || []).filter(
       m => m.id !== currentUser.id && taggedMemberIds.includes(m.id)
@@ -3489,122 +3529,272 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
                 )}
               </div>
 
-              {/* Nome Birra */}
+              {/* SELETTORE CATEGORIA: BIRRA vs VINO & DRINK */}
+              <div className="grid grid-cols-2 gap-1.5 bg-slate-950 p-1.5 rounded-2xl border border-slate-800 shadow-inner">
+                <button
+                  type="button"
+                  onClick={() => setStappaCategory('birra')}
+                  className={`py-2.5 rounded-xl text-xs font-black uppercase flex items-center justify-center gap-1.5 transition ${
+                    stappaCategory === 'birra'
+                      ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <span>🍺</span>
+                  <span>Birra</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStappaCategory('vino_drink')}
+                  className={`py-2.5 rounded-xl text-xs font-black uppercase flex items-center justify-center gap-1.5 transition ${
+                    stappaCategory === 'vino_drink'
+                      ? 'bg-gradient-to-r from-rose-500 via-pink-500 to-amber-500 text-white shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <span>🍷🍹</span>
+                  <span>Vino & Drink</span>
+                </button>
+              </div>
+
+              {/* Nome Birra / Calice / Cocktail */}
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3">
-                <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Nome o Stile della Birra</label>
+                <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
+                  {stappaCategory === 'vino_drink' ? 'Nome del Vino o del Drink (Opzionale)' : 'Nome o Stile della Birra'}
+                </label>
                 <input
                   type="text"
                   value={beerTitle}
                   onChange={(e) => setBeerTitle(e.target.value)}
-                  placeholder="Es. Keller, Trappista, Session IPA, Faxe..."
+                  placeholder={stappaCategory === 'vino_drink' ? 'Es. Chianti, Vermentino, Spritz, Negroni, Gin Tonic...' : 'Es. Keller, Trappista, Session IPA, Faxe...'}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
                 />
               </div>
 
-             {/* 1. Formato (4 Opzioni: 33cl, 50cl, 66cl, 1L) */}
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2">
-                <label className="block text-[10px] font-bold uppercase text-slate-400">1. Formato</label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                  {[
-                    { id: 'piccola33', name: 'Piccola 33cl', sub: '0,33 L', pts: '+3 pt' },
-                    { id: 'spina50', name: 'Media 50cl', sub: '0,50 L', pts: '+5 pt' },
-                    { id: 'boccione66', name: 'Boccione 66cl', sub: '0,66 L', pts: '+6.5 pt' },
-                    { id: 'litro', name: 'Boccale 1 Litro', sub: '1,00 L', pts: '+10 pt' }
-                  ].map(f => (
-                    <button
-                      type="button"
-                      key={f.id}
-                      onClick={() => setFormat(f.id)}
-                      className={`p-2.5 rounded-xl border text-center transition ${format === f.id ? 'bg-amber-500/20 border-amber-400 text-white' : 'bg-slate-950 border-slate-800 text-slate-400'}`}
-                    >
-                      <span className="text-xs font-bold block">{f.name}</span>
-                      <span className="text-[9px] text-slate-400 block">{f.sub}</span>
-                      <span className="text-[10px] text-amber-400 font-black">{f.pts}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
+              {stappaCategory === 'vino_drink' ? (
+                /* GRIGLIA 4 CASELLE ILLUSTRATE PER VINO & DRINK */
+                <div className="bg-slate-900 border border-rose-500/30 rounded-2xl p-3.5 space-y-2.5 shadow-lg">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-[10px] font-black uppercase text-rose-300">
+                      Scegli Calice o Cocktail (Vale anche per il Capitano 👑)
+                    </label>
+                    <span className="text-[9px] font-bold text-slate-400">4 Scelte Rapide</span>
+                  </div>
 
-              {/* 2. Grado Alcolico (Strada A: x1.0 / x1.2 / x1.4) */}
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2">
-                <label className="block text-[10px] font-bold uppercase text-slate-400">2. Grado Alcolico</label>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {[
-                    { id: 'leggera', name: 'Leggera', sub: 'fino a 5,6°', mult: 'x1.0' },
-                    { id: 'media', name: 'Media', sub: '5,6° - 7,5°', mult: 'x1.2' },
-                    { id: 'forte', name: 'Forte', sub: 'oltre 7,5°', mult: 'x1.4' }
-                  ].map(a => (
-                    <button
-                      type="button"
-                      key={a.id}
-                      onClick={() => setAbvTier(a.id)}
-                      className={`p-2 rounded-xl border text-center transition ${abvTier === a.id ? 'bg-amber-500/20 border-amber-400 text-white' : 'bg-slate-950 border-slate-800 text-slate-400'}`}
-                    >
-                      <span className="text-xs font-bold block">{a.name}</span>
-                      <span className="text-[9px] text-slate-400 block">{a.sub}</span>
-                      <span className="text-[10px] text-amber-400 font-black">{a.mult}</span>
-                    </button>
-                  ))}
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {[
+                      {
+                        id: 'vino_rosso',
+                        name: 'Vino Rosso',
+                        sub: 'Calice rosso fermo / corposo',
+                        pts: '+5 pt',
+                        activeBorder: 'bg-rose-950/60 border-rose-400 text-white shadow-lg shadow-rose-500/15',
+                        ptsColor: 'text-rose-300',
+                        svg: (
+                          <svg viewBox="0 0 48 48" className="w-12 h-12 mx-auto drop-shadow">
+                            <path d="M22.5 29 V41 M16 42 H32" stroke="#e2e8f0" strokeWidth="2" strokeLinecap="round" />
+                            <path d="M13 15 C12.5 24, 17 29, 24 29 C31 29, 35.5 24, 35 15 Z" fill="#9f1239" />
+                            <ellipse cx="24" cy="15" rx="11" ry="2.2" fill="#be123c" />
+                            <path d="M14 9 C12 22, 16.5 29, 24 29 C31.5 29, 36 22, 34 9 Z" stroke="#f1f5f9" strokeWidth="1.7" fill="none" strokeLinejoin="round" />
+                            <path d="M16.5 13 C16 20, 18.5 25, 21.5 26.5" stroke="#ffffff" strokeWidth="1.5" strokeLinecap="round" fill="none" opacity="0.65" />
+                          </svg>
+                        )
+                      },
+                      {
+                        id: 'vino_bianco',
+                        name: 'Vino Bianco',
+                        sub: 'Calice bianco fresco / bollicine',
+                        pts: '+5 pt',
+                        activeBorder: 'bg-amber-950/50 border-yellow-300 text-white shadow-lg shadow-yellow-400/15',
+                        ptsColor: 'text-yellow-300',
+                        svg: (
+                          <svg viewBox="0 0 48 48" className="w-12 h-12 mx-auto drop-shadow">
+                            <path d="M24 29 V41 M17 42 H31" stroke="#e2e8f0" strokeWidth="2" strokeLinecap="round" />
+                            <path d="M15.5 15.5 C15 23.5, 18.5 29, 24 29 C29.5 29, 33 23.5, 32.5 15.5 Z" fill="#fde047" fillOpacity="0.85" />
+                            <ellipse cx="24" cy="15.5" rx="8.5" ry="1.8" fill="#fef08a" />
+                            <circle cx="22" cy="24" r="0.9" fill="#ffffff" />
+                            <circle cx="25.5" cy="21" r="1" fill="#ffffff" />
+                            <circle cx="23.5" cy="18" r="0.8" fill="#ffffff" />
+                            <path d="M16.5 8.5 C14.5 21, 18 29, 24 29 C30 29, 33.5 21, 31.5 8.5 Z" stroke="#f1f5f9" strokeWidth="1.7" fill="none" strokeLinejoin="round" />
+                            <path d="M18 12.5 C17.5 19, 19.5 24, 22 26" stroke="#ffffff" strokeWidth="1.5" strokeLinecap="round" fill="none" opacity="0.75" />
+                          </svg>
+                        )
+                      },
+                      {
+                        id: 'drink_leggero',
+                        name: 'Drink Leggero',
+                        sub: 'Spritz, Gin Tonic, Aperitivo...',
+                        pts: '+5 pt',
+                        activeBorder: 'bg-orange-950/60 border-orange-400 text-white shadow-lg shadow-orange-500/15',
+                        ptsColor: 'text-orange-300',
+                        svg: (
+                          <svg viewBox="0 0 48 48" className="w-12 h-12 mx-auto drop-shadow">
+                            {/* Cannuccia */}
+                            <path d="M27 28 L33 6 L37 6" stroke="#38bdf8" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                            {/* Fetta d'arancia */}
+                            <circle cx="15" cy="11" r="5" fill="#f97316" stroke="#fde047" strokeWidth="1.4" />
+                            {/* Stelo e Calice Spritz */}
+                            <path d="M24 30 V41 M17 42 H31" stroke="#e2e8f0" strokeWidth="2" strokeLinecap="round" />
+                            <path d="M13.5 14 C13.5 24, 17.5 30, 24 30 C30.5 30, 34.5 24, 34.5 14 Z" fill="#fb923c" />
+                            {/* Cubetti di ghiaccio */}
+                            <rect x="18" y="16" width="5" height="5" rx="1" fill="#ffffff" fillOpacity="0.65" transform="rotate(-10 20 18)" />
+                            <rect x="24.5" y="18" width="5" height="5" rx="1" fill="#ffffff" fillOpacity="0.6" transform="rotate(12 27 20)" />
+                            <path d="M13 10 C12.5 23, 17 30, 24 30 C31 30, 35.5 23, 35 10 Z" stroke="#f1f5f9" strokeWidth="1.7" fill="none" />
+                          </svg>
+                        )
+                      },
+                      {
+                        id: 'drink_forte',
+                        name: 'Drink Forte',
+                        sub: 'Negroni, Long Island, Doppio...',
+                        pts: '+7 pt',
+                        activeBorder: 'bg-purple-950/60 border-amber-400 text-white shadow-lg shadow-amber-500/15',
+                        ptsColor: 'text-amber-400',
+                        svg: (
+                          <svg viewBox="0 0 48 48" className="w-12 h-12 mx-auto drop-shadow">
+                            {/* Base pesante in cristallo Old Fashioned */}
+                            <rect x="11" y="37" width="26" height="4.5" rx="1.5" fill="#cbd5e1" fillOpacity="0.75" />
+                            {/* Liquido ambrato-rubino intenso */}
+                            <rect x="11" y="19" width="26" height="18.5" rx="1" fill="#b91c1c" />
+                            {/* Maxi Cubo di Ghiaccio + Scorza d'arancia */}
+                            <rect x="16" y="17" width="11" height="11" rx="2" fill="#e0f2fe" fillOpacity="0.7" stroke="#ffffff" strokeWidth="1" transform="rotate(-8 21 22)" />
+                            <path d="M27 14 C31 12, 34 16, 30 21" stroke="#facc15" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+                            {/* Bicchiere Tumbler basso */}
+                            <rect x="11" y="13" width="26" height="28.5" rx="2" stroke="#f1f5f9" strokeWidth="1.8" fill="none" />
+                            <line x1="14" y1="16" x2="14" y2="35" stroke="#ffffff" strokeWidth="1.6" strokeLinecap="round" opacity="0.65" />
+                          </svg>
+                        )
+                      }
+                    ].map(wd => {
+                      const isSel = wineDrinkId === wd.id;
+                      return (
+                        <button
+                          type="button"
+                          key={wd.id}
+                          onClick={() => setWineDrinkId(wd.id)}
+                          className={`p-3 rounded-2xl border-2 text-center transition active:scale-95 flex flex-col items-center justify-between gap-1 ${
+                            isSel ? wd.activeBorder : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                          }`}
+                        >
+                          {wd.svg}
+                          <span className="text-xs font-black text-white block mt-1">{wd.name}</span>
+                          <span className="text-[9px] text-slate-400 leading-tight block">{wd.sub}</span>
+                          <span className={`text-xs font-black mt-0.5 px-2.5 py-0.5 rounded-full bg-slate-950/90 border border-white/10 ${wd.ptsColor}`}>
+                            {wd.pts}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <>
+                  {/* 1. Formato (4 Opzioni: 33cl, 50cl, 66cl, 1L) */}
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2">
+                    <label className="block text-[10px] font-bold uppercase text-slate-400">1. Formato</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                      {[
+                        { id: 'piccola33', name: 'Piccola 33cl', sub: '0,33 L', pts: '+3 pt' },
+                        { id: 'spina50', name: 'Media 50cl', sub: '0,50 L', pts: '+5 pt' },
+                        { id: 'boccione66', name: 'Boccione 66cl', sub: '0,66 L', pts: '+6.5 pt' },
+                        { id: 'litro', name: 'Boccale 1 Litro', sub: '1,00 L', pts: '+10 pt' }
+                      ].map(f => (
+                        <button
+                          type="button"
+                          key={f.id}
+                          onClick={() => setFormat(f.id)}
+                          className={`p-2.5 rounded-xl border text-center transition ${format === f.id ? 'bg-amber-500/20 border-amber-400 text-white' : 'bg-slate-950 border-slate-800 text-slate-400'}`}
+                        >
+                          <span className="text-xs font-bold block">{f.name}</span>
+                          <span className="text-[9px] text-slate-400 block">{f.sub}</span>
+                          <span className="text-[10px] text-amber-400 font-black">{f.pts}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-              {/* 3. Qualità della Birra */}
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2">
-                <label className="block text-[10px] font-bold uppercase text-slate-400">3. Qualità della Birra</label>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {[
-                    { id: 'industriale', name: 'Industriale', sub: 'Commerciale standard', bonus: '+0 pt' },
-                    { id: 'artigianale', name: 'Artigianale', sub: 'Bottiglia / Lattina craft', bonus: '+2 pt' },
-                    { id: 'spina', name: 'Alla spina', sub: 'Spillata al pub', bonus: '+3 pt' },
-                    { id: 'rumeno', name: 'Passaporto Rumeno', sub: 'Ceres, Tennent\'s, Faxe...', bonus: '-5 pt • 🥫 24h' }
-                  ].map(q => (
-                    <button
-                      type="button"
-                      key={q.id}
-                      onClick={() => setQualityTier(q.id)}
-                      className={`p-2.5 rounded-xl border text-center transition ${
-                        qualityTier === q.id 
-                          ? (q.id === 'rumeno' ? 'bg-red-500/20 border-red-500 text-white shadow-md shadow-red-500/10' : 'bg-amber-500/20 border-amber-400 text-white') 
-                          : 'bg-slate-950 border-slate-800 text-slate-400'
-                      }`}
-                    >
-                      <span className="text-xs font-bold block">{q.name}</span>
-                      <span className="text-[9px] text-slate-400 block">{q.sub}</span>
-                      <span className={`text-[10px] font-black ${q.id === 'rumeno' ? 'text-red-400' : 'text-amber-400'}`}>
-                        {q.bonus}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
+                  {/* 2. Grado Alcolico (Strada A: x1.0 / x1.2 / x1.4) */}
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2">
+                    <label className="block text-[10px] font-bold uppercase text-slate-400">2. Grado Alcolico</label>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {[
+                        { id: 'leggera', name: 'Leggera', sub: 'fino a 5,6°', mult: 'x1.0' },
+                        { id: 'media', name: 'Media', sub: '5,6° - 7,5°', mult: 'x1.2' },
+                        { id: 'forte', name: 'Forte', sub: 'oltre 7,5°', mult: 'x1.4' }
+                      ].map(a => (
+                        <button
+                          type="button"
+                          key={a.id}
+                          onClick={() => setAbvTier(a.id)}
+                          className={`p-2 rounded-xl border text-center transition ${abvTier === a.id ? 'bg-amber-500/20 border-amber-400 text-white' : 'bg-slate-950 border-slate-800 text-slate-400'}`}
+                        >
+                          <span className="text-xs font-bold block">{a.name}</span>
+                          <span className="text-[9px] text-slate-400 block">{a.sub}</span>
+                          <span className="text-[10px] text-amber-400 font-black">{a.mult}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-              {/* 4. Tipologia / Stile della Birra (NUOVO) */}
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2">
-                <label className="block text-[10px] font-bold uppercase text-slate-400">4. Tipologia della Birra</label>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {[
-                    { id: 'classica', name: 'Lager / Pils / Weiss', sub: 'Chiara o non filtrata classica', bonus: '+0 pt' },
-                    { id: 'session', name: 'Session IPA / APA / Rossa', sub: 'Luppolata leggera o Ambrata', bonus: '+1 pt' },
-                    { id: 'ipa', name: 'IPA / Double IPA / Stout', sub: 'Luppolo deciso o Scura', bonus: '+1.5 pt' },
-                    { id: 'trappista', name: 'Trappista / Tripel / Quadrupel', sub: 'Speciale d\'Abbazia', bonus: '+2 pt' }
-                  ].map(t => (
-                    <button
-                      type="button"
-                      key={t.id}
-                      onClick={() => setBeerTypeTier(t.id)}
-                      className={`p-2.5 rounded-xl border text-center transition ${
-                        beerTypeTier === t.id
-                          ? 'bg-amber-500/20 border-amber-400 text-white'
-                          : 'bg-slate-950 border-slate-800 text-slate-400'
-                      }`}
-                    >
-                      <span className="text-xs font-bold block">{t.name}</span>
-                      <span className="text-[9px] text-slate-400 block">{t.sub}</span>
-                      <span className="text-[10px] text-amber-400 font-black">{t.bonus}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
+                  {/* 3. Qualità della Birra */}
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2">
+                    <label className="block text-[10px] font-bold uppercase text-slate-400">3. Qualità della Birra</label>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {[
+                        { id: 'industriale', name: 'Industriale', sub: 'Commerciale standard', bonus: '+0 pt' },
+                        { id: 'artigianale', name: 'Artigianale', sub: 'Bottiglia / Lattina craft', bonus: '+2 pt' },
+                        { id: 'spina', name: 'Alla spina', sub: 'Spillata al pub', bonus: '+3 pt' },
+                        { id: 'rumeno', name: 'Passaporto Rumeno', sub: 'Ceres, Tennent\'s, Faxe...', bonus: '-5 pt • 🥫 24h' }
+                      ].map(q => (
+                        <button
+                          type="button"
+                          key={q.id}
+                          onClick={() => setQualityTier(q.id)}
+                          className={`p-2.5 rounded-xl border text-center transition ${
+                            qualityTier === q.id 
+                              ? (q.id === 'rumeno' ? 'bg-red-500/20 border-red-500 text-white shadow-md shadow-red-500/10' : 'bg-amber-500/20 border-amber-400 text-white') 
+                              : 'bg-slate-950 border-slate-800 text-slate-400'
+                          }`}
+                        >
+                          <span className="text-xs font-bold block">{q.name}</span>
+                          <span className="text-[9px] text-slate-400 block">{q.sub}</span>
+                          <span className={`text-[10px] font-black ${q.id === 'rumeno' ? 'text-red-400' : 'text-amber-400'}`}>
+                            {q.bonus}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 4. Tipologia / Stile della Birra */}
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2">
+                    <label className="block text-[10px] font-bold uppercase text-slate-400">4. Tipologia della Birra</label>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {[
+                        { id: 'classica', name: 'Lager / Pils / Weiss', sub: 'Chiara o non filtrata classica', bonus: '+0 pt' },
+                        { id: 'session', name: 'Session IPA / APA / Rossa', sub: 'Luppolata leggera o Ambrata', bonus: '+1 pt' },
+                        { id: 'ipa', name: 'IPA / Double IPA / Stout', sub: 'Luppolo deciso o Scura', bonus: '+1.5 pt' },
+                        { id: 'trappista', name: 'Trappista / Tripel / Quadrupel', sub: 'Speciale d\'Abbazia', bonus: '+2 pt' }
+                      ].map(t => (
+                        <button
+                          type="button"
+                          key={t.id}
+                          onClick={() => setBeerTypeTier(t.id)}
+                          className={`p-2.5 rounded-xl border text-center transition ${
+                            beerTypeTier === t.id
+                              ? 'bg-amber-500/20 border-amber-400 text-white'
+                              : 'bg-slate-950 border-slate-800 text-slate-400'
+                          }`}
+                        >
+                          <span className="text-xs font-bold block">{t.name}</span>
+                          <span className="text-[9px] text-slate-400 block">{t.sub}</span>
+                          <span className="text-[10px] text-amber-400 font-black">{t.bonus}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
 
               {/* BONUS 1: Sempre Noi */}
               <div 
