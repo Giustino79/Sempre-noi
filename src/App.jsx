@@ -2241,7 +2241,7 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
       taggedIds: validTaggedMembers.map(m => m.id),
       taggedNames: validTaggedMembers.map(m => m.name),
       participants,
-      beerName: beerTitle.trim() || (isRumeno ? 'Lattina da Battaglia' : 'Birra Fresca'),
+     beerName: beerTitle.trim() || calculatedDrink.defaultTitle || 'Birra Fresca',
       formatId: format,
       liters: calculatedDrink.liters,
       formatLabel: calculatedDrink.formatLabel,
