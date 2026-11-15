@@ -819,23 +819,24 @@ const PERSONAL_DISCLAIMERS = {
 };
 
 // --- OPZIONI SALA VAR ---
+// --- OPZIONI SALA VAR ---
 const VAR_PENALTY_OPTIONS = [
   {
     id: 'yellow',
-    label: '🟨 Cartellino giallo: birra avanzata -2pt',
-    desc: 'Toglie esattamente -2 pt in classifica e assegna 1 Cartellino Giallo.',
+    label: '🟨 Cartellino giallo: foto a metà / non allo stappo -2pt',
+    desc: 'Birra, calice o drink fotografato quando è già bevuto a metà o quasi finito anziché allo stappo (-2 pt e 1 Cartellino Giallo).',
     penaltyPts: 2
   },
   {
     id: 'simulation',
-    label: '🚨 Simulazione in area: foto riciclata/vuota -5pt',
-    desc: 'Toglie esattamente -5 pt in classifica e annulla la bevuta dalla Sala VAR.',
+    label: '🚨 Simulazione: info/bonus falsi o foto vuota -5pt',
+    desc: 'Qualsiasi dato o bonus sbagliato/falso (es. segna 0,5L ma è 33cl, attiva "Sempre noi" in 2, pioggia da casa) o foto vuota/riciclata (-5 pt).',
     penaltyPts: 5
   },
   {
     id: 'red',
     label: '🟥 Cartellino rosso: birra analcolica/radler -10pt',
-    desc: 'Toglie esattamente -10 pt in classifica e assegna 1 Cartellino Rosso.',
+    desc: 'Tradimento del regolamento: beve analcolica o radler spacciandola per birra (-10 pt e 1 Cartellino Rosso).',
     penaltyPts: 10
   }
 ];
@@ -1062,7 +1063,7 @@ const DEFAULT_LEAGUES = [
         bonuses: [],
         approvals: ['u2'],
         varVotes: [
-          { voterId: 'u3', voterName: 'Andrea', reasonId: 'simulation', reasonLabel: '🚨 Simulazione in area: foto riciclata/vuota -5pt' }
+          { voterId: 'u3', voterName: 'Andrea', reasonId: 'simulation', reasonLabel: '🚨 Simulazione in area: info/bonus falsi o foto vuota -5pt' }
         ],
         status: 'pending_var'
       }
@@ -5126,10 +5127,10 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
 
                   <div className="p-2.5 rounded-xl bg-slate-950 border border-red-500/30 space-y-1">
                     <span className="text-[10px] font-black uppercase text-red-400">3. Sala VAR (2 Voti)</span>
-                    <div className="flex justify-between"><span>2 Conferme dagli amici</span><strong className="text-emerald-400">+Punti Birra</strong></div>
-                    <div className="flex justify-between"><span>🟨 Cartellino giallo: birra avanzata</span><strong className="text-yellow-400">Solo -2 pt</strong></div>
-                    <div className="flex justify-between"><span>🚨 Simulazione: foto riciclata/vuota</span><strong className="text-red-400">Solo -5 pt</strong></div>
-                    <div className="flex justify-between"><span>🟥 Cartellino rosso: analcolica/radler</span><strong className="text-red-500">Solo -10 pt</strong></div>
+                    <div className="flex justify-between"><span>2 Conferme dagli amici</span><strong className="text-emerald-400">+Punti Drink</strong></div>
+                    <div className="flex justify-between"><span>🟨 Giallo: foto a metà (non allo stappo)</span><strong className="text-yellow-400">Solo -2 pt</strong></div>
+                    <div className="flex justify-between"><span>🚨 Simulazione: info/bonus falsi o foto vuota</span><strong className="text-red-400">Solo -5 pt</strong></div>
+                    <div className="flex justify-between"><span>🟥 Rosso: birra analcolica / radler</span><strong className="text-red-500">Solo -10 pt</strong></div>
                   </div>
                 </div>
               )}
