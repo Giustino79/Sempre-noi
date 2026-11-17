@@ -847,7 +847,7 @@ function AlboDrawing({ type }) {
   return (
     <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-pink-500/25 to-purple-950/50 border-2 border-pink-400/80 flex flex-col items-center justify-center shadow-lg shrink-0 relative">
       <span className="text-2xl leading-none">🍼</span>
-      <span className="text-[8px] font-black uppercase bg-pink-400 text-slate-950 px-1.5 rounded-full mt-0.5">GOYIM</span>
+      <span className="text-[8px] font-black uppercase bg-pink-400 text-slate-950 px-1.5 rounded-full mt-0.5">Bicchiere biodegradabile</span>
     </div>
   );
 }
@@ -2607,35 +2607,157 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
   const sortedMembers = useMemo(() => [...(activeLeague?.members || [])].sort((a, b) => b.points - a.points), [activeLeague]);
   const leaderPoints = sortedMembers[0]?.points || 0;
 
+ const [alboViewMode, setAlboViewMode] = useState('globale'); // 'globale' | 'mensile'
+  const currentMonthKey = useMemo(() => {
+    const d = new Date(clockTick);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }, [clockTick]);
+  const [selectedAlboMonth, setSelectedAlboMonth] = useState(currentMonthKey);
+
+  const availableAlboMonths = useMemo(() => {
+    const set = new Set([currentMonthKey]);
+    (activeLeague?.history || []).forEach(h => {
+      if (!h?.timestampMs) return;
+      const d = new Date(Number(h.timestampMs));
+      set.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    });
+    return Array.from(set).sort().reverse().map(key => {
+      const [y, m] = key.split('-').map(Number);
+      const label = new Date(y, m - 1, 1).toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
+      return { key, label, isClosed: key < currentMonthKey };
+    });
+  }, [activeLeague?.history, currentMonthKey]);
+
   const alboRecords = useMemo(() => {
     const members = activeLeague?.members || [];
     const history = activeLeague?.history || [];
-    if (members.length === 0) return null;
-    const now = new Date();
-    const cMonth = now.getMonth();
-    const cYear = now.getFullYear();
+    if (members.length === 0) return [];
 
-    const monthlyStats = {};
-    history.forEach(h => {
-      const d = new Date(h.timestampMs || Date.now());
-      if (d.getMonth() === cMonth && d.getFullYear() === cYear) {
-        if (!monthlyStats[h.playerId]) monthlyStats[h.playerId] = { pts: 0, beers: 0 };
-        monthlyStats[h.playerId].pts += Number(h.points || 0);
-        monthlyStats[h.playerId].beers += 1;
+    const isMonthly = alboViewMode === 'mensile';
+    const targetMonth = selectedAlboMonth || currentMonthKey;
+
+    // Filtra i drink confermati (tutti per il Globale, solo del mese scelto per la Classifica Mensile)
+    const filteredHistory = isMonthly
+      ? history.filter(h => {
+          if (!h?.timestampMs) return false;
+          const d = new Date(Number(h.timestampMs));
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+          return key === targetMonth;
+        })
+      : history;
+
+    // Calcolo Finestra Mobile di 24 ore continue (non si azzera a mezzanotte)
+    const WINDOW_24H = 24 * 60 * 60 * 1000;
+    const statsByMember = {};
+    members.forEach(m => {
+      statsByMember[m.id] = { pts: 0, beers: 0, liters: 0, drinks: [] };
+    });
+
+    filteredHistory.forEach(h => {
+      const st = statsByMember[h.playerId];
+      if (!st) return;
+      const pts = Number(h.points || 0);
+      const lit = Number(h.liters || 0.5);
+      st.pts += pts;
+      st.beers += 1;
+      st.liters += lit;
+      if (h.timestampMs) {
+        st.drinks.push({ ts: Number(h.timestampMs), liters: lit, pts });
       }
     });
 
-    const mvp = [...members].sort((a, b) => (monthlyStats[b.id]?.pts ?? b.points) - (monthlyStats[a.id]?.pts ?? a.points))[0];
-    const idrovora = [...members].sort((a, b) => (b.liters || b.beers * 0.5) - (a.liters || a.beers * 0.5))[0];
-    const goyim = [...members].sort((a, b) => a.beers - b.beers || a.points - b.points)[0];
+    members.forEach(m => {
+      const st = statsByMember[m.id];
+      st.drinks.sort((a, b) => a.ts - b.ts);
+      let maxCount24h = 0;
+      let maxLiters24h = 0;
 
-    return [
-      { id: 'mvp', title: 'MVP Mensile', subtitle: 'Il GOAT della lega', drawingType: 'goat', member: mvp, statBadge: `${monthlyStats[mvp.id]?.pts ? monthlyStats[mvp.id].pts.toFixed(1) : mvp.points} pt`, accent: 'border-amber-400/50 bg-gradient-to-r from-amber-500/15 to-slate-900' },
-      { id: 'lemans', title: '24 Ore di Le Mans', subtitle: 'Record birre in 24h', drawingType: 'lemans', member: mvp, statBadge: `${Math.max(1, Math.ceil(mvp.beers / 2))} birre in 24h`, accent: 'border-sky-400/50 bg-gradient-to-r from-sky-500/15 to-slate-900' },
-      { id: 'idrovora', title: "L'Idrovora", subtitle: 'Massimo litri scolati', drawingType: 'idrovora', member: idrovora, statBadge: `${(idrovora.liters || idrovora.beers * 0.5).toFixed(1)} L`, accent: 'border-emerald-400/50 bg-gradient-to-r from-emerald-500/15 to-slate-900' },
-      { id: 'regoyim', title: 'Re Goyim', subtitle: 'Cucchiaio di legno', drawingType: 'regoyim', member: goyim, statBadge: `${goyim.beers} birre`, accent: 'border-pink-400/50 bg-gradient-to-r from-pink-500/15 to-slate-900' }
+      for (let i = 0; i < st.drinks.length; i++) {
+        let count = 0;
+        let litSum = 0;
+        const startTs = st.drinks[i].ts;
+        for (let j = i; j < st.drinks.length; j++) {
+          if (st.drinks[j].ts - startTs <= WINDOW_24H) {
+            count += 1;
+            litSum += st.drinks[j].liters;
+          } else {
+            break;
+          }
+        }
+        if (count > maxCount24h || (count === maxCount24h && litSum > maxLiters24h)) {
+          maxCount24h = count;
+          maxLiters24h = litSum;
+        }
+      }
+
+      // Se nel Globale non ci sono ancora timestamp storici salvati, usa il valore base del profilo
+      if (!isMonthly && maxCount24h === 0 && (m.beers || 0) > 0) {
+        maxCount24h = Math.max(1, Math.ceil((m.beers || 0) / 2));
+        maxLiters24h = Number((maxCount24h * 0.5).toFixed(1));
+      }
+
+      st.max24hCount = maxCount24h;
+      st.max24hLiters = maxLiters24h;
+    });
+
+    const getPts = (m) => isMonthly ? Number(statsByMember[m.id].pts.toFixed(1)) : Number(m.points || 0);
+    const getLiters = (m) => isMonthly ? Number(statsByMember[m.id].liters.toFixed(1)) : Number((m.liters ?? (m.beers || 0) * 0.5).toFixed(1));
+    const getBeers = (m) => isMonthly ? statsByMember[m.id].beers : (m.beers || 0);
+
+    const mvp = [...members].sort((a, b) => getPts(b) - getPts(a) || getLiters(b) - getLiters(a))[0];
+    const lemans = [...members].sort((a, b) =>
+      statsByMember[b.id].max24hCount - statsByMember[a.id].max24hCount ||
+      statsByMember[b.id].max24hLiters - statsByMember[a.id].max24hLiters ||
+      getPts(b) - getPts(a)
+    )[0];
+    const idrovora = [...members].sort((a, b) => getLiters(b) - getLiters(a) || getPts(b) - getPts(a))[0];
+    const bioWinner = [...members].sort((a, b) => getBeers(a) - getBeers(b) || getPts(a) - getPts(b))[0];
+
+    const records = [
+      {
+        id: 'mvp',
+        title: isMonthly ? 'MVP del Mese' : 'MVP Globale',
+        subtitle: isMonthly ? 'Campione di punti del mese' : 'Il GOAT assoluto della lega',
+        drawingType: 'goat',
+        member: mvp,
+        statBadge: `${getPts(mvp)} pt • ${getBeers(mvp)} drink`,
+        accent: 'border-amber-400/50 bg-gradient-to-r from-amber-500/15 to-slate-900'
+      },
+      {
+        id: 'lemans',
+        title: '24 Ore di Le Mans',
+        subtitle: 'Record in 24h continue (senza stop a mezzanotte)',
+        drawingType: 'lemans',
+        member: lemans,
+        statBadge: `${statsByMember[lemans.id].max24hCount} in 24h (${statsByMember[lemans.id].max24hLiters.toFixed(1)}L)`,
+        accent: 'border-sky-400/50 bg-gradient-to-r from-sky-500/15 to-slate-900'
+      },
+      {
+        id: 'idrovora',
+        title: "L'Idrovora",
+        subtitle: isMonthly ? 'Massimo litri scolati nel mese' : 'Massimo litri scolati di sempre',
+        drawingType: 'idrovora',
+        member: idrovora,
+        statBadge: `${getLiters(idrovora)} L`,
+        accent: 'border-emerald-400/50 bg-gradient-to-r from-emerald-500/15 to-slate-900'
+      }
     ];
-  }, [activeLeague, clockTick]);
+
+    // La 4ª categoria (Bicchiere biodegradabile) compare SOLO nella vista Globale
+    if (!isMonthly) {
+      records.push({
+        id: 'bio_glass',
+        title: 'Bicchiere Biodegradabile',
+        subtitle: 'Meno birre stappate in assoluto',
+        drawingType: 'bio',
+        member: bioWinner,
+        statBadge: `${getBeers(bioWinner)} birre`,
+        accent: 'border-pink-400/50 bg-gradient-to-r from-pink-500/15 to-slate-900'
+      });
+    }
+
+    return records;
+  }, [activeLeague, clockTick, alboViewMode, selectedAlboMonth, currentMonthKey]); 
 
   // =========================================================================
   // VISTA 1: LOGIN E REGISTRAZIONE
@@ -4416,57 +4538,115 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
           {/* TAB 4: ALBO D'ORO */}
           {activeTab === 'albo' && (
             <div className="space-y-4">
-              <div className="bg-gradient-to-r from-amber-500/20 via-slate-900 to-slate-950 border border-amber-500/40 rounded-2xl p-3.5 space-y-1 shadow-xl">
+              <div className="bg-gradient-to-r from-amber-500/20 via-slate-900 to-slate-950 border border-amber-500/40 rounded-2xl p-3.5 space-y-3 shadow-xl">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-black uppercase text-amber-400 flex items-center gap-1.5">
-                    <Award className="w-4 h-4" /> Albo d'Oro Ufficiale della Lega
+                    <Award className="w-4 h-4"/> Albo d'Oro Ufficiale
                   </span>
                   <span className="text-[9px] font-mono uppercase bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full font-bold">
-                    Hall of Fame
+                    {alboViewMode === 'globale' ? '🌍 Storico Totale' : '⚽ Trofei del Mese'}
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-300">
-                  I 4 titoli onorifici aggiornati in tempo reale in base alle bevute confermate nella lega!
-                </p>
+
+                {/* Selettore Globale vs Classifica Mensile */}
+                <div className="grid grid-cols-2 gap-1.5 bg-slate-950 p-1.5 rounded-xl border border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setAlboViewMode('globale')}
+                    className={`py-2 rounded-lg text-[10px] font-black uppercase transition ${
+                      alboViewMode === 'globale'
+                        ? 'bg-amber-400 text-slate-950 shadow'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    🌍 Classifica Globale
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAlboViewMode('mensile')}
+                    className={`py-2 rounded-lg text-[10px] font-black uppercase transition ${
+                      alboViewMode === 'mensile'
+                        ? 'bg-amber-400 text-slate-950 shadow'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    ⚽ Classifica Mensile
+                  </button>
+                </div>
+
+                {/* Selettore del Mese (visibile solo in Classifica Mensile) */}
+                {alboViewMode === 'mensile' && (
+                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-800/80">
+                    <div className="flex gap-1.5 overflow-x-auto pb-1">
+                      {availableAlboMonths.map(mObj => (
+                        <button
+                          key={mObj.key}
+                          type="button"
+                          onClick={() => setSelectedAlboMonth(mObj.key)}
+                          className={`px-2.5 py-1 rounded-lg text-[10px] font-black capitalize shrink-0 border transition ${
+                            selectedAlboMonth === mObj.key
+                              ? 'bg-amber-500/25 border-amber-400 text-white'
+                              : 'bg-slate-950 border-slate-800 text-slate-400'
+                          }`}
+                        >
+                          {mObj.label}
+                        </button>
+                      ))}
+                    </div>
+                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded shrink-0 ${
+                      selectedAlboMonth < currentMonthKey
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                        : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                    }`}>
+                      {selectedAlboMonth < currentMonthKey ? '🏆 Assegnato' : '⏳ In Corso'}
+                    </span>
+                  </div>
+                )}
               </div>
 
-              {alboRecords && (
-                <div className="space-y-3">
-                  {alboRecords.map(rec => (
-                    <div
-                      key={rec.id}
-                      className={`p-4 rounded-2xl border ${rec.accent} shadow-lg flex items-center justify-between gap-3`}
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <AlboDrawing type={rec.drawingType} />
-                        <div className="min-w-0">
-                          <span className="text-xs font-black uppercase tracking-wider text-white block">
+       <div className="space-y-3">
+                {alboRecords.map(rec => (
+                  <div
+                    key={rec.id}
+                    className={`p-4 rounded-2xl border ${rec.accent} shadow-lg flex items-center justify-between gap-3`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <AlboDrawing type={rec.drawingType} />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-xs font-black uppercase tracking-wider text-white">
                             {rec.title}
                           </span>
-                          <span className="text-[10px] text-slate-400 block">
-                            {rec.subtitle}
-                          </span>
-                          <div className="mt-2 flex items-center gap-2">
-                            <BeerGlassAvatar
-                              type={rec.member.glassType}
-                              size="sm"
-                              crushed={isCrushedCanActive(rec.member)}
-                            />
-                            <div className="truncate">
-                              <span className="text-sm font-black text-amber-300 block truncate">
-                                {rec.member.name}
-                              </span>
-                              <span className="text-[10px] font-bold text-slate-200 bg-slate-950/80 border border-slate-700 px-2 py-0.5 rounded-lg inline-block mt-0.5">
-                                {rec.statBadge}
-                              </span>
-                            </div>
+                          {alboViewMode === 'mensile' && (
+                            <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-amber-400 text-slate-950">
+                              {selectedAlboMonth < currentMonthKey ? '🏆 Coppa Vinta' : 'Leader Mese'}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-slate-400 block">
+                          {rec.subtitle}
+                        </span>
+                        <div className="mt-2 flex items-center gap-2">
+                          <BeerGlassAvatar
+                            type={rec.member.glassType}
+                            size="sm"
+                            crushed={isCrushedCanActive(rec.member)}
+                            streakLevel={getMemberStreakLevel(rec.member, clockTick)}
+                          />
+                          <div className="truncate">
+                            <span className="text-sm font-black text-amber-300 block truncate">
+                              {rec.member.name}
+                            </span>
+                            <span className="text-[10px] font-bold text-slate-200 bg-slate-950/80 border border-slate-700 px-2 py-0.5 rounded-lg inline-block mt-0.5">
+                              {rec.statBadge}
+                            </span>
                           </div>
                         </div>
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
