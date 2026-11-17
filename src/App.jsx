@@ -846,8 +846,28 @@ function AlboDrawing({ type }) {
   }
   return (
     <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-pink-500/25 to-purple-950/50 border-2 border-pink-400/80 flex flex-col items-center justify-center shadow-lg shrink-0 relative">
-      <span className="text-2xl leading-none">🍼</span>
-      <span className="text-[8px] font-black uppercase bg-pink-400 text-slate-950 px-1.5 rounded-full mt-0.5">Bicchiere biodegradabile</span>
+      <svg viewBox="0 0 36 36" className="w-7 h-7 drop-shadow">
+        {/* Corpo bicchiere di plastica bianca semi-trasparente (leggermente stropicciato) */}
+        <path
+          d="M8.5 6.5 L11.2 30.5 C11.4 31.8, 24.6 31.8, 24.8 30.5 L27.5 6.5 Z"
+          fill="#f8fafc"
+          fillOpacity="0.88"
+          stroke="#cbd5e1"
+          strokeWidth="1.2"
+          strokeLinejoin="round"
+        />
+        {/* Classiche righe orizzontali zigrinate da bicchierino scadente + piega plastica */}
+        <line x1="10.2" y1="13" x2="25.8" y2="13" stroke="#94a3b8" strokeWidth="1" opacity="0.7" />
+        <line x1="10.6" y1="16.5" x2="25.4" y2="16.5" stroke="#94a3b8" strokeWidth="1" opacity="0.7" />
+        <line x1="11.0" y1="20" x2="25.0" y2="20" stroke="#94a3b8" strokeWidth="1" opacity="0.7" />
+        <path d="M14 23 L17.5 25.5 L15 28.5" stroke="#94a3b8" strokeWidth="1.1" fill="none" strokeLinecap="round" opacity="0.65" />
+        {/* Riflesso verticale plastica */}
+        <line x1="12.5" y1="8.5" x2="13.8" y2="29" stroke="#ffffff" strokeWidth="1.8" strokeLinecap="round" opacity="0.9" />
+        {/* Bordo superiore arrotolato tipico dei bicchieri usa e getta */}
+        <ellipse cx="18" cy="6.5" rx="10.2" ry="2.2" fill="#ffffff" stroke="#cbd5e1" strokeWidth="1.2" />
+        <ellipse cx="18" cy="6.5" rx="8.6" ry="1.3" fill="#e2e8f0" />
+      </svg>
+      <span className="text-[8px] font-black uppercase bg-pink-400 text-slate-950 px-1.5 rounded-full mt-0.5">BIO</span>
     </div>
   );
 }
