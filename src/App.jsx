@@ -175,16 +175,27 @@ const isCrushedCanActive = (member) => {
 
 // Calcola la serie attiva della serata (si azzera 3 ore dopo l'ultima birra stappata)
 const STREAK_EXPIRY_MS = 3 * 60 * 60 * 1000;
+const BENCH_THRESHOLD_MS = 5 * 24 * 60 * 60 * 1000; // 5 giorni di astinenza = Panchinaro
+
 const getActiveSessionStreak = (member, nowMs = Date.now()) => {
   if (!member?.lastDrinkAtMs || !member?.dailyCount) return 0;
   if ((nowMs - Number(member.lastDrinkAtMs)) > STREAK_EXPIRY_MS) return 0;
   return Number(member.dailyCount || 0);
 };
 
+const getBenchDays = (member, nowMs = Date.now()) => {
+  if (!member) return 0;
+  if (!member.lastDrinkAtMs) return (member.beers || 0) === 0 ? 5 : 0;
+  const diff = nowMs - Number(member.lastDrinkAtMs);
+  if (diff < BENCH_THRESHOLD_MS) return 0;
+  return Math.max(5, Math.floor(diff / (24 * 60 * 60 * 1000)));
+};
+
 const getMemberStreakLevel = (member, nowMs = Date.now()) => {
   const count = getActiveSessionStreak(member, nowMs);
   if (count >= 5) return 'comet';
   if (count >= 3) return 'fire';
+  if (getBenchDays(member, nowMs) >= 5) return 'bench';
   return 'none';
 };
 
@@ -212,19 +223,70 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md', isRumeno = false, crushe
   const activeStreak = Math.max(Number(streakCount || 0), Number(streak || 0), Number(dailyCount || 0));
   const isComet = streakLevel === 'comet' || activeStreak >= 5;
   const isOnFire = !isComet && (streakLevel === 'fire' || (activeStreak >= 3 && activeStreak < 5));
+  const isBench = !isComet && !isOnFire && streakLevel === 'bench';
 
   return (
     <div
-      className={`${sizeClasses[size] || sizeClasses.md} relative rounded-2xl flex items-center justify-center p-1 select-none shrink-0 transition-all duration-300 ${
+      className={`${sizeClasses[size] || sizeClasses.md} ${isBench ? 'sn-empty-glass' : ''} relative rounded-2xl flex items-center justify-center p-1 select-none shrink-0 transition-all duration-300 ${
         isComet
           ? 'bg-gradient-to-b from-sky-950 via-indigo-950 to-slate-950 border-2 border-cyan-300 shadow-[0_0_22px_rgba(56,189,248,0.95)] scale-105'
           : isOnFire
           ? 'bg-gradient-to-b from-red-950 via-orange-950/90 to-slate-950 border-2 border-amber-400 shadow-[0_0_18px_rgba(249,115,22,0.9)] scale-105'
           : showRumenoCan
           ? 'bg-red-950/80 border-2 border-red-500 shadow-[0_0_12px_rgba(239,68,68,0.5)]'
+          : isBench
+          ? 'bg-gradient-to-b from-slate-900 via-slate-950 to-black border-2 border-slate-600/80 shadow-inner opacity-85'
           : 'bg-gradient-to-b from-slate-800/90 to-slate-950 border border-amber-400/50 shadow-inner'
       }`}
     >
+      {/* 🕸️ EFFETTO PANCHINARO: SVUOTA IL BICCHIERE + RAGNATELA E RAGNETTO DENTRO IL VETRO */}
+      {isBench && (
+        <>
+          <style>{`
+            .sn-empty-glass [fill="url(#foam3DGrad)"],
+            .sn-empty-glass [fill="url(#warmFoamGrad)"],
+            .sn-empty-glass circle:not([stroke]),
+            .sn-empty-glass ellipse[fill="#ef4444"],
+            .sn-empty-glass ellipse[fill="#d97706"],
+            .sn-empty-glass path[fill="#78350f"],
+            .sn-empty-glass rect[fill="#facc15"] {
+              opacity: 0 !important;
+            }
+            .sn-empty-glass [fill="url(#goldWeissGrad)"],
+            .sn-empty-glass [fill="url(#lagerGoldGrad)"],
+            .sn-empty-glass [fill="url(#pilsStrawGrad)"],
+            .sn-empty-glass [fill="url(#amberIpaGrad)"],
+            .sn-empty-glass [fill="url(#copperDipaGrad)"],
+            .sn-empty-glass [fill="url(#rubyBockGrad)"],
+            .sn-empty-glass [fill="url(#trappistGrad)"],
+            .sn-empty-glass [fill="url(#stoutBlackGrad)"] {
+              fill: rgba(148, 163, 184, 0.08) !important;
+            }
+            .sn-empty-glass line[stroke="#fef9c3"],
+            .sn-empty-glass line[stroke="#ca8a04"],
+            .sn-empty-glass rect[stroke="#fef9c3"] {
+              stroke: rgba(148, 163, 184, 0.25) !important;
+              fill: transparent !important;
+            }
+          `}</style>
+          <svg
+            viewBox="0 0 64 64"
+            className="pointer-events-none absolute -inset-1.5 w-[calc(100%+12px)] h-[calc(100%+12px)] z-20 overflow-visible"
+          >
+            {/* Ragnatela sull'angolo alto-destro del bicchiere vuoto */}
+            <g stroke="#cbd5e1" strokeWidth="0.9" fill="none" opacity="0.85">
+              <path d="M36 10 L58 6 M36 10 L60 18 M36 10 L55 30 M36 10 L43 32" />
+              <path d="M43 9 Q47 13 44 17 Q41 21 38 19" />
+              <path d="M50 7 Q54 14 50 22 Q46 26 40 25" />
+              <path d="M56 6 Q60 16 54 28 Q48 31 42 30" />
+            </g>
+            {/* Filo di ragnatela + Ragnetto appeso dentro il bicchiere vuoto */}
+            <line x1="31" y1="15" x2="31" y2="30" stroke="#94a3b8" strokeWidth="0.8" strokeDasharray="1.5 1" />
+            <circle cx="31" cy="31.5" r="2.2" fill="#0f172a" stroke="#cbd5e1" strokeWidth="0.8" />
+            <path d="M27.5 30 L34.5 33 M27.5 33 L34.5 30 M27 31.5 H35" stroke="#cbd5e1" strokeWidth="0.7" strokeLinecap="round" />
+          </svg>
+        </>
+      )}
       {/* 🔥 EFFETTO PRO: CORONA DI FIAMME SUL CONTORNO (IL CENTRO RESTA 100% LIBERO!) */}
       {isOnFire && (
         <svg
@@ -3318,11 +3380,14 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
                     const hasCanPenalty = isCrushedCanActive(member);
                     const streakCount = getActiveSessionStreak(member, clockTick);
                     const streakLevel = getMemberStreakLevel(member, clockTick);
+                    const benchDays = getBenchDays(member, clockTick);
 
                     const rowBgClass = streakLevel === 'comet'
                       ? 'bg-gradient-to-r from-indigo-950/90 via-purple-900/55 to-cyan-950/80 border-l-4 border-l-cyan-300'
                       : streakLevel === 'fire'
                       ? 'bg-gradient-to-r from-orange-950/65 via-red-950/40 to-slate-900 border-l-4 border-l-orange-500'
+                      : streakLevel === 'bench'
+                      ? 'bg-slate-950/85 border-l-4 border-l-slate-600 opacity-85'
                       : isMe
                       ? 'bg-amber-500/10'
                       : '';
@@ -3331,6 +3396,8 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
                       ? 'text-transparent bg-clip-text bg-gradient-to-r from-cyan-200 via-white to-amber-300 font-black drop-shadow'
                       : streakLevel === 'fire'
                       ? 'text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-orange-400 to-red-400 font-black'
+                      : streakLevel === 'bench'
+                      ? 'text-slate-400 font-bold'
                       : isMe
                       ? 'text-amber-300 font-bold'
                       : 'text-white font-bold';
@@ -3375,6 +3442,13 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
                               {streakLevel === 'comet' && (
                                 <span className="px-2 py-0.5 bg-gradient-to-r from-cyan-400 via-purple-500 to-amber-400 text-slate-950 rounded-full text-[8px] font-black uppercase tracking-wider shadow-md animate-pulse">
                                   ☄️ INARRESTABILE ({streakCount})
+                                </span>
+                              )}
+
+                              {/* Targhetta PANCHINARO (5+ giorni a secco o 0 birre) */}
+                              {streakLevel === 'bench' && (
+                                <span className="px-2 py-0.5 bg-slate-800 border border-slate-600 text-slate-300 rounded-full text-[8px] font-black uppercase tracking-wider shadow-sm">
+                                  🪑 PANCHINARO ({!member.lastDrinkAtMs && (member.beers || 0) === 0 ? 'A SECCO' : `${benchDays}g`})
                                 </span>
                               )}
 
@@ -4559,10 +4633,75 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
                 />
 
                 {isGodMode && (
-                  <GodBollettinoConsole
-                    member={inspectedMember}
-                    onGodEdit={handleGodEditMember}
-                  />
+                  <div className="space-y-2">
+                    <GodBollettinoConsole
+                      member={inspectedMember}
+                      onGodEdit={handleGodEditMember}
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const isBenchNow = getMemberStreakLevel(inspectedMember, Date.now()) === 'bench';
+                          const targetId = inspectedMember.id;
+                          setLeagues(prev => prev.map(l => {
+                            if (l.id !== activeLeagueId) return l;
+                            const updated = {
+                              ...l,
+                              members: (l.members || []).map(m => {
+                                if (m.id !== targetId) return m;
+                                return {
+                                  ...m,
+                                  dailyCount: 0,
+                                  lastDrinkAtMs: isBenchNow
+                                    ? Date.now()
+                                    : Date.now() - (6 * 24 * 60 * 60 * 1000)
+                                };
+                              })
+                            };
+                            pushLeagueToCloud(updated);
+                            return updated;
+                          }));
+                          showToast(
+                            isBenchNow
+                              ? `🍺 ${inspectedMember.name} è tornato titolare (bicchiere pieno)!`
+                              : `🪑 ${inspectedMember.name} spedito in panchina (bicchiere vuoto e ragnatela)!`,
+                            'success'
+                          );
+                        }}
+                        className="py-2.5 px-2 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 text-[10px] font-black uppercase flex items-center justify-center gap-1 shadow transition active:scale-95"
+                      >
+                        {getMemberStreakLevel(inspectedMember, clockTick) === 'bench'
+                          ? '🍺 Togli Panchina'
+                          : '🪑 Manda in Panchina'}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!window.confirm(`⚠️ Vuoi davvero espellere definitivamente "${inspectedMember.name}" dalla lega?`)) return;
+                          const targetId = inspectedMember.id;
+                          const targetName = inspectedMember.name;
+                          setLeagues(prev => prev.map(l => {
+                            if (l.id !== activeLeagueId) return l;
+                            const updated = {
+                              ...l,
+                              members: (l.members || []).filter(m => m.id !== targetId),
+                              feed: (l.feed || []).filter(f => f.playerId !== targetId)
+                            };
+                            pushLeagueToCloud(updated);
+                            return updated;
+                          }));
+                          setInspectedMemberId(null);
+                          showToast(`🚫 ${targetName} è stato espulso dalla lega.`, 'warning');
+                        }}
+                        className="py-2.5 px-2 rounded-2xl bg-red-950/80 hover:bg-red-900 border border-red-500/60 text-red-200 text-[10px] font-black uppercase flex items-center justify-center gap-1 shadow transition active:scale-95"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                        <span>Espelli</span>
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
 
