@@ -6152,7 +6152,7 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
                 </button>
               </div>
 
-              {/* CONTENUTO PAGINA 1: INTRODUZIONE GENERALE (CALCIO & BIRRA) */}
+{/* CONTENUTO PAGINA 1: INTRODUZIONE GENERALE */}
               {rulesPage === 'intro' ? (
                 <div className="p-4 overflow-y-auto space-y-2.5 text-xs text-slate-300">
                   <div className="p-3 rounded-xl bg-gradient-to-r from-amber-500/15 to-slate-950 border border-amber-500/30 space-y-1">
@@ -6166,10 +6166,10 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
 
                   <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
                     <span className="text-[10px] font-black uppercase text-sky-400 block">
-                      1️⃣ Stappa, Fascia da Capitano e Scatta Live
+                      1️⃣ Stappa, Slot Machine e Scatta Live
                     </span>
                     <p className="text-[11px] leading-snug">
-                      Quando hai la birra davanti, vai su <strong>Stappa!</strong>, scegli formato, gradi e qualità (o indossa la <strong>Fascia da Capitano</strong> del weekend!) e scatta la foto in diretta: niente foto vecchie dalla galleria!
+                      Gira la <strong>Slot Machine</strong> settimanale per pescare il tuo imprevisto (se fallisci sono -2 pt!). Scegli formato, gradi e qualità su <strong>Stappa!</strong> e scatta la foto in diretta: niente foto galleria!
                     </p>
                   </div>
 
@@ -6178,21 +6178,21 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
                       2️⃣ Il Giudizio della Sala VAR
                     </span>
                     <p className="text-[11px] leading-snug">
-                      La tua foto finisce al vaglio della <strong>Sala VAR</strong>: servono <strong>2 conferme</strong> degli amici per convalidare la bevuta e incassare i punti. Ma se avanzi la birra o provi a barare, scattano <strong>Simulazioni, Cartellini Gialli e Rossi</strong>!
+                      La tua foto finisce al vaglio della <strong>Sala VAR</strong>: servono <strong>2 conferme</strong> degli amici per convalidare la bevuta e sbloccare i punti missione. Attenzione alle simulazioni e ai cartellini!
                     </p>
                   </div>
 
                   <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
                     <span className="text-[10px] font-black uppercase text-purple-400 block">
-                      3️⃣ Gazzetta, Bollettino e Chiosco
+                      3️⃣ Panchina, Gazzetta e Chiosco
                     </span>
                     <p className="text-[11px] leading-snug">
-                      Ogni impresa o degrado finisce in prima pagina sulla <strong>Gazzetta</strong>! Tocca i giocatori in classifica per spiare il loro <strong>Bollettino Medico</strong> e accumula <strong>Tappi d'Oro 🪙</strong> per collezionare le 32 carte del <strong>Chiosco</strong>.
+                      Chi sta a secco per 5+ giorni finisce in <strong>Panchina</strong> con ragnatele e bicchiere vuoto! Ogni impresa finisce sulla <strong>Gazzetta</strong> e i Tappi d'Oro 🪙 sbloccano le carte del <strong>Chiosco</strong>.
                     </p>
                   </div>
                 </div>
               ) : (
-                /* CONTENUTO PAGINA 2: LE TUE REGOLE SUI PUNTI E BONUS */
+                /* CONTENUTO PAGINA 2: PUNTI, BONUS, CAPITANO, SLOT E PANCHINA AGGIORNATI */
                 <div className="p-4 overflow-y-auto space-y-3 text-xs text-slate-300">
                   <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
                     <span className="text-[10px] font-black uppercase text-amber-400">1. Formati, Gradi, Qualità e Stile</span>
@@ -6204,15 +6204,22 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
                     <div className="flex justify-between"><span>Passaporto Rumeno (Ceres, Tennent's, Faxe...)</span><strong className="text-red-400">-5 pt + 🥫 24h</strong></div>
                   </div>
 
+                  <div className="p-2.5 rounded-xl bg-slate-950 border border-amber-500/30 space-y-1">
+                    <span className="text-[10px] font-black uppercase text-amber-300">2. Slot Machine Imprevisti</span>
+                    <div className="flex justify-between"><span>Completamento sfida (Uno-Due, Super Peroni...)</span><strong className="text-amber-400">+2.0 a +3.5 pt</strong></div>
+                    <div className="flex justify-between"><span>Missione scaduta / non completata</span><strong className="text-red-400">-2 pt di penalità</strong></div>
+                  </div>
+
                   <div className="p-2.5 rounded-xl bg-slate-950 border border-purple-500/30 space-y-1">
-                    <span className="text-[10px] font-black uppercase text-purple-400">2. Capitano 4 ore</span>
-                    <div className="flex justify-between"><span>4 Birre validate nelle 4h</span><strong className="text-purple-300">Punti Doppi (x2)</strong></div>
+                    <span className="text-[10px] font-black uppercase text-purple-400">3. Capitano 4 ore & Panchina</span>
+                    <div className="flex justify-between"><span>4 Birre validate nelle 4h (Venerdì/Sabato)</span><strong className="text-purple-300">Punti Doppi (x2)</strong></div>
                     <div className="flex justify-between"><span>Meno di 4 birre a fine 4h</span><strong className="text-red-500">0 pt birre e Malus -20 pt</strong></div>
+                    <div className="flex justify-between"><span>Panchinaro (Assente da 5+ giorni)</span><strong className="text-slate-400">Bicchiere vuoto + Ragnatela</strong></div>
                   </div>
 
                   <div className="p-2.5 rounded-xl bg-slate-950 border border-red-500/30 space-y-1">
-                    <span className="text-[10px] font-black uppercase text-red-400">3. Sala VAR (2 Voti)</span>
-                    <div className="flex justify-between"><span>2 Conferme dagli amici</span><strong className="text-emerald-400">+Punti Drink</strong></div>
+                    <span className="text-[10px] font-black uppercase text-red-400">4. Sala VAR (2 Voti)</span>
+                    <div className="flex justify-between"><span>2 Conferme dagli amici</span><strong className="text-emerald-400">+Punti Drink & Missioni</strong></div>
                     <div className="flex justify-between"><span>🟨 Giallo: foto a metà (non allo stappo)</span><strong className="text-yellow-400">Solo -2 pt</strong></div>
                     <div className="flex justify-between"><span>🚨 Simulazione: info/bonus falsi o foto vuota</span><strong className="text-red-400">Solo -5 pt</strong></div>
                     <div className="flex justify-between"><span>🟥 Rosso: birra analcolica / radler</span><strong className="text-red-500">Solo -10 pt</strong></div>
