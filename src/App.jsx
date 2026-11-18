@@ -190,7 +190,16 @@ const getBenchDays = (member, nowMs = Date.now()) => {
   if (diff < BENCH_THRESHOLD_MS) return 0;
   return Math.max(5, Math.floor(diff / (24 * 60 * 60 * 1000)));
 };
-
+const getAstinenceFillRatio = (member, nowMs = Date.now()) => {
+  if (!member) return 1.0;
+  if (!member.lastDrinkAtMs) return (member.beers || 0) === 0 ? 0.0 : 1.0;
+  const diff = nowMs - Number(member.lastDrinkAtMs);
+  const days = diff / (24 * 60 * 60 * 1000);
+  if (days <= 0) return 1.0; // Pieno al 100%
+  if (days >= 5) return 0.0; // Vuoto totale (Panchinaro)
+  // Scala lineare da 1.0 (subito dopo la bevuta) a 0.0 (al 5° giorno)
+  return Math.max(0, 1.0 - (days / 5));
+};
 const getMemberStreakLevel = (member, nowMs = Date.now()) => {
   const count = getActiveSessionStreak(member, nowMs);
   if (count >= 5) return 'comet';
@@ -208,7 +217,7 @@ const formatCaptainTimeLeft = (expiresAtMs, nowMs) => {
   return `${hrs}h ${String(mins).padStart(2, '0')}m`;
 };
 
-function BeerGlassAvatar({ type = 'weiss', size = 'md', isRumeno = false, crushed = false, streakLevel = 'none', streakCount = 0, streak = 0, dailyCount = 0 }) {
+function BeerGlassAvatar({ type = 'weiss', size = 'md', isRumeno = false, crushed = false, streakLevel = 'none', streakCount = 0, streak = 0, dailyCount = 0, lastDrinkAtMs = null, beers = 1 }) {
   const sizeClasses = {
     xs: 'w-8 h-8',
     sm: 'w-10 h-10',
@@ -223,11 +232,18 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md', isRumeno = false, crushe
   const activeStreak = Math.max(Number(streakCount || 0), Number(streak || 0), Number(dailyCount || 0));
   const isComet = streakLevel === 'comet' || activeStreak >= 5;
   const isOnFire = !isComet && (streakLevel === 'fire' || (activeStreak >= 3 && activeStreak < 5));
-  const isBench = !isComet && !isOnFire && streakLevel === 'bench';
+
+  const fillRatio = lastDrinkAtMs !== null
+    ? getAstinenceFillRatio({ lastDrinkAtMs, beers })
+    : (streakLevel === 'bench' ? 0 : 1);
+
+  const isBench = !isComet && !isOnFire && (streakLevel === 'bench' || fillRatio <= 0);
+  const liquidClipY = 12 + Math.round((1 - fillRatio) * 31); // 12px = pieno, 43px = vuoto
 
   return (
     <div
-      className={`${sizeClasses[size] || sizeClasses.md} ${isBench ? 'sn-empty-glass' : ''} relative rounded-2xl flex items-center justify-center p-1 select-none shrink-0 transition-all duration-300 ${
+      style={{ '--sn-clip-y': `${liquidClipY}px` }}
+      className={`${sizeClasses[size] || sizeClasses.md} ${isBench ? 'sn-empty-glass' : fillRatio < 1 ? 'sn-draining-glass' : ''} relative rounded-2xl flex items-center justify-center p-1 select-none shrink-0 transition-all duration-300 ${
         isComet
           ? 'bg-gradient-to-b from-sky-950 via-indigo-950 to-slate-950 border-2 border-cyan-300 shadow-[0_0_22px_rgba(56,189,248,0.95)] scale-105'
           : isOnFire
@@ -286,6 +302,26 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md', isRumeno = false, crushe
             <path d="M27.5 30 L34.5 33 M27.5 33 L34.5 30 M27 31.5 H35" stroke="#cbd5e1" strokeWidth="0.7" strokeLinecap="round" />
           </svg>
         </>
+      )}
+      {/* 📉 LIVELLO GRADUALE LIQUIDO NEI 4 GIORNI DI ASTINENZA */}
+      {!isBench && fillRatio < 1 && (
+        <style>{`
+          .sn-draining-glass [fill="url(#foam3DGrad)"],
+          .sn-draining-glass [fill="url(#warmFoamGrad)"] {
+            opacity: 0 !important;
+          }
+          .sn-draining-glass [fill="url(#goldWeissGrad)"],
+          .sn-draining-glass [fill="url(#lagerGoldGrad)"],
+          .sn-draining-glass [fill="url(#pilsStrawGrad)"],
+          .sn-draining-glass [fill="url(#amberIpaGrad)"],
+          .sn-draining-glass [fill="url(#copperDipaGrad)"],
+          .sn-draining-glass [fill="url(#rubyBockGrad)"],
+          .sn-draining-glass [fill="url(#trappistGrad)"],
+          .sn-draining-glass [fill="url(#stoutBlackGrad)"] {
+            clip-path: inset(var(--sn-clip-y) 0 0 0);
+            transition: clip-path 0.5s ease;
+          }
+        `}</style>
       )}
       {/* 🔥 EFFETTO PRO: CORONA DI FIAMME SUL CONTORNO (IL CENTRO RESTA 100% LIBERO!) */}
       {isOnFire && (
