@@ -1060,8 +1060,11 @@ const formatMissionTimeLeft = (expiresAtMs, nowMs) => {
   return `${hrs}h ${String(mins).padStart(2, '0')}m`;
 };
 
-const evaluateMissionProgress = (missionId, logs = []) => {
-  const beers = (logs || []).filter(d => d && d.category === 'birra');
+const evaluateMissionProgress = (missionId, logs = [], onlyApproved = false) => {
+  const validLogs = onlyApproved
+    ? (logs || []).filter(d => d && d.approved === true)
+    : (logs || []);
+  const beers = validLogs.filter(d => d && d.category === 'birra');
 
   if (missionId === 'uno_due') {
     const bigBeers = beers.filter(d => Number(d.liters || 0) >= 0.5);
@@ -1174,7 +1177,7 @@ const evaluateMissionProgress = (missionId, logs = []) => {
   }
 
   if (missionId === 'miracolo_panchina') {
-    const ok = (logs || []).some(d => d && d.hasTaggedBench);
+    const ok = validLogs.some(d => d && d.hasTaggedBench);
     return {
       completed: ok,
       progressText: ok ? '1/1 Panchinaro riportato in campo!' : '0/1 Tagga un Panchinaro nella foto'
@@ -1204,6 +1207,53 @@ const evaluateMissionProgress = (missionId, logs = []) => {
   return { completed: false, progressText: 'In corso' };
 };
 
+// Aggiorna lo stato della missione quando una foto viene confermata (2/2) o rimossa/bocciata in Sala VAR
+const applyMissionVarDecision = (member, beerId, decision, nowMs = Date.now()) => {
+  const activeM = member?.activeMission;
+  if (!activeM || activeM.status !== 'active') {
+    return { updatedMission: activeM, bonusAwarded: 0, completedDef: null };
+  }
+
+  const currentLogs = activeM.logs || [];
+  if (!currentLogs.some(l => l && l.beerId === beerId)) {
+    return { updatedMission: activeM, bonusAwarded: 0, completedDef: null };
+  }
+
+  if (decision === 'remove') {
+    const nextLogs = currentLogs.filter(l => l && l.beerId !== beerId);
+    return {
+      updatedMission: { ...activeM, logs: nextLogs },
+      bonusAwarded: 0,
+      completedDef: null
+    };
+  }
+
+  // decision === 'approve': segna questa birra come confermata dal VAR mantenendo l'orario di scatto originale (ts)!
+  const nextLogs = currentLogs.map(l => (l && l.beerId === beerId ? { ...l, approved: true } : l));
+  const checkApproved = evaluateMissionProgress(activeM.id, nextLogs, true);
+
+  if (checkApproved.completed) {
+    const mDef = WEEKLY_MISSIONS.find(x => x.id === activeM.id) || null;
+    const bonusPts = Number(mDef?.bonusPts || 0);
+    return {
+      updatedMission: {
+        ...activeM,
+        logs: nextLogs,
+        status: 'completed',
+        completedAtMs: nowMs
+      },
+      bonusAwarded: bonusPts,
+      completedDef: mDef
+    };
+  }
+
+  return {
+    updatedMission: { ...activeM, logs: nextLogs },
+    bonusAwarded: 0,
+    completedDef: null
+  };
+};
+
 // --- GESTIONE AUTOMATICA SCADENZA 4 ORE CAPITANO + MISSIONI SLOT (-2 PT) ---
 const settleExpiredCaptainsInLeague = (leagueObj, nowMs) => {
   if (!leagueObj || !leagueObj.members) return { updatedLeague: leagueObj, changed: false, events: [] };
@@ -1212,6 +1262,7 @@ const settleExpiredCaptainsInLeague = (leagueObj, nowMs) => {
   const events = [];
   const captainNewsItems = [];
   let currentFeed = [...(leagueObj.feed || [])];
+  let currentHistory = [...(leagueObj.history || [])];
 
   const rawGazzetta = leagueObj.gazzetta || [];
   let currentGazzetta = filterActiveGazzettaNews(rawGazzetta, nowMs);
@@ -1225,31 +1276,52 @@ const settleExpiredCaptainsInLeague = (leagueObj, nowMs) => {
   const updatedMembers = leagueObj.members.map(m => {
     let nextM = m;
 
-    // 1. Controllo scadenza Missione Slot Machine (-2 pt se scade senza essere completata)
+    // 1. Controllo scadenza Missione Slot Machine (-2 pt solo se non ci sono birre della missione in attesa di VAR!)
     if (nextM.activeMission && nextM.activeMission.status === 'active' && nextM.activeMission.expiresAtMs && nowMs >= Number(nextM.activeMission.expiresAtMs)) {
-      changed = true;
-      const mDef = WEEKLY_MISSIONS.find(x => x.id === nextM.activeMission.id);
-      const timeStr = new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
-      const dateStr = new Date().toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
-      captainNewsItems.push({
-        id: `news_mission_fail_${nextM.id}_${nowMs}`,
-        category: `IMPREVISTO FALLITO: -2 PT A ${nextM.name.toUpperCase()}!`,
-        icon: '🎰',
-        badgeColor: 'bg-red-600 text-white',
-        text: `${nextM.name} ha sfidato la Slot Machine con la missione "${mDef?.title || 'Imprevisto'}" ma non l'ha completata in tempo: -2 punti di penalità!`,
-        timestamp: timeStr,
-        dateLabel: dateStr,
-        createdAtMs: nowMs
-      });
-      nextM = {
-        ...nextM,
-        points: Number((nextM.points - 2).toFixed(1)),
-        weekendPts: Number(((nextM.weekendPts || 0) - 2).toFixed(1)),
-        activeMission: {
-          ...nextM.activeMission,
-          status: 'failed'
-        }
-      };
+      const mLogs = nextM.activeMission.logs || [];
+      const hasPendingVarForMission = mLogs.some(
+        l => l && !l.approved && currentFeed.some(f => f.id === l.beerId)
+      );
+
+      if (!hasPendingVarForMission) {
+        changed = true;
+        const mDef = WEEKLY_MISSIONS.find(x => x.id === nextM.activeMission.id);
+        const timeStr = new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+        const dateStr = new Date().toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
+        captainNewsItems.push({
+          id: `news_mission_fail_${nextM.id}_${nowMs}`,
+          category: `IMPREVISTO FALLITO: -2 PT A ${nextM.name.toUpperCase()}!`,
+          icon: '🎰',
+          badgeColor: 'bg-red-600 text-white',
+          text: `${nextM.name} ha sfidato la Slot Machine con la missione "${mDef?.title || 'Imprevisto'}" ma non l'ha completata in tempo: -2 punti di penalità!`,
+          timestamp: timeStr,
+          dateLabel: dateStr,
+          createdAtMs: nowMs
+        });
+        currentHistory.unshift({
+          id: `pen_mission_${nextM.id}_${nowMs}`,
+          playerId: nextM.id,
+          playerName: nextM.name,
+          beerName: `Malus Missione Fallita (${mDef?.title || 'Slot'})`,
+          points: -2,
+          liters: 0,
+          isPenalty: true,
+          hasPhoto: false,
+          photoUrl: null,
+          timestampMs: nowMs,
+          dateStr,
+          timeStr
+        });
+        nextM = {
+          ...nextM,
+          points: Number((nextM.points - 2).toFixed(1)),
+          weekendPts: Number(((nextM.weekendPts || 0) - 2).toFixed(1)),
+          activeMission: {
+            ...nextM.activeMission,
+            status: 'failed'
+          }
+        };
+      }
     }
 
     // 2. Controllo scadenza 4 ore Capitano
@@ -1260,7 +1332,7 @@ const settleExpiredCaptainsInLeague = (leagueObj, nowMs) => {
 
     if (confirmedCount < 4 && !isTimeExpired) return nextM;
 
-    const pendingCapBeersInVar = currentFeed.filter(b => b.playerId === nextM.id && b.isCaptainBeer);
+    const pendingCapBeersInVar = currentFeed.filter(b => isUserInBeerGroup(b, nextM.id) && b.isCaptainBeer);
     if (confirmedCount < 4 && (confirmedCount + pendingCapBeersInVar.length) >= 4) {
       return nextM;
     }
@@ -1302,6 +1374,28 @@ const settleExpiredCaptainsInLeague = (leagueObj, nowMs) => {
       };
     } else {
       currentFeed = currentFeed.filter(b => !(b.playerId === nextM.id && b.isCaptainBeer));
+      const capStartMs = Number(nextM.captainStartedAtMs || (Number(nextM.captainExpiresAtMs) - 4 * 3600000));
+      // Azzera i punti delle birre del Capitano fallito anche nello storico mensile e registra il -20 pt
+      currentHistory = currentHistory.map(h => {
+        if (h && h.playerId === nextM.id && h.isCaptainBeer && Number(h.timestampMs || 0) >= capStartMs) {
+          return { ...h, points: 0, liters: 0, isFailedCaptain: true };
+        }
+        return h;
+      });
+      currentHistory.unshift({
+        id: `pen_cap_${nextM.id}_${nowMs}`,
+        playerId: nextM.id,
+        playerName: nextM.name,
+        beerName: 'Malus Disfatta Capitano (-20 pt)',
+        points: -20,
+        liters: 0,
+        isPenalty: true,
+        hasPhoto: false,
+        photoUrl: null,
+        timestampMs: nowMs,
+        dateStr,
+        timeStr
+      });
       events.push({
         type: 'fail',
         playerName: nextM.name,
@@ -1360,6 +1454,7 @@ const settleExpiredCaptainsInLeague = (leagueObj, nowMs) => {
       ...leagueObj,
       members: updatedMembers,
       feed: currentFeed,
+      history: currentHistory,
       gazzetta: currentGazzetta
     },
     changed: true,
@@ -2003,7 +2098,7 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
     setIsLoadingAlbum(false);
   };
 
-  const handleGodForceVar = (beerItem, mode) => {
+ const handleGodForceVar = (beerItem, mode) => {
     if (!beerItem || !activeLeagueId) return;
     const nowMs = Date.now();
 
@@ -2024,39 +2119,67 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
           captainSlot: beerItem.captainSlot || null
         }];
     const participantMap = new Map(participants.map(p => [p.id, p]));
+    let missionUnlockedSummary = null;
 
     setLeagues(prev => prev.map(l => {
       if (l.id !== activeLeagueId) return l;
       const updatedFeed = (l.feed || []).filter(item => item.id !== beerItem.id);
       const drinkL = Number(beerItem.liters || 0.5);
+      const missionBonusByPlayer = {};
+      const missionNewsList = [];
+
       const updatedMembers = (l.members || []).map(m => {
         const part = participantMap.get(m.id);
         if (!part) return m;
         const pPts = Number(part.points ?? beerItem.points);
+
         if (mode === 'approve') {
+          const { updatedMission, bonusAwarded, completedDef } = applyMissionVarDecision(m, beerItem.id, 'approve', nowMs);
+          missionBonusByPlayer[m.id] = bonusAwarded;
+
+          if (completedDef) {
+            missionUnlockedSummary = { playerName: m.name, title: completedDef.title, badge: completedDef.badgeLabel };
+            missionNewsList.push({
+              id: `news_mission_ok_${m.id}_${nowMs}`,
+              category: `IMPRESA SLOT: ${completedDef.title.toUpperCase()}!`,
+              icon: '🎰',
+              badgeColor: 'bg-amber-400 text-slate-950',
+              text: `${m.name} completa la missione "${completedDef.title}" e incassa ${completedDef.badgeLabel}!`,
+              timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
+              dateLabel: new Date().toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }),
+              createdAtMs: nowMs
+            });
+          }
+
           if (part.isCaptainBeer && m.captainActive) {
             return {
               ...m,
+              points: Number((m.points + bonusAwarded).toFixed(1)),
+              weekendPts: Number(((m.weekendPts || 0) + bonusAwarded).toFixed(1)),
               captainBeers: (m.captainBeers || 0) + 1,
               captainVaultPoints: Number(((m.captainVaultPoints || 0) + pPts).toFixed(1)),
               captainVaultLiters: Number(((m.captainVaultLiters || 0) + drinkL).toFixed(2)),
+              activeMission: updatedMission,
               rumenoUntil: beerItem.isRumeno ? (nowMs + 24 * 3600000) : m.rumenoUntil
             };
           }
           return {
             ...m,
-            points: Number((m.points + pPts).toFixed(1)),
-            weekendPts: Number(((m.weekendPts || 0) + pPts).toFixed(1)),
+            points: Number((m.points + pPts + bonusAwarded).toFixed(1)),
+            weekendPts: Number(((m.weekendPts || 0) + pPts + bonusAwarded).toFixed(1)),
             beers: (m.beers || 0) + 1,
             liters: Number(((m.liters ?? ((m.beers || 0) * 0.5)) + drinkL).toFixed(2)),
+            activeMission: updatedMission,
             rumenoUntil: beerItem.isRumeno ? (nowMs + 24 * 3600000) : m.rumenoUntil
           };
         } else {
           const curStreak = getActiveSessionStreak(m, nowMs);
+          const { updatedMission } = applyMissionVarDecision(m, beerItem.id, 'remove', nowMs);
           return {
             ...m,
             dailyCount: Math.max(0, curStreak - 1),
             rumenoUntil: beerItem.isRumeno ? null : m.rumenoUntil,
+            activeMission: updatedMission,
             captainBeersSubmitted: part.isCaptainBeer ? Math.max(0, (m.captainBeersSubmitted || 1) - 1) : m.captainBeersSubmitted
           };
         }
@@ -2076,7 +2199,8 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
             styleLabel: beerItem.styleLabel || '',
             hasPhoto: Boolean(beerItem.photoUrl),
             photoUrl: null,
-            points: Number(part.points ?? beerItem.points),
+            isCaptainBeer: Boolean(part.isCaptainBeer),
+            points: Number((Number(part.points ?? beerItem.points) + Number(missionBonusByPlayer[part.id] || 0)).toFixed(1)),
             liters: drinkL,
             timestampMs: beerItem.createdAtMs || nowMs,
             dateStr: drinkDate.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' }),
@@ -2085,15 +2209,18 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
         : [];
 
       const updatedHistory = newMemories.length > 0 ? [...newMemories, ...(l.history || [])] : (l.history || []);
-      const draft = { ...l, feed: updatedFeed, members: updatedMembers, history: updatedHistory };
+      const updatedGazzetta = filterActiveGazzettaNews([...missionNewsList, ...(l.gazzetta || [])], nowMs);
+      const draft = { ...l, feed: updatedFeed, members: updatedMembers, history: updatedHistory, gazzetta: updatedGazzetta };
       const { updatedLeague: finalL } = settleExpiredCaptainsInLeague(draft, nowMs);
       pushLeagueToCloud(finalL);
       return finalL;
     }));
     showToast(
       mode === 'approve'
-        ? `⚡ Birra convalidata per ${participants.length} ${participants.length > 1 ? 'bevitori' : 'bevitore'}!`
-        : '🗑️ Foto eliminata e contatori scalati (-1)!',
+        ? (missionUnlockedSummary
+            ? `⚡ Birra approvata e Missione "${missionUnlockedSummary.title}" sbloccata (${missionUnlockedSummary.badge})!`
+            : `⚡ Birra convalidata per ${participants.length} ${participants.length > 1 ? 'bevitori' : 'bevitore'}!`)
+        : '🗑️ Foto eliminata e contatori/missione scalati (-1)!',
       'success'
     );
   };
@@ -2590,11 +2717,12 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
     showToast('🔄 Slot Machine resettata (God Mode)! Puoi rigirare.', 'success');
   };
 
-  const handleAddBeer = (e) => {
+ const handleAddBeer = (e) => {
     e.preventDefault();
     if (!capturedPhoto) return showToast('⚠️ Scatta la foto prima di confermare!', 'danger');
 
     const nowMs = Date.now();
+    const newBeerId = 'b_' + nowMs;
     const todayKey = getTodayDateKey();
     const isRumeno = stappaCategory === 'birra' && qualityTier === 'rumeno';
 
@@ -2606,53 +2734,53 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
       ...validTaggedMembers
     ];
 
-    // Controllo avanzamento Missione Slot Machine al momento del caricamento
-    let missionBonusForMe = 0;
-    let completedMissionDef = null;
-    let updatedMyMission = myMemberProfile?.activeMission || null;
+    // Registra l'orario esatto dello scatto (ts: nowMs) nella missione attiva di TUTTI i partecipanti al brindisi
+    const updatedMissionByMemberId = {};
+    let reachedTargetOnUpload = false;
+    let activeMissionDef = null;
 
-    if (updatedMyMission && updatedMyMission.status === 'active' && (!updatedMyMission.expiresAtMs || nowMs < Number(updatedMyMission.expiresAtMs))) {
-      const hasTaggedBench = validTaggedMembers.some(tm => getMemberStreakLevel(tm, nowMs) === 'bench');
-      const currentDrinkLog = {
-        ts: nowMs,
-        category: stappaCategory,
-        format,
-        liters: calculatedDrink.liters,
-        abvTier,
-        qualityTier,
-        beerTypeTier,
-        hasTaggedBench
-      };
-      const nextLogs = [...(updatedMyMission.logs || []), currentDrinkLog];
-      const evalRes = evaluateMissionProgress(updatedMyMission.id, nextLogs);
-
-      if (evalRes.completed) {
-        completedMissionDef = WEEKLY_MISSIONS.find(x => x.id === updatedMyMission.id);
-        missionBonusForMe = Number(completedMissionDef?.bonusPts || 0);
-        updatedMyMission = {
-          ...updatedMyMission,
-          logs: nextLogs,
-          status: 'completed',
-          completedAtMs: nowMs
+    allDrinkingMembers.forEach(m => {
+      const mMission = m?.activeMission || null;
+      if (mMission && mMission.status === 'active' && (!mMission.expiresAtMs || nowMs < Number(mMission.expiresAtMs))) {
+        const mDef = WEEKLY_MISSIONS.find(x => x.id === mMission.id) || null;
+        const companions = allDrinkingMembers.filter(x => x.id !== m.id);
+        const hasTaggedBench = companions.some(tm => getMemberStreakLevel(tm, nowMs) === 'bench');
+        const currentDrinkLog = {
+          beerId: newBeerId,
+          ts: nowMs,
+          approved: false,
+          category: stappaCategory,
+          format,
+          liters: calculatedDrink.liters,
+          abvTier,
+          qualityTier,
+          beerTypeTier,
+          hasTaggedBench
         };
-      } else {
-        updatedMyMission = {
-          ...updatedMyMission,
+        const nextLogs = [...(mMission.logs || []), currentDrinkLog];
+        const evalUploaded = evaluateMissionProgress(mMission.id, nextLogs, false);
+
+        if (m.id === currentUser.id) {
+          reachedTargetOnUpload = evalUploaded.completed;
+          activeMissionDef = mDef;
+        }
+
+        updatedMissionByMemberId[m.id] = {
+          ...mMission,
           logs: nextLogs
         };
       }
-    }
+    });
 
     const participants = allDrinkingMembers.map(m => {
       const mWithin4h = Boolean(m?.captainActive && (!m?.captainExpiresAtMs || nowMs < Number(m.captainExpiresAtMs)));
       const mCapEligible = mWithin4h && (m?.captainBeersSubmitted || 0) < 4;
       const basePts = mCapEligible ? calculatedDrink.singleCaptainPoints : calculatedDrink.singleNormalPoints;
-      const extraMissionPts = m.id === currentUser.id ? missionBonusForMe : 0;
       return {
         id: m.id,
         name: m.name,
         glassType: m.glassType || 'weiss',
-        points: Number((basePts + extraMissionPts).toFixed(1)),
+        points: Number(basePts.toFixed(1)),
         isCaptainBeer: mCapEligible,
         captainSlot: mCapEligible ? (m?.captainBeersSubmitted || 0) + 1 : null
       };
@@ -2665,19 +2793,6 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
     if (newCount >= 1 && newCount <= 3) setPersonalDisclaimer(PERSONAL_DISCLAIMERS[newCount]);
 
     const newsItems = [];
-    if (completedMissionDef) {
-      newsItems.push({
-        id: `news_mission_ok_${currentUser.id}_${nowMs}`,
-        category: `IMPRESA SLOT: ${completedMissionDef.title.toUpperCase()}!`,
-        icon: '🎰',
-        badgeColor: 'bg-amber-400 text-slate-950',
-        text: `${currentUser.username} completa la sfida settimanale "${completedMissionDef.title}" e sblocca il bonus (${completedMissionDef.badgeLabel})!`,
-        timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
-        dateLabel: new Date().toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }),
-        createdAtMs: nowMs
-      });
-    }
-
     allDrinkingMembers.forEach(m => {
       if (m?.lastDrinkAtMs && (nowMs - Number(m.lastDrinkAtMs)) >= 5 * 24 * 60 * 60 * 1000) {
         const daysOff = Math.floor((nowMs - Number(m.lastDrinkAtMs)) / (24 * 60 * 60 * 1000));
@@ -2725,15 +2840,20 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
     if (bonusSempreNoi) activeBonuses.push('Sempre noi (x1.3)');
     if (gocciaStatus.isOpen && bonusGocciaDOro) activeBonuses.push("Goccia d'Oro (+3pt)");
     if (rainStatus.isOpen && bonusPioggia) activeBonuses.push('🌧️ Terreno Scivoloso (+2pt • Solo fuori casa)');
-    if (completedMissionDef) activeBonuses.push(`🎰 Missione: ${completedMissionDef.title} (${completedMissionDef.badgeLabel})`);
+    if (activeMissionDef) {
+      activeBonuses.push(
+        reachedTargetOnUpload
+          ? `🎰 Missione: ${activeMissionDef.title} (${activeMissionDef.badgeLabel} al 2/2 VAR)`
+          : `🎰 Tappa Missione: ${activeMissionDef.title}`
+      );
+    }
     participants.filter(p => p.isCaptainBeer).forEach(p => {
       activeBonuses.push(`👑 CAP ${p.name} (${p.captainSlot}/4 • x2)`);
     });
 
     const isCapSlot = calculatedDrink.eligibleForCaptainDouble;
-    const myFinalPoints = Number((calculatedDrink.total + missionBonusForMe).toFixed(1));
     const newBeer = {
-      id: 'b_' + nowMs,
+      id: newBeerId,
       playerId: currentUser.id,
       playerName: currentUser.username,
       glassType: currentUser.glassType || 'weiss',
@@ -2749,7 +2869,7 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
       isRumeno,
       isCaptainBeer: isCapSlot,
       captainSlot: calculatedDrink.nextCaptainSlot,
-      points: myFinalPoints,
+      points: calculatedDrink.total,
       baseNormalPoints: calculatedDrink.singleNormalPoints,
       timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
       createdAtMs: nowMs,
@@ -2775,7 +2895,7 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
             ...m,
             rumenoUntil: isRumeno ? nowMs + 24 * 3600000 : m.rumenoUntil,
             captainBeersSubmitted: part.isCaptainBeer ? (m.captainBeersSubmitted || 0) + 1 : m.captainBeersSubmitted,
-            activeMission: m.id === currentUser.id ? updatedMyMission : m.activeMission,
+            activeMission: updatedMissionByMemberId[m.id] || m.activeMission,
             lastDrinkAtMs: nowMs,
             dailyDate: todayKey,
             dailyCount: mPrevStreak + 1
@@ -2793,11 +2913,11 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
     setTaggedMemberIds([]);
     setShowTagSelector(false);
     showToast(
-      completedMissionDef
-        ? `🎰 MISSIONE "${completedMissionDef.title}" COMPLETATA! Foto inviata al VAR (${myFinalPoints >= 0 ? `+${myFinalPoints}` : myFinalPoints} pt)!`
+      reachedTargetOnUpload && activeMissionDef
+        ? `🎯 Tempo centrato per "${activeMissionDef.title}"! Appena il VAR conferma le foto incassi ${activeMissionDef.badgeLabel}!`
         : participants.length > 1
         ? `🍻 Brindisi di ${participants.length} amici inviato in Sala VAR!`
-        : `📸 Birra inviata in Sala VAR (${myFinalPoints >= 0 ? `+${myFinalPoints}` : myFinalPoints} pt in palio)!`,
+        : `📸 Birra inviata in Sala VAR (${calculatedDrink.total >= 0 ? `+${calculatedDrink.total}` : calculatedDrink.total} pt in palio)!`,
       'success'
     );
     setActiveTab('var');
@@ -2825,6 +2945,7 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
           captainSlot: target.captainSlot || null
         }];
     const participantMap = new Map(participants.map(p => [p.id, p]));
+    let missionUnlockedSummary = null;
 
     setLeagues(prev => prev.map(l => {
       if (l.id !== activeLeagueId) return l;
@@ -2837,30 +2958,56 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
         : (l.feed || []).map(item => item.id === beerId ? { ...item, approvals: newApprovals } : item);
       const drinkL = Number(target.liters || 0.5);
 
+      const missionBonusByPlayer = {};
+      const missionNewsList = [];
+
       const updatedMembers = reached2 ? l.members.map(m => {
         const part = participantMap.get(m.id);
         if (!part) return m;
         const pPts = Number(part.points ?? target.points);
+
+        // Verifica se questa conferma VAR sblocca il bonus della missione settimanale
+        const { updatedMission, bonusAwarded, completedDef } = applyMissionVarDecision(m, beerId, 'approve', nowMs);
+        missionBonusByPlayer[m.id] = bonusAwarded;
+
+        if (completedDef) {
+          missionUnlockedSummary = { playerName: m.name, title: completedDef.title, badge: completedDef.badgeLabel };
+          missionNewsList.push({
+            id: `news_mission_ok_${m.id}_${nowMs}`,
+            category: `IMPRESA SLOT: ${completedDef.title.toUpperCase()}!`,
+            icon: '🎰',
+            badgeColor: 'bg-amber-400 text-slate-950',
+            text: `${m.name} vede tutte le sue birre confermate dal VAR, completa la missione "${completedDef.title}" e incassa ${completedDef.badgeLabel}!`,
+            timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
+            dateLabel: new Date().toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }),
+            createdAtMs: nowMs
+          });
+        }
+
         if (part.isCaptainBeer && m.captainActive) {
           return {
             ...m,
+            points: Number((m.points + bonusAwarded).toFixed(1)),
+            weekendPts: Number(((m.weekendPts || 0) + bonusAwarded).toFixed(1)),
             captainBeers: (m.captainBeers || 0) + 1,
             captainVaultPoints: Number(((m.captainVaultPoints || 0) + pPts).toFixed(1)),
             captainVaultLiters: Number(((m.captainVaultLiters || 0) + drinkL).toFixed(2)),
+            activeMission: updatedMission,
             rumenoUntil: target.isRumeno ? (nowMs + 24 * 3600000) : m.rumenoUntil
           };
         }
         return {
           ...m,
-          points: Number((m.points + pPts).toFixed(1)),
-          weekendPts: Number(((m.weekendPts || 0) + pPts).toFixed(1)),
+          points: Number((m.points + pPts + bonusAwarded).toFixed(1)),
+          weekendPts: Number(((m.weekendPts || 0) + pPts + bonusAwarded).toFixed(1)),
           beers: (m.beers || 0) + 1,
           liters: Number(((m.liters ?? ((m.beers || 0) * 0.5)) + drinkL).toFixed(2)),
+          activeMission: updatedMission,
           rumenoUntil: target.isRumeno ? (nowMs + 24 * 3600000) : m.rumenoUntil
         };
       }) : l.members;
 
-      let updatedGazzetta = filterActiveGazzettaNews(l.gazzetta || [], nowMs);
+      let updatedGazzetta = filterActiveGazzettaNews([...missionNewsList, ...(l.gazzetta || [])], nowMs);
       if (reached2 && updatedMembers.length > 1) {
         const newSorted = [...updatedMembers].sort((a, b) => b.points - a.points);
         const newLeader = newSorted[0];
@@ -2899,7 +3046,8 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
             styleLabel: target.styleLabel || '',
             hasPhoto: Boolean(target.photoUrl),
             photoUrl: null,
-            points: Number(part.points ?? target.points),
+            isCaptainBeer: Boolean(part.isCaptainBeer),
+            points: Number((Number(part.points ?? target.points) + Number(missionBonusByPlayer[part.id] || 0)).toFixed(1)),
             liters: drinkL,
             timestampMs: target.createdAtMs || nowMs,
             dateStr: drinkDate.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' }),
@@ -2916,7 +3064,9 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
 
     if (reached2) {
       showToast(
-        participants.length > 1
+        missionUnlockedSummary
+          ? `🎰 Birra confermata e Missione "${missionUnlockedSummary.title}" completata da ${missionUnlockedSummary.playerName} (${missionUnlockedSummary.badge})!`
+          : participants.length > 1
           ? `🍻 Brindisi confermato (2/2)! Punti accreditati a tutti i ${participants.length} partecipanti!`
           : `🍻 Birra confermata (2/2)! Foto salvata nell'Album!`,
         'success'
@@ -2953,7 +3103,7 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
         if (!part) return m;
 
         const mOtherBeersInVar = updatedFeed.filter(b => isUserInBeerGroup(b, m.id) && b.createdAtMs);
-        const mHistoryBeers = (l.history || []).filter(h => h.playerId === m.id && h.timestampMs);
+        const mHistoryBeers = (l.history || []).filter(h => h.playerId === m.id && h.timestampMs && !h.isPenalty);
         const latestPrevMs = [
           ...mOtherBeersInVar.map(b => Number(b.createdAtMs)),
           ...mHistoryBeers.map(h => Number(h.timestampMs))
@@ -2961,12 +3111,14 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
 
         const currentStreak = getActiveSessionStreak(m, nowMs);
         const nextStreak = Math.max(0, currentStreak - 1);
+        const { updatedMission } = applyMissionVarDecision(m, beerItem.id, 'remove', nowMs);
 
         return {
           ...m,
           dailyCount: nextStreak,
           lastDrinkAtMs: nextStreak > 0 ? (latestPrevMs || m.lastDrinkAtMs) : latestPrevMs,
           rumenoUntil: beerItem.isRumeno ? null : m.rumenoUntil,
+          activeMission: updatedMission,
           captainBeersSubmitted: part.isCaptainBeer
             ? Math.max(0, (m.captainBeersSubmitted || 1) - 1)
             : m.captainBeersSubmitted
@@ -2978,7 +3130,7 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
       return updated;
     }));
 
-    showToast('🗑️ Foto ritirata! Contatori riportati indietro (-1) per tutti i partecipanti.', 'warning');
+    showToast('🗑️ Foto ritirata! Contatori e tappa missione riportati indietro (-1).', 'warning');
   };
 
   const handleOpenVarModal = (beerItem) => {
@@ -3009,16 +3161,18 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
         ? (l.feed || []).filter(item => item.id !== varModalBeer.id)
         : (l.feed || []).map(item => item.id === varModalBeer.id ? { ...item, varVotes: votes } : item);
 
-      // Con 2 voti VAR il malus e il cartellino colpiscono TUTTI i partecipanti taggati nella foto!
+      // Con 2 voti VAR il malus colpisce tutti i taggati e rimuove la birra bocciata dalla missione!
       const updatedMembers = reached2 ? l.members.map(m => {
         const part = participantMap.get(m.id);
         if (!part) return m;
         const curStreak = getActiveSessionStreak(m, nowMs);
+        const { updatedMission } = applyMissionVarDecision(m, varModalBeer.id, 'remove', nowMs);
         return {
           ...m,
           points: Number((m.points - malus).toFixed(1)),
           weekendPts: Number(((m.weekendPts || 0) - malus).toFixed(1)),
           dailyCount: Math.max(0, curStreak - 1),
+          activeMission: updatedMission,
           captainBeersSubmitted: part.isCaptainBeer ? Math.max(0, (m.captainBeersSubmitted || 1) - 1) : m.captainBeersSubmitted,
           yellowCards: opt.id === 'yellow' ? (m.yellowCards || 0) + 1 : (m.yellowCards || 0),
           simulations: opt.id === 'simulation' ? (m.simulations || 0) + 1 : (m.simulations || 0),
@@ -3026,12 +3180,28 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
         };
       }) : l.members;
 
-      const draft = { ...l, feed: updatedFeed, members: updatedMembers };
+      const penaltyMemories = reached2
+        ? participants.map(part => ({
+            id: `pen_var_${varModalBeer.id}_${part.id}`,
+            playerId: part.id,
+            playerName: part.name,
+            beerName: `Sanzione VAR (${opt.id})`,
+            points: -malus,
+            liters: 0,
+            isPenalty: true,
+            hasPhoto: false,
+            photoUrl: null,
+            timestampMs: nowMs
+          }))
+        : [];
+
+      const updatedHistory = penaltyMemories.length > 0 ? [...penaltyMemories, ...(l.history || [])] : (l.history || []);
+      const draft = { ...l, feed: updatedFeed, members: updatedMembers, history: updatedHistory };
       pushLeagueToCloud(draft);
       return draft;
     }));
 
-   setVarModalBeer(null);
+    setVarModalBeer(null);
     if (reached2) {
       showToast(
         participants.length > 1
@@ -3047,7 +3217,7 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
   const sortedMembers = useMemo(() => [...(activeLeague?.members || [])].sort((a, b) => b.points - a.points), [activeLeague]);
   const leaderPoints = sortedMembers[0]?.points || 0;
 
- const [alboViewMode, setAlboViewMode] = useState('globale'); // 'globale' | 'mensile'
+  const [alboViewMode, setAlboViewMode] = useState('globale'); // 'globale' | 'mensile'
   const currentMonthKey = useMemo(() => {
     const d = new Date(clockTick);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -3096,6 +3266,11 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
     filteredHistory.forEach(h => {
       const st = statsByMember[h.playerId];
       if (!st) return;
+      // Se è un malus VAR/Capitano/Slot o una birra di un Capitano fallito, aggiorna i punti senza aggiungere birre o litri
+      if (h.isPenalty || h.isFailedCaptain) {
+        st.pts += Number(h.points || 0);
+        return;
+      }
       const pts = Number(h.points || 0);
       const lit = Number(h.liters || 0.5);
       st.pts += pts;
@@ -3197,8 +3372,7 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
     }
 
     return records;
-  }, [activeLeague, clockTick, alboViewMode, selectedAlboMonth, currentMonthKey]); 
-
+  }, [activeLeague, clockTick, alboViewMode, selectedAlboMonth, currentMonthKey]);
   // =========================================================================
   // VISTA 1: LOGIN E REGISTRAZIONE
   // =========================================================================
@@ -4169,9 +4343,15 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
               {(() => {
                 const activeM = myMemberProfile?.activeMission;
                 const missionDef = activeM ? WEEKLY_MISSIONS.find(x => x.id === activeM.id) : null;
-                const progressObj = (activeM && missionDef)
-                  ? evaluateMissionProgress(activeM.id, activeM.logs || [])
+                const progressUploaded = (activeM && missionDef)
+                  ? evaluateMissionProgress(activeM.id, activeM.logs || [], false)
                   : { completed: false, progressText: '' };
+                const progressApproved = (activeM && missionDef)
+                  ? evaluateMissionProgress(activeM.id, activeM.logs || [], true)
+                  : { completed: false, progressText: '' };
+                const isWaitingVarConfirm = Boolean(
+                  activeM?.status === 'active' && progressUploaded.completed && !progressApproved.completed
+                );
                 const previewMission = WEEKLY_MISSIONS[slotPreviewIdx % WEEKLY_MISSIONS.length];
 
                 return (
@@ -4211,12 +4391,14 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
                         </span>
                       </div>
                     ) : activeM && missionDef ? (
-                      /* MISSIONE ESTRATTA (ATTIVA, COMPLETATA O FALLITA) */
+                      /* MISSIONE ESTRATTA (ATTIVA, IN ATTESA VAR, COMPLETATA O FALLITA) */
                       <div className={`p-3 rounded-xl border space-y-2 ${
                         activeM.status === 'completed'
                           ? 'bg-emerald-950/50 border-emerald-400'
                           : activeM.status === 'failed'
                           ? 'bg-red-950/50 border-red-500'
+                          : isWaitingVarConfirm
+                          ? 'bg-sky-950/50 border-sky-400'
                           : 'bg-slate-950 border-amber-400/60'
                       }`}>
                         <div className="flex items-start justify-between gap-2">
@@ -4236,12 +4418,16 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
                               ? 'bg-emerald-400 text-slate-950'
                               : activeM.status === 'failed'
                               ? 'bg-red-600 text-white'
+                              : isWaitingVarConfirm
+                              ? 'bg-sky-400 text-slate-950 animate-pulse'
                               : 'bg-amber-500/20 text-amber-300 border border-amber-400/40'
                           }`}>
                             {activeM.status === 'completed'
                               ? '✅ Completata'
                               : activeM.status === 'failed'
                               ? '❌ Fallita (-2 pt)'
+                              : isWaitingVarConfirm
+                              ? '🖥️ In Attesa VAR'
                               : `⏳ ${formatMissionTimeLeft(activeM.expiresAtMs, clockTick)}`}
                           </span>
                         </div>
@@ -4252,7 +4438,11 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
 
                         <div className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-between text-[10px]">
                           <span className="text-slate-400 font-bold">Stato Sfida:</span>
-                          <span className="font-black text-amber-300">{progressObj.progressText}</span>
+                          <span className={`font-black ${isWaitingVarConfirm ? 'text-sky-300' : 'text-amber-300'}`}>
+                            {isWaitingVarConfirm
+                              ? '🎯 Tempo centrato! Attesa 2/2 Sala VAR'
+                              : progressUploaded.progressText}
+                          </span>
                         </div>
                       </div>
                     ) : (
