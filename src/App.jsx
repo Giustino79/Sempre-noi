@@ -965,7 +965,246 @@ const getTodayDateKey = () => {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 };
 
-// --- GESTIONE AUTOMATICA SCADENZA 4 ORE CAPITANO + GAZZETTA POKER / DISFATTA ---
+// --- MAZZO DELLE 10 MISSIONI SETTIMANALI (SLOT MACHINE) ---
+const MISSION_DURATION_MS = 14 * 60 * 60 * 1000; // 14 ore di tempo (copre dall'aperitivo alle 05:00 di notte)
+
+const WEEKLY_MISSIONS = [
+  {
+    id: 'uno_due',
+    icon: '⚡',
+    title: 'Uno-Due Fulmineo',
+    desc: 'Carica 2 birre da almeno 50cl entro 10 minuti l\'una dall\'altra (vale il momento del caricamento).',
+    bonusPts: 2.0,
+    badgeLabel: '+2 pt'
+  },
+  {
+    id: 'tripletta',
+    icon: '🚀',
+    title: 'Tripletta d\'Assalto',
+    desc: 'Carica 3 birre entro 30 minuti dallo stappo della prima.',
+    bonusPts: 3.5,
+    badgeLabel: '+3.5 pt'
+  },
+  {
+    id: 'scala_reale',
+    icon: '🃏',
+    title: 'Scala Reale Alcolica',
+    desc: 'Stappa in ordine crescente di gradazione: 1ª Leggera (≤5,6°), 2ª Media (5,6°–7,5°), 3ª Forte (>7,5°).',
+    bonusPts: 3.0,
+    badgeLabel: '+3 pt'
+  },
+  {
+    id: 'tre_mondi',
+    icon: '🌍',
+    title: 'Giro dei 3 Mondi',
+    desc: 'Stappa nella stessa serata 3 tipologie diverse di birra (es. Classica, IPA/Stout e Trappista).',
+    bonusPts: 3.0,
+    badgeLabel: '+3 pt'
+  },
+  {
+    id: 'super_peroni',
+    icon: '🍾',
+    title: 'Super Peroni',
+    desc: 'Scolati 2 Boccioni da 66cl entro 40 minuti l\'uno dall\'altro.',
+    bonusPts: 2.5,
+    badgeLabel: '+2.5 pt'
+  },
+  {
+    id: 'frate_supremo',
+    icon: '⛪',
+    title: 'Frate Supremo',
+    desc: 'Stappa una Trappista / Tripel / Quadrupel di gradazione Forte (>7,5°) da almeno 50cl.',
+    bonusPts: 2.0,
+    badgeLabel: '+2 pt'
+  },
+  {
+    id: 'redenzione',
+    icon: '🥫✨',
+    title: 'Redenzione',
+    desc: 'Bevi un Passaporto Rumeno (-5pt) ed entro 90 min riscattati con un\'Artigianale o Alla Spina: azzera il -5 e ti dà +1 pt!',
+    bonusPts: 6.0, // +5 pt annullano il malus del Rumeno + 1 pt netto di premio
+    badgeLabel: 'Azzera -5 e dà +1 pt'
+  },
+  {
+    id: 'chiusura_locale',
+    icon: '🌙',
+    title: 'Chiusura del Locale',
+    desc: 'Stappa una birra da almeno 50cl tra le 02:00 e le 05:00 di notte.',
+    bonusPts: 2.5,
+    badgeLabel: '+2.5 pt'
+  },
+  {
+    id: 'miracolo_panchina',
+    icon: '🪑🍻',
+    title: 'Miracolo in Panchina',
+    desc: 'Fai un brindisi taggando nella foto un membro con il bollino Panchinaro (a secco da 5+ giorni).',
+    bonusPts: 3.0,
+    badgeLabel: '+3 pt'
+  },
+  {
+    id: 'maratona',
+    icon: '🏃‍♂️🍺',
+    title: 'Maratona',
+    desc: 'Stappa una birra in fascia aperitivo (prima delle 19:30) e un\'altra a notte fonda (dopo l\'01:30).',
+    bonusPts: 3.5,
+    badgeLabel: '+3.5 pt'
+  }
+];
+
+const formatMissionTimeLeft = (expiresAtMs, nowMs) => {
+  if (!expiresAtMs) return '14h 00m';
+  const diff = Number(expiresAtMs) - nowMs;
+  if (diff <= 0) return 'Scaduta';
+  const hrs = Math.floor(diff / 3600000);
+  const mins = Math.floor((diff % 3600000) / 60000);
+  return `${hrs}h ${String(mins).padStart(2, '0')}m`;
+};
+
+const evaluateMissionProgress = (missionId, logs = []) => {
+  const beers = (logs || []).filter(d => d && d.category === 'birra');
+
+  if (missionId === 'uno_due') {
+    const bigBeers = beers.filter(d => Number(d.liters || 0) >= 0.5);
+    for (let i = 1; i < bigBeers.length; i++) {
+      if ((bigBeers[i].ts - bigBeers[i - 1].ts) <= 10 * 60 * 1000) {
+        return { completed: true, progressText: '2/2 birre ≥50cl in 10 min!' };
+      }
+    }
+    return {
+      completed: false,
+      progressText: bigBeers.length >= 1
+        ? '1/2 birra ≥50cl caricata (Hai 10 min per la 2ª!)'
+        : '0/2 birre da almeno 50cl (entro 10 min)'
+    };
+  }
+
+  if (missionId === 'tripletta') {
+    for (let i = 2; i < beers.length; i++) {
+      if ((beers[i].ts - beers[i - 2].ts) <= 30 * 60 * 1000) {
+        return { completed: true, progressText: '3/3 birre in 30 min!' };
+      }
+    }
+    return {
+      completed: false,
+      progressText: `${Math.min(2, beers.length)}/3 birre caricate (entro 30 min dalla 1ª)`
+    };
+  }
+
+  if (missionId === 'scala_reale') {
+    let step = 0;
+    for (const b of beers) {
+      if (step === 0 && b.abvTier === 'leggera') step = 1;
+      else if (step === 1 && b.abvTier === 'media') step = 2;
+      else if (step === 2 && b.abvTier === 'forte') step = 3;
+    }
+    return {
+      completed: step >= 3,
+      progressText: step === 0
+        ? '0/3 • Inizia con una Leggera (≤5,6°)'
+        : step === 1
+        ? '1/3 • Ora stappa una Media (5,6°–7,5°)'
+        : step === 2
+        ? '2/3 • Chiudi con una Forte (>7,5°)!'
+        : '3/3 Scala Reale completata!'
+    };
+  }
+
+  if (missionId === 'tre_mondi') {
+    const styles = new Set(beers.map(b => b.beerTypeTier).filter(Boolean));
+    return {
+      completed: styles.size >= 3,
+      progressText: `${styles.size}/3 tipologie diverse stappate`
+    };
+  }
+
+  if (missionId === 'super_peroni') {
+    const boccioni = beers.filter(b => b.format === 'boccione66');
+    for (let i = 1; i < boccioni.length; i++) {
+      if ((boccioni[i].ts - boccioni[i - 1].ts) <= 40 * 60 * 1000) {
+        return { completed: true, progressText: '2/2 Boccioni da 66cl in 40 min!' };
+      }
+    }
+    return {
+      completed: false,
+      progressText: boccioni.length >= 1
+        ? '1/2 Boccione 66cl (Hai 40 min per il 2°!)'
+        : '0/2 Boccioni da 66cl (entro 40 min)'
+    };
+  }
+
+  if (missionId === 'frate_supremo') {
+    const ok = beers.some(b => b.beerTypeTier === 'trappista' && b.abvTier === 'forte' && Number(b.liters || 0) >= 0.5);
+    return {
+      completed: ok,
+      progressText: ok ? '1/1 Frate Supremo completato!' : '0/1 Trappista Forte (>7,5°) da almeno 50cl'
+    };
+  }
+
+  if (missionId === 'redenzione') {
+    let hasRumeno = false;
+    for (let i = 0; i < beers.length; i++) {
+      if (beers[i].qualityTier === 'rumeno') {
+        hasRumeno = true;
+        for (let j = i + 1; j < beers.length; j++) {
+          const isCraftOrDraft = beers[j].qualityTier === 'artigianale' || beers[j].qualityTier === 'spina';
+          if (isCraftOrDraft && (beers[j].ts - beers[i].ts) <= 90 * 60 * 1000) {
+            return { completed: true, progressText: '2/2 Redenzione compiuta!' };
+          }
+        }
+      }
+    }
+    return {
+      completed: false,
+      progressText: hasRumeno
+        ? '1/2 Rumeno bevuto! Ora Artigianale o Spina entro 90 min'
+        : '0/2 • Step 1: Stappa un Passaporto Rumeno'
+    };
+  }
+
+  if (missionId === 'chiusura_locale') {
+    const ok = beers.some(b => {
+      if (Number(b.liters || 0) < 0.5) return false;
+      const hr = new Date(b.ts).getHours();
+      return hr >= 2 && hr < 5;
+    });
+    return {
+      completed: ok,
+      progressText: ok ? '1/1 Chiusura del Locale completata!' : '0/1 Birra ≥50cl tra le 02:00 e le 05:00'
+    };
+  }
+
+  if (missionId === 'miracolo_panchina') {
+    const ok = (logs || []).some(d => d && d.hasTaggedBench);
+    return {
+      completed: ok,
+      progressText: ok ? '1/1 Panchinaro riportato in campo!' : '0/1 Tagga un Panchinaro nella foto'
+    };
+  }
+
+  if (missionId === 'maratona') {
+    const hasAperitivo = beers.some(b => {
+      const dt = new Date(b.ts);
+      const mins = dt.getHours() * 60 + dt.getMinutes();
+      return mins >= 7 * 60 && mins <= 19 * 60 + 30;
+    });
+    const hasNight = beers.some(b => {
+      const dt = new Date(b.ts);
+      const mins = dt.getHours() * 60 + dt.getMinutes();
+      return mins >= 1 * 60 + 30 && mins <= 6 * 60;
+    });
+    const done = hasAperitivo && hasNight;
+    return {
+      completed: done,
+      progressText: done
+        ? '2/2 Maratona completata!'
+        : `${(hasAperitivo ? 1 : 0) + (hasNight ? 1 : 0)}/2 • ${hasAperitivo ? '✅ Aperitivo ok • Manca dopo l\'01:30' : '1ª entro le 19:30 • 2ª dopo l\'01:30'}`
+    };
+  }
+
+  return { completed: false, progressText: 'In corso' };
+};
+
+// --- GESTIONE AUTOMATICA SCADENZA 4 ORE CAPITANO + MISSIONI SLOT (-2 PT) ---
 const settleExpiredCaptainsInLeague = (leagueObj, nowMs) => {
   if (!leagueObj || !leagueObj.members) return { updatedLeague: leagueObj, changed: false, events: [] };
 
@@ -984,17 +1223,46 @@ const settleExpiredCaptainsInLeague = (leagueObj, nowMs) => {
   const prevLeader = prevSorted[0];
 
   const updatedMembers = leagueObj.members.map(m => {
-    if (!m.captainActive || !m.captainExpiresAtMs) return m;
+    let nextM = m;
 
-    const confirmedCount = m.captainBeers || 0;
-    const isTimeExpired = nowMs >= Number(m.captainExpiresAtMs);
+    // 1. Controllo scadenza Missione Slot Machine (-2 pt se scade senza essere completata)
+    if (nextM.activeMission && nextM.activeMission.status === 'active' && nextM.activeMission.expiresAtMs && nowMs >= Number(nextM.activeMission.expiresAtMs)) {
+      changed = true;
+      const mDef = WEEKLY_MISSIONS.find(x => x.id === nextM.activeMission.id);
+      const timeStr = new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+      const dateStr = new Date().toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
+      captainNewsItems.push({
+        id: `news_mission_fail_${nextM.id}_${nowMs}`,
+        category: `IMPREVISTO FALLITO: -2 PT A ${nextM.name.toUpperCase()}!`,
+        icon: '🎰',
+        badgeColor: 'bg-red-600 text-white',
+        text: `${nextM.name} ha sfidato la Slot Machine con la missione "${mDef?.title || 'Imprevisto'}" ma non l'ha completata in tempo: -2 punti di penalità!`,
+        timestamp: timeStr,
+        dateLabel: dateStr,
+        createdAtMs: nowMs
+      });
+      nextM = {
+        ...nextM,
+        points: Number((nextM.points - 2).toFixed(1)),
+        weekendPts: Number(((nextM.weekendPts || 0) - 2).toFixed(1)),
+        activeMission: {
+          ...nextM.activeMission,
+          status: 'failed'
+        }
+      };
+    }
 
-    // Sblocca subito il Poker appena raggiunge 4/4 birre confermate, oppure valuta allo scadere delle 4 ore
-    if (confirmedCount < 4 && !isTimeExpired) return m;
+    // 2. Controllo scadenza 4 ore Capitano
+    if (!nextM.captainActive || !nextM.captainExpiresAtMs) return nextM;
 
-    const pendingCapBeersInVar = currentFeed.filter(b => b.playerId === m.id && b.isCaptainBeer);
+    const confirmedCount = nextM.captainBeers || 0;
+    const isTimeExpired = nowMs >= Number(nextM.captainExpiresAtMs);
+
+    if (confirmedCount < 4 && !isTimeExpired) return nextM;
+
+    const pendingCapBeersInVar = currentFeed.filter(b => b.playerId === nextM.id && b.isCaptainBeer);
     if (confirmedCount < 4 && (confirmedCount + pendingCapBeersInVar.length) >= 4) {
-      return m;
+      return nextM;
     }
 
     changed = true;
@@ -1002,63 +1270,63 @@ const settleExpiredCaptainsInLeague = (leagueObj, nowMs) => {
     const dateStr = new Date().toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
 
     if (confirmedCount >= 4) {
-      const vaultPts = Number((m.captainVaultPoints || 0).toFixed(1));
-      const vaultLiters = Number((m.captainVaultLiters || 0).toFixed(2));
+      const vaultPts = Number((nextM.captainVaultPoints || 0).toFixed(1));
+      const vaultLiters = Number((nextM.captainVaultLiters || 0).toFixed(2));
       events.push({
         type: 'success',
-        playerName: m.name,
+        playerName: nextM.name,
         pts: vaultPts
       });
       captainNewsItems.push({
-        id: `news_cap_poker_${m.id}_${nowMs}`,
-        category: `POKER DEL CAPITANO: ${m.name.toUpperCase()}!`,
+        id: `news_cap_poker_${nextM.id}_${nowMs}`,
+        category: `POKER DEL CAPITANO: ${nextM.name.toUpperCase()}!`,
         icon: '⚽',
         badgeColor: 'bg-amber-400 text-slate-950',
-        text: `Il Capitano mantiene altissime le aspettative e si scola 4 birre in meno di 4 ore! ${m.name} domina la serata, incassa i punti raddoppiati e si prende la standing ovation di tutto il locale!`,
+        text: `Il Capitano mantiene altissime le aspettative e si scola 4 birre in meno di 4 ore! ${nextM.name} domina la serata, incassa i punti raddoppiati e si prende la standing ovation di tutto il locale!`,
         timestamp: timeStr,
         dateLabel: dateStr,
         createdAtMs: nowMs
       });
       return {
-        ...m,
+        ...nextM,
         captainActive: false,
         captainExpiresAtMs: null,
         captainBeers: 0,
         captainBeersSubmitted: 0,
         captainVaultPoints: 0,
         captainVaultLiters: 0,
-        points: Number((m.points + vaultPts).toFixed(1)),
-        weekendPts: Number((m.weekendPts + vaultPts).toFixed(1)),
-        beers: (m.beers || 0) + 4,
-        liters: Number(((m.liters || (m.beers || 0) * 0.5) + vaultLiters).toFixed(2))
+        points: Number((nextM.points + vaultPts).toFixed(1)),
+        weekendPts: Number((nextM.weekendPts + vaultPts).toFixed(1)),
+        beers: (nextM.beers || 0) + 4,
+        liters: Number(((nextM.liters || (nextM.beers || 0) * 0.5) + vaultLiters).toFixed(2))
       };
     } else {
-      currentFeed = currentFeed.filter(b => !(b.playerId === m.id && b.isCaptainBeer));
+      currentFeed = currentFeed.filter(b => !(b.playerId === nextM.id && b.isCaptainBeer));
       events.push({
         type: 'fail',
-        playerName: m.name,
+        playerName: nextM.name,
         confirmedCount
       });
       captainNewsItems.push({
-        id: `news_cap_fail_${m.id}_${nowMs}`,
-        category: `DISFATTA CAPITANO: PIOGGIA DI FISCHI PER ${m.name.toUpperCase()}!`,
+        id: `news_cap_fail_${nextM.id}_${nowMs}`,
+        category: `DISFATTA CAPITANO: PIOGGIA DI FISCHI PER ${nextM.name.toUpperCase()}!`,
         icon: '📢',
         badgeColor: 'bg-red-600 text-white',
-        text: `${m.name} non mantiene le aspettative e si ferma sul più bello! Tempo scaduto, fascia ritirata tra i fischi assordanti della tifoseria e stangata da -20 punti in classifica!`,
+        text: `${nextM.name} non mantiene le aspettative e si ferma sul più bello! Tempo scaduto, fascia ritirata tra i fischi assordanti della tifoseria e stangata da -20 punti in classifica!`,
         timestamp: timeStr,
         dateLabel: dateStr,
         createdAtMs: nowMs
       });
       return {
-        ...m,
+        ...nextM,
         captainActive: false,
         captainExpiresAtMs: null,
         captainBeers: 0,
         captainBeersSubmitted: 0,
         captainVaultPoints: 0,
         captainVaultLiters: 0,
-        points: Number((m.points - 20).toFixed(1)),
-        weekendPts: Number((m.weekendPts - 20).toFixed(1))
+        points: Number((nextM.points - 20).toFixed(1)),
+        weekendPts: Number((nextM.weekendPts - 20).toFixed(1))
       };
     }
   });
@@ -2227,6 +2495,101 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
     };
   }, [stappaCategory, wineDrinkId, format, abvTier, qualityTier, beerTypeTier, bonusSempreNoi, bonusGocciaDOro, bonusPioggia, gocciaStatus.isOpen, rainStatus.isOpen, myMemberProfile, clockTick]);
 
+// --- STATI E FUNZIONI SLOT MACHINE IMPREVISTI SETTIMANALI ---
+  const [isSpinningSlot, setIsSpinningSlot] = useState(false);
+  const [slotPreviewIdx, setSlotPreviewIdx] = useState(0);
+
+  const hasUsedMissionThisWeek = Boolean(
+    myMemberProfile?.missionWeekUsed === currentWeekKey &&
+    myMemberProfile?.activeMission
+  );
+
+  const handleSpinMission = (forcedMissionId = null) => {
+    if (!activeLeagueId || !myMemberProfile) return;
+    if (isSpinningSlot) return;
+    if (hasUsedMissionThisWeek && !isGodMode && !forcedMissionId) {
+      return showToast('🔒 Hai già girato la Slot Machine questa settimana!', 'warning');
+    }
+
+    if (forcedMissionId) {
+      const picked = WEEKLY_MISSIONS.find(x => x.id === forcedMissionId) || WEEKLY_MISSIONS[0];
+      const nowMs = Date.now();
+      setLeagues(prev => prev.map(l => {
+        if (l.id !== activeLeagueId) return l;
+        const updated = {
+          ...l,
+          members: l.members.map(m => m.id === currentUser.id ? {
+            ...m,
+            missionWeekUsed: currentWeekKey,
+            activeMission: {
+              id: picked.id,
+              startedAtMs: nowMs,
+              expiresAtMs: nowMs + MISSION_DURATION_MS,
+              status: 'active',
+              logs: []
+            }
+          } : m)
+        };
+        pushLeagueToCloud(updated);
+        return updated;
+      }));
+      showToast(`⚡ Missione "${picked.title}" impostata in God Mode!`, 'success');
+      return;
+    }
+
+    setIsSpinningSlot(true);
+    let ticks = 0;
+    const totalTicks = 20;
+    const spinInterval = setInterval(() => {
+      ticks += 1;
+      setSlotPreviewIdx(prev => (prev + 1) % WEEKLY_MISSIONS.length);
+      if (ticks >= totalTicks) {
+        clearInterval(spinInterval);
+        const randomPicked = WEEKLY_MISSIONS[Math.floor(Math.random() * WEEKLY_MISSIONS.length)];
+        const nowMs = Date.now();
+        setIsSpinningSlot(false);
+        setLeagues(prev => prev.map(l => {
+          if (l.id !== activeLeagueId) return l;
+          const updated = {
+            ...l,
+            members: l.members.map(m => m.id === currentUser.id ? {
+              ...m,
+              missionWeekUsed: currentWeekKey,
+              activeMission: {
+                id: randomPicked.id,
+                startedAtMs: nowMs,
+                expiresAtMs: nowMs + MISSION_DURATION_MS,
+                status: 'active',
+                logs: []
+              }
+            } : m)
+          };
+          pushLeagueToCloud(updated);
+          return updated;
+        }));
+        showToast(`🎰 Estratta "${randomPicked.title}" (${randomPicked.badgeLabel})! Se fallisci: -2 pt!`, 'success');
+      }
+    }, 110);
+  };
+
+  const handleGodResetMission = () => {
+    if (!activeLeagueId || !currentUser) return;
+    setLeagues(prev => prev.map(l => {
+      if (l.id !== activeLeagueId) return l;
+      const updated = {
+        ...l,
+        members: l.members.map(m => m.id === currentUser.id ? {
+          ...m,
+          missionWeekUsed: null,
+          activeMission: null
+        } : m)
+      };
+      pushLeagueToCloud(updated);
+      return updated;
+    }));
+    showToast('🔄 Slot Machine resettata (God Mode)! Puoi rigirare.', 'success');
+  };
+
   const handleAddBeer = (e) => {
     e.preventDefault();
     if (!capturedPhoto) return showToast('⚠️ Scatta la foto prima di confermare!', 'danger');
@@ -2243,14 +2606,53 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
       ...validTaggedMembers
     ];
 
+    // Controllo avanzamento Missione Slot Machine al momento del caricamento
+    let missionBonusForMe = 0;
+    let completedMissionDef = null;
+    let updatedMyMission = myMemberProfile?.activeMission || null;
+
+    if (updatedMyMission && updatedMyMission.status === 'active' && (!updatedMyMission.expiresAtMs || nowMs < Number(updatedMyMission.expiresAtMs))) {
+      const hasTaggedBench = validTaggedMembers.some(tm => getMemberStreakLevel(tm, nowMs) === 'bench');
+      const currentDrinkLog = {
+        ts: nowMs,
+        category: stappaCategory,
+        format,
+        liters: calculatedDrink.liters,
+        abvTier,
+        qualityTier,
+        beerTypeTier,
+        hasTaggedBench
+      };
+      const nextLogs = [...(updatedMyMission.logs || []), currentDrinkLog];
+      const evalRes = evaluateMissionProgress(updatedMyMission.id, nextLogs);
+
+      if (evalRes.completed) {
+        completedMissionDef = WEEKLY_MISSIONS.find(x => x.id === updatedMyMission.id);
+        missionBonusForMe = Number(completedMissionDef?.bonusPts || 0);
+        updatedMyMission = {
+          ...updatedMyMission,
+          logs: nextLogs,
+          status: 'completed',
+          completedAtMs: nowMs
+        };
+      } else {
+        updatedMyMission = {
+          ...updatedMyMission,
+          logs: nextLogs
+        };
+      }
+    }
+
     const participants = allDrinkingMembers.map(m => {
       const mWithin4h = Boolean(m?.captainActive && (!m?.captainExpiresAtMs || nowMs < Number(m.captainExpiresAtMs)));
       const mCapEligible = mWithin4h && (m?.captainBeersSubmitted || 0) < 4;
+      const basePts = mCapEligible ? calculatedDrink.singleCaptainPoints : calculatedDrink.singleNormalPoints;
+      const extraMissionPts = m.id === currentUser.id ? missionBonusForMe : 0;
       return {
         id: m.id,
         name: m.name,
         glassType: m.glassType || 'weiss',
-        points: mCapEligible ? calculatedDrink.singleCaptainPoints : calculatedDrink.singleNormalPoints,
+        points: Number((basePts + extraMissionPts).toFixed(1)),
         isCaptainBeer: mCapEligible,
         captainSlot: mCapEligible ? (m?.captainBeersSubmitted || 0) + 1 : null
       };
@@ -2263,6 +2665,19 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
     if (newCount >= 1 && newCount <= 3) setPersonalDisclaimer(PERSONAL_DISCLAIMERS[newCount]);
 
     const newsItems = [];
+    if (completedMissionDef) {
+      newsItems.push({
+        id: `news_mission_ok_${currentUser.id}_${nowMs}`,
+        category: `IMPRESA SLOT: ${completedMissionDef.title.toUpperCase()}!`,
+        icon: '🎰',
+        badgeColor: 'bg-amber-400 text-slate-950',
+        text: `${currentUser.username} completa la sfida settimanale "${completedMissionDef.title}" e sblocca il bonus (${completedMissionDef.badgeLabel})!`,
+        timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
+        dateLabel: new Date().toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }),
+        createdAtMs: nowMs
+      });
+    }
+
     allDrinkingMembers.forEach(m => {
       if (m?.lastDrinkAtMs && (nowMs - Number(m.lastDrinkAtMs)) >= 5 * 24 * 60 * 60 * 1000) {
         const daysOff = Math.floor((nowMs - Number(m.lastDrinkAtMs)) / (24 * 60 * 60 * 1000));
@@ -2310,11 +2725,13 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
     if (bonusSempreNoi) activeBonuses.push('Sempre noi (x1.3)');
     if (gocciaStatus.isOpen && bonusGocciaDOro) activeBonuses.push("Goccia d'Oro (+3pt)");
     if (rainStatus.isOpen && bonusPioggia) activeBonuses.push('🌧️ Terreno Scivoloso (+2pt • Solo fuori casa)');
+    if (completedMissionDef) activeBonuses.push(`🎰 Missione: ${completedMissionDef.title} (${completedMissionDef.badgeLabel})`);
     participants.filter(p => p.isCaptainBeer).forEach(p => {
       activeBonuses.push(`👑 CAP ${p.name} (${p.captainSlot}/4 • x2)`);
     });
 
     const isCapSlot = calculatedDrink.eligibleForCaptainDouble;
+    const myFinalPoints = Number((calculatedDrink.total + missionBonusForMe).toFixed(1));
     const newBeer = {
       id: 'b_' + nowMs,
       playerId: currentUser.id,
@@ -2323,7 +2740,7 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
       taggedIds: validTaggedMembers.map(m => m.id),
       taggedNames: validTaggedMembers.map(m => m.name),
       participants,
-     beerName: beerTitle.trim() || calculatedDrink.defaultTitle || 'Birra Fresca',
+      beerName: beerTitle.trim() || calculatedDrink.defaultTitle || 'Birra Fresca',
       formatId: format,
       liters: calculatedDrink.liters,
       formatLabel: calculatedDrink.formatLabel,
@@ -2332,7 +2749,7 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
       isRumeno,
       isCaptainBeer: isCapSlot,
       captainSlot: calculatedDrink.nextCaptainSlot,
-      points: calculatedDrink.total,
+      points: myFinalPoints,
       baseNormalPoints: calculatedDrink.singleNormalPoints,
       timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
       createdAtMs: nowMs,
@@ -2358,6 +2775,7 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
             ...m,
             rumenoUntil: isRumeno ? nowMs + 24 * 3600000 : m.rumenoUntil,
             captainBeersSubmitted: part.isCaptainBeer ? (m.captainBeersSubmitted || 0) + 1 : m.captainBeersSubmitted,
+            activeMission: m.id === currentUser.id ? updatedMyMission : m.activeMission,
             lastDrinkAtMs: nowMs,
             dailyDate: todayKey,
             dailyCount: mPrevStreak + 1
@@ -2375,9 +2793,11 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
     setTaggedMemberIds([]);
     setShowTagSelector(false);
     showToast(
-      participants.length > 1
+      completedMissionDef
+        ? `🎰 MISSIONE "${completedMissionDef.title}" COMPLETATA! Foto inviata al VAR (${myFinalPoints >= 0 ? `+${myFinalPoints}` : myFinalPoints} pt)!`
+        : participants.length > 1
         ? `🍻 Brindisi di ${participants.length} amici inviato in Sala VAR!`
-        : `📸 Birra inviata in Sala VAR (${calculatedDrink.total >= 0 ? `+${calculatedDrink.total}` : calculatedDrink.total} pt in palio)!`,
+        : `📸 Birra inviata in Sala VAR (${myFinalPoints >= 0 ? `+${myFinalPoints}` : myFinalPoints} pt in palio)!`,
       'success'
     );
     setActiveTab('var');
@@ -3745,7 +4165,143 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
                   </button>
                 )}
               </div>
+{/* 🎰 CABINATO SLOT MACHINE: IMPREVISTO SETTIMANALE */}
+              {(() => {
+                const activeM = myMemberProfile?.activeMission;
+                const missionDef = activeM ? WEEKLY_MISSIONS.find(x => x.id === activeM.id) : null;
+                const progressObj = (activeM && missionDef)
+                  ? evaluateMissionProgress(activeM.id, activeM.logs || [])
+                  : { completed: false, progressText: '' };
+                const previewMission = WEEKLY_MISSIONS[slotPreviewIdx % WEEKLY_MISSIONS.length];
 
+                return (
+                  <div className="p-3.5 rounded-2xl border-2 border-amber-500/40 bg-gradient-to-b from-slate-900 via-slate-950 to-amber-950/20 shadow-xl space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl leading-none">🎰</span>
+                        <div>
+                          <span className="text-xs font-black uppercase text-amber-400 block tracking-wide">
+                            Slot Imprevisti della Settimana
+                          </span>
+                          <span className="text-[10px] text-slate-300 block">
+                            1 estrazione a settimana • Se peschi e fallisci: <strong className="text-red-400">-2 pt</strong>!
+                          </span>
+                        </div>
+                      </div>
+                      <span className="text-[9px] font-mono font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40 shrink-0">
+                        10 Sfide
+                      </span>
+                    </div>
+
+                    {/* RULLI IN MOVIMENTO DURANTE L'ESTRAZIONE */}
+                    {isSpinningSlot ? (
+                      <div className="p-4 rounded-2xl bg-slate-950 border-2 border-amber-400 text-center space-y-2 shadow-[0_0_25px_rgba(251,191,36,0.4)] animate-pulse">
+                        <div className="grid grid-cols-3 gap-2 items-center bg-slate-900 p-2.5 rounded-xl border border-amber-500/40">
+                          <div className="text-2xl">{WEEKLY_MISSIONS[(slotPreviewIdx + 9) % 10].icon}</div>
+                          <div className="text-3xl scale-110 bg-amber-500/20 py-1 rounded-lg border border-amber-400">
+                            {previewMission.icon}
+                          </div>
+                          <div className="text-2xl">{WEEKLY_MISSIONS[(slotPreviewIdx + 1) % 10].icon}</div>
+                        </div>
+                        <span className="text-xs font-black uppercase text-amber-300 block tracking-wider">
+                          🎲 {previewMission.title}...
+                        </span>
+                        <span className="text-[10px] text-slate-400 block">
+                          I rulli del 74 stanno girando!
+                        </span>
+                      </div>
+                    ) : activeM && missionDef ? (
+                      /* MISSIONE ESTRATTA (ATTIVA, COMPLETATA O FALLITA) */
+                      <div className={`p-3 rounded-xl border space-y-2 ${
+                        activeM.status === 'completed'
+                          ? 'bg-emerald-950/50 border-emerald-400'
+                          : activeM.status === 'failed'
+                          ? 'bg-red-950/50 border-red-500'
+                          : 'bg-slate-950 border-amber-400/60'
+                      }`}>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-2xl">{missionDef.icon}</span>
+                            <div>
+                              <span className="text-xs font-black uppercase text-white block">
+                                {missionDef.title}
+                              </span>
+                              <span className="text-[10px] font-black text-amber-300">
+                                Premio: {missionDef.badgeLabel}
+                              </span>
+                            </div>
+                          </div>
+                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded shrink-0 ${
+                            activeM.status === 'completed'
+                              ? 'bg-emerald-400 text-slate-950'
+                              : activeM.status === 'failed'
+                              ? 'bg-red-600 text-white'
+                              : 'bg-amber-500/20 text-amber-300 border border-amber-400/40'
+                          }`}>
+                            {activeM.status === 'completed'
+                              ? '✅ Completata'
+                              : activeM.status === 'failed'
+                              ? '❌ Fallita (-2 pt)'
+                              : `⏳ ${formatMissionTimeLeft(activeM.expiresAtMs, clockTick)}`}
+                          </span>
+                        </div>
+
+                        <p className="text-[11px] text-slate-200 leading-snug">
+                          {missionDef.desc}
+                        </p>
+
+                        <div className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-between text-[10px]">
+                          <span className="text-slate-400 font-bold">Stato Sfida:</span>
+                          <span className="font-black text-amber-300">{progressObj.progressText}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      /* PULSANTE GIRA LA SLOT */
+                      <button
+                        type="button"
+                        onClick={() => handleSpinMission()}
+                        className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 transition active:scale-95"
+                      >
+                        <span>🎰 Gira la Slot degli Imprevisti</span>
+                      </button>
+                    )}
+
+                    {/* COMANDI SPECIALI GOD MODE PER TESTARE O RIGIRARE LA SLOT */}
+                    {isGodMode && (
+                      <div className="pt-2 border-t border-amber-500/30 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[9px] font-black uppercase text-amber-400">
+                            ⚡ Console Slot God Mode
+                          </span>
+                          <button
+                            type="button"
+                            onClick={handleGodResetMission}
+                            className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 text-[9px] font-black uppercase border border-amber-400/40"
+                          >
+                            🔄 Reset / Rigira Slot
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {WEEKLY_MISSIONS.map(mItem => (
+                            <button
+                              key={mItem.id}
+                              type="button"
+                              onClick={() => handleSpinMission(mItem.id)}
+                              className={`px-2 py-1 rounded-lg text-[9px] font-bold border transition ${
+                                activeM?.id === mItem.id
+                                  ? 'bg-amber-400 text-slate-950 border-white font-black'
+                                  : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-amber-400/50'
+                              }`}
+                            >
+                              {mItem.icon} {mItem.title}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
               {/* SELETTORE CATEGORIA: BIRRA vs VINO & DRINK */}
               <div className="grid grid-cols-2 gap-1.5 bg-slate-950 p-1.5 rounded-2xl border border-slate-800 shadow-inner">
                 <button
