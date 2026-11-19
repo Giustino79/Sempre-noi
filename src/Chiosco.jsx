@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Lock, Sparkles, X, Award, Wrench, Eye, Crown, Flame } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Lock, Sparkles, X, Award, Wrench, Eye, Crown, Flame, HelpCircle, CheckCircle2, XCircle } from 'lucide-react';
 
 // ============================================================================
 // 🎨 CONFIGURAZIONE RARITÀ (COMUNE, RARO, MITICO, LEGGENDARIO + INFINITO/ULTRA)
@@ -283,7 +283,7 @@ export const CHIOSCO_ITEMS = {
       desc: 'Forgiato fondendo insieme 50 fusti d’acciaio e cuscino reale cremisi: chi siede su questo trono governa la classifica della lega col pugno di ferro.'
     }
   ],
- santini: [
+  santini: [
     {
       id: 'tendina_capelli',
       name: 'La Sacra Tendina',
@@ -320,7 +320,6 @@ export const CHIOSCO_ITEMS = {
       desc: 'Braccia conserte, sguardo severo che scruta l’anima dei bevitori ed etichetta nera che spunta sotto la tunica: chi cerca la pace interiore al quarto giro deve prima chiedere udienza a Shifu.'
     }
   ]
-  
 };
 
 export const ALL_CHIOSCO_ITEMS = [
@@ -417,7 +416,6 @@ export function ChioscoItemArtwork({ id, size = 'md' }) {
           </pattern>
         </defs>
 
-        {/* Ombra 3D di appoggio sul pavimento */}
         <ellipse cx="60" cy="109" rx="38" ry="6" fill="url(#proFloorShadow)" />
 
         {/* ==================== 1. CAVATAPPI PRO 3D (8) ==================== */}
@@ -969,22 +967,13 @@ export function ChioscoItemArtwork({ id, size = 'md' }) {
         )}
 
         {/* ==================== 5. SANTINI / RELIQUIE INFINITE ==================== */}
-        {/* 💇‍♂️ LA TENDINA DI TENDINA (TECA DI CRISTALLO DA MUSEO CON SOLO LA CAPIGLIATURA A TENDINA!) */}
         {normId === 'tendina_capelli' && (
           <g>
-            {/* 1. Sfondo interno della teca (velluto scuro da museo) */}
             <rect x="22" y="16" width="76" height="72" rx="8" fill="#09090b" fillOpacity="0.55" />
-
-            {/* 2. Cuscino Reale in velluto cremisi e oro dentro la teca */}
             <path d="M26 84 C32 73, 88 73, 94 84 Z" fill="url(#proRuby3D)" stroke="url(#proGold3D)" strokeWidth="1.8" />
-            {/* Asta dorata reggi-capigliatura al centro del cuscino */}
             <rect x="57" y="56" width="6" height="22" rx="2" fill="url(#proGold3D)" stroke="#422006" strokeWidth="1.2" />
             <ellipse cx="60" cy="78" rx="11" ry="3.5" fill="url(#proGold3D)" stroke="#422006" strokeWidth="1.2" />
-            {/* Calotta neutra interna porta-parrucca (appena visibile sotto la riga) */}
             <ellipse cx="60" cy="48" rx="15" ry="12" fill="#334155" opacity="0.45" />
-
-            {/* 3. SOLO LA CAPIGLIATURA A TENDINA (Fedele alla foto: riga centrale netta e due onde simmetriche) */}
-            {/* Tenda di Capelli Sinistra */}
             <path
               d="M59.2 26 C44 25, 31 35, 30 53 C29 63, 33 70, 39 73 C38 64, 41 55, 46 49 C51 43, 56 38, 59.2 31 Z"
               fill="url(#tendinaHairGrad)"
@@ -992,7 +981,6 @@ export function ChioscoItemArtwork({ id, size = 'md' }) {
               strokeWidth="1.6"
               strokeLinejoin="round"
             />
-            {/* Tenda di Capelli Destra */}
             <path
               d="M60.8 26 C76 25, 89 35, 90 53 C91 63, 87 70, 81 73 C82 64, 79 55, 74 49 C69 43, 64 38, 60.8 31 Z"
               fill="url(#tendinaHairGrad)"
@@ -1000,72 +988,17 @@ export function ChioscoItemArtwork({ id, size = 'md' }) {
               strokeWidth="1.6"
               strokeLinejoin="round"
             />
-
-            {/* Ciocche interne a tendina che scendono verso il centro (come nella foto!) */}
-            <path
-              d="M58.5 30 C52 38, 46 47, 45 59"
-              stroke="#78350f"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              fill="none"
-            />
-            <path
-              d="M61.5 30 C68 38, 74 47, 75 59"
-              stroke="#78350f"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              fill="none"
-            />
-
-            {/* Riflessi lucidi 3D sulle due onde di capelli castani */}
-            <path
-              d="M54 28 C42 31, 35 41, 34 55"
-              stroke="#b45309"
-              strokeWidth="2.4"
-              strokeLinecap="round"
-              fill="none"
-              opacity="0.85"
-            />
-            <path
-              d="M66 28 C78 31, 85 41, 86 55"
-              stroke="#b45309"
-              strokeWidth="2.4"
-              strokeLinecap="round"
-              fill="none"
-              opacity="0.85"
-            />
-            <path
-              d="M48 31 C39 36, 36 45, 36 53 M72 31 C81 36, 84 45, 84 53"
-              stroke="#fde68a"
-              strokeWidth="1"
-              strokeLinecap="round"
-              fill="none"
-              opacity="0.45"
-            />
-
-            {/* Riga centrale millimetrica */}
+            <path d="M58.5 30 C52 38, 46 47, 45 59" stroke="#78350f" strokeWidth="2.2" strokeLinecap="round" fill="none" />
+            <path d="M61.5 30 C68 38, 74 47, 75 59" stroke="#78350f" strokeWidth="2.2" strokeLinecap="round" fill="none" />
+            <path d="M54 28 C42 31, 35 41, 34 55" stroke="#b45309" strokeWidth="2.4" strokeLinecap="round" fill="none" opacity="0.85" />
+            <path d="M66 28 C78 31, 85 41, 86 55" stroke="#b45309" strokeWidth="2.4" strokeLinecap="round" fill="none" opacity="0.85" />
+            <path d="M48 31 C39 36, 36 45, 36 53 M72 31 C81 36, 84 45, 84 53" stroke="#fde68a" strokeWidth="1" strokeLinecap="round" fill="none" opacity="0.45" />
             <line x1="60" y1="25" x2="60" y2="33" stroke="#fde68a" strokeWidth="1.4" strokeLinecap="round" opacity="0.85" />
-
-            {/* 4. TECA DI CRISTALLO TRASPARENTE SOPRA LA CAPIGLIATURA (Effetto Vetro Museo) */}
-            <rect
-              x="20"
-              y="14"
-              width="80"
-              height="74"
-              rx="8"
-              fill="#e0f2fe"
-              fillOpacity="0.13"
-              stroke="#bae6fd"
-              strokeWidth="2.2"
-            />
-            {/* Spigoli interni della teca in prospettiva 3D */}
+            <rect x="20" y="14" width="80" height="74" rx="8" fill="#e0f2fe" fillOpacity="0.13" stroke="#bae6fd" strokeWidth="2.2" />
             <line x1="25" y1="18" x2="25" y2="84" stroke="#ffffff" strokeWidth="1.2" opacity="0.35" />
             <line x1="95" y1="18" x2="95" y2="84" stroke="#ffffff" strokeWidth="1.2" opacity="0.25" />
-            {/* Fasci di luce diagonali sul vetro della teca */}
             <path d="M26 32 L42 18 M26 48 L56 18" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" opacity="0.55" />
             <path d="M82 80 L94 68" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" opacity="0.4" />
-
-{/* 5. Piedistallo da Museo in Legno Massello e Oro con Targa "TENDINA" */}
             <polygon points="15,86 105,86 110,93 10,93" fill="url(#proGold3D)" stroke="#422006" strokeWidth="1.8" />
             <rect x="12" y="93" width="96" height="15" rx="3" fill="url(#proWood3D)" stroke="#1c0a00" strokeWidth="2.2" />
             <rect x="31" y="95.5" width="58" height="10" rx="2" fill="url(#proGold3D)" stroke="#422006" strokeWidth="1.4" />
@@ -1073,59 +1006,38 @@ export function ChioscoItemArtwork({ id, size = 'md' }) {
           </g>
         )}
 
-        {/* ⚽ IL BILIARDINO DI MANOLO (OMINO CALCIOBALILLA CON VISO DI MANOLO, STECCHE E GAMBE SALDATE) */}
         {normId === 'biliardino_manolo' && (
           <g>
-            {/* 1. Campo verde del Biliardino alla base con righe bianche e pallina */}
             <polygon points="14,96 106,96 114,109 6,109" fill="#15803d" stroke="url(#proGold3D)" strokeWidth="1.8" strokeLinejoin="round" />
             <line x1="16" y1="102.5" x2="104" y2="102.5" stroke="#ffffff" strokeWidth="1.5" opacity="0.8" />
             <circle cx="84" cy="102" r="5.5" fill="#ffffff" stroke="#94a3b8" strokeWidth="1.2" />
-
-            {/* 2. Stecche d'acciaio cromato del Biliardino (senza molle) */}
             <line x1="4" y1="42" x2="116" y2="42" stroke="#475569" strokeWidth="3.5" strokeLinecap="round" opacity="0.45" />
             <rect x="2" y="55" width="116" height="6.5" rx="3" fill="url(#proChrome3D)" stroke="#0f172a" strokeWidth="1.5" />
             <line x1="6" y1="57" x2="114" y2="57" stroke="#ffffff" strokeWidth="1.4" opacity="0.85" />
-            {/* Boccole nere ferma-omino sulla stecca */}
             <rect x="31" y="53.5" width="5" height="9.5" rx="1.2" fill="#09090b" stroke="#475569" strokeWidth="1" />
             <rect x="84" y="53.5" width="5" height="9.5" rx="1.2" fill="#09090b" stroke="#475569" strokeWidth="1" />
-
-            {/* 3. BLOCCO UNICO GAMBE DRITTE SALDATE DA BILIARDINO (Zero ginocchia!) */}
-            {/* Pantaloncini neri rigidi */}
             <path d="M46 73 H74 L72 83 H48 Z" fill="#09090b" stroke="#334155" strokeWidth="1.4" />
-            {/* Gambe fuse in un pezzo unico con scanalatura centrale */}
             <path d="M48.5 83 H71.5 L69.5 100 H50.5 Z" fill="url(#proMarioSkin)" stroke="#7c2d12" strokeWidth="1.4" />
             <rect x="49.5" y="91" width="21" height="8" fill="#ffffff" stroke="#cbd5e1" strokeWidth="1" />
             <line x1="49.5" y1="93.5" x2="70.5" y2="93.5" stroke="#ef4444" strokeWidth="1.5" />
             <line x1="60" y1="75" x2="60" y2="100" stroke="#451a03" strokeWidth="1.6" opacity="0.7" />
-            {/* Piedino unico squadrato da calcetto */}
             <polygon points="48,100 72,100 74,106 46,106" fill="#0f172a" stroke="url(#proGold3D)" strokeWidth="1.4" />
-
-            {/* 4. Busto rigido da Biliardino con la Maglietta Bianca di Manolo e Braccia Tatuate */}
-            {/* Braccia tatuate agganciate alla stecca */}
             <rect x="36" y="52" width="8.5" height="15" rx="3.5" fill="url(#proMarioSkin)" stroke="#451a03" strokeWidth="1.2" />
             <path d="M37 56 L43 59 M37 60 L43 63 M37 64 L43 61" stroke="#1e293b" strokeWidth="1.4" opacity="0.75" />
             <rect x="75.5" y="52" width="8.5" height="15" rx="3.5" fill="url(#proMarioSkin)" stroke="#451a03" strokeWidth="1.2" />
             <path d="M77 55 L83 58 M77 59 L83 62 M77 63 L83 60" stroke="#0f172a" strokeWidth="1.6" opacity="0.8" />
-            {/* Maglietta Bianca "CRISTIANO RONALDO" */}
             <path d="M38 45 C38 42, 46 40, 60 40 C74 40, 82 42, 82 45 L77 56 H74 V73 H46 V56 H43 Z" fill="#f8fafc" stroke="#94a3b8" strokeWidth="1.6" strokeLinejoin="round" />
             <text x="60" y="51.5" textAnchor="middle" fill="#475569" fontSize="4.6" fontWeight="900">♥ MONEY &</text>
             <text x="60" y="57.5" textAnchor="middle" fill="#334155" fontSize="5" fontWeight="900">CRISTIANO</text>
             <text x="60" y="63.5" textAnchor="middle" fill="#334155" fontSize="5.2" fontWeight="900">RONALDO</text>
-
-            {/* 5. TESTA DI MANOLO (Frangetta mossa, Occhiali senza montatura, Baffetto e Sorrisone) */}
             <rect x="55.5" y="36" width="9" height="6" rx="2" fill="url(#proMarioSkin)" />
-            {/* Orecchie + Orecchini a cerchietto */}
             <ellipse cx="42" cy="26" rx="3.2" ry="5" fill="url(#proMarioSkin)" stroke="#7c2d12" strokeWidth="1" />
             <circle cx="41.5" cy="31" r="1.5" fill="none" stroke="#facc15" strokeWidth="1.1" />
             <ellipse cx="78" cy="26" rx="3.2" ry="5" fill="url(#proMarioSkin)" stroke="#7c2d12" strokeWidth="1" />
             <circle cx="78.5" cy="31" r="1.5" fill="none" stroke="#facc15" strokeWidth="1.1" />
-            {/* Viso */}
             <path d="M43 20 C43 9, 77 9, 77 20 C78 32, 71 39, 60 39 C49 39, 42 32, 43 20 Z" fill="url(#proMarioSkin)" stroke="#7c2d12" strokeWidth="1.4" />
-            {/* Capelli scuri con frangetta a ciocche sulla fronte */}
             <path d="M42 22 C41 11, 49 6, 60 6 C71 6, 79 11, 78 22 C76 16, 73 15, 70 19 C68 14, 65 15, 62 19 C59 14, 56 15, 53 19 C50 14, 46 15, 42 22 Z" fill="#18181b" stroke="#09090b" strokeWidth="1" />
-            {/* Occhi sorridenti */}
             <path d="M48 23.5 Q52 21.5 55.5 23.5 M64.5 23.5 Q68 21.5 72 23.5" stroke="#18181b" strokeWidth="1.6" strokeLinecap="round" fill="none" />
-            {/* Occhiali rettangolari senza montatura (Rimless) con ponte dorato e riflesso lente */}
             <rect x="46" y="20" width="11.5" height="6.8" rx="1.5" fill="#e0f2fe" fillOpacity="0.28" stroke="#fde047" strokeWidth="0.9" />
             <rect x="62.5" y="20" width="11.5" height="6.8" rx="1.5" fill="#e0f2fe" fillOpacity="0.28" stroke="#fde047" strokeWidth="0.9" />
             <line x1="57.5" y1="22.5" x2="62.5" y2="22.5" stroke="#facc15" strokeWidth="1.3" />
@@ -1133,7 +1045,6 @@ export function ChioscoItemArtwork({ id, size = 'md' }) {
             <line x1="74" y1="22.5" x2="77" y2="22.5" stroke="#facc15" strokeWidth="1.2" />
             <line x1="48" y1="21.5" x2="51" y2="25" stroke="#ffffff" strokeWidth="1.2" strokeLinecap="round" opacity="0.8" />
             <line x1="64.5" y1="21.5" x2="67.5" y2="25" stroke="#ffffff" strokeWidth="1.2" strokeLinecap="round" opacity="0.8" />
-            {/* Naso, Baffetti sottili e Sorrisone a 32 denti */}
             <path d="M58.8 23.5 V27.5 C58 28.5, 62 28.5, 61.2 27.5" fill="none" stroke="#7c2d12" strokeWidth="1.3" strokeLinecap="round" />
             <path d="M51 30.2 Q60 28.2 69 30.2" stroke="#27272a" strokeWidth="1.8" strokeLinecap="round" fill="none" />
             <path d="M51.5 31.5 H68.5 C67.5 36.5, 52.5 36.5, 51.5 31.5 Z" fill="#ffffff" stroke="#7f1d1d" strokeWidth="1.1" />
@@ -1141,73 +1052,47 @@ export function ChioscoItemArtwork({ id, size = 'md' }) {
           </g>
         )}
 
-        {/* 📦 SMERDINO TASCABILE (ACTION FIGURE DI MATTEINO IN BLISTER TRASPARENTE + PACCHETTO DI DRUM) */}
         {normId === 'smerdino_action' && (
           <g>
-            {/* 1. Cartoncino esterno da Collezione (Blister Card) */}
             <rect x="13" y="7" width="94" height="101" rx="8" fill="#0f172a" stroke="url(#proGold3D)" strokeWidth="2.4" />
             <rect x="16" y="10" width="88" height="95" rx="6" fill="#1e1b4b" stroke="#ec4899" strokeWidth="1" opacity="0.9" />
-            {/* Foro da appendere sullo scaffale */}
             <path d="M51 13 H69 C71 13, 71 17, 69 17 H63 L60 14.5 L57 17 H51 C49 17, 49 13, 51 13 Z" fill="#020617" stroke="#475569" strokeWidth="1" />
-            {/* Titolo Scatola Action Figure */}
             <text x="60" y="25.5" textAnchor="middle" fill="#fde047" fontSize="8.2" fontWeight="900" letterSpacing="0.6">SMERDINO • 1:10</text>
-
-            {/* 2. Scomparto Sinistro: Miniatura Ultra-Secca di Matteino a Torso Nudo */}
             <rect x="20" y="29" width="46" height="69" rx="5" fill="#09090b" stroke="#475569" strokeWidth="1.2" />
-
-            {/* Gambe secchissime e Pantaloncini Mimetici con striscia arancione (come in foto!) */}
             <line x1="38" y1="78" x2="37" y2="94" stroke="url(#proMarioSkin)" strokeWidth="3.2" strokeLinecap="round" />
             <line x1="48" y1="78" x2="49" y2="94" stroke="url(#proMarioSkin)" strokeWidth="3.2" strokeLinecap="round" />
             <path d="M34 66 H52 L53 79 H45 L43 73 L41 79 H33 Z" fill="#365314" stroke="#1a2e05" strokeWidth="1.2" />
             <circle cx="38" cy="71" r="2.2" fill="#78350f" />
             <circle cx="47" cy="74" r="2.5" fill="#14532d" />
-            {/* Striscia arancione laterale sui pantaloncini */}
             <line x1="34" y1="67" x2="33.3" y2="78" stroke="#f97316" strokeWidth="1.8" />
             <line x1="52" y1="67" x2="52.7" y2="78" stroke="#f97316" strokeWidth="1.8" />
-
-            {/* Torso nudo ultra-minuto e secco con costole in vista */}
             <path d="M35 49 H51 L49 66 H37 Z" fill="url(#proMarioSkin)" stroke="#9a3412" strokeWidth="1.1" />
             <path d="M38 54 Q43 55.5 48 54 M38.5 58 Q43 59.5 47.5 58" stroke="#c2410c" strokeWidth="0.9" fill="none" opacity="0.65" />
             <circle cx="39.5" cy="53" r="0.8" fill="#9a3412" />
             <circle cx="46.5" cy="53" r="0.8" fill="#9a3412" />
             <circle cx="43" cy="63" r="0.9" fill="#9a3412" />
-            {/* Braccia sottili lungo il corpo */}
             <path d="M35 50 L31 66 M51 50 L55 64" stroke="url(#proMarioSkin)" strokeWidth="3" strokeLinecap="round" />
-
-            {/* Testa di Matteino (Capelli scuri aperti, sopracciglia folte, sorriso e sigaretta rollata) */}
             <rect x="41" y="45" width="4" height="5" fill="url(#proMarioSkin)" />
             <path d="M34 36 C34 28, 52 28, 52 36 C52.5 43, 48 47, 43 47 C38 47, 33.5 43, 34 36 Z" fill="url(#proMarioSkin)" stroke="#9a3412" strokeWidth="1.1" />
-            {/* Capelli neri/castano scuro divisi */}
             <path d="M33.5 37 C32.5 30, 37 26.5, 43 26.5 C49 26.5, 53.5 30, 52.5 37 C51 32, 47 30.5, 43 31.5 C39 30.5, 35 32, 33.5 37 Z" fill="#18181b" />
-            {/* Sopracciglia folte scure + Occhi + Sorriso */}
             <path d="M36.5 35.5 Q39 34 41.5 35.5 M44.5 35.5 Q47 34 49.5 35.5" stroke="#09090b" strokeWidth="1.6" strokeLinecap="round" fill="none" />
             <circle cx="39" cy="37.5" r="1.1" fill="#09090b" />
             <circle cx="47" cy="37.5" r="1.1" fill="#09090b" />
             <path d="M39.5 42 Q43 44.8 46.5 42 Z" fill="#ffffff" stroke="#7c2d12" strokeWidth="0.9" />
-            {/* Sigaretta rollata in bocca con brace accesa */}
             <line x1="46" y1="43" x2="54" y2="41.5" stroke="#ffffff" strokeWidth="1.8" strokeLinecap="round" />
             <circle cx="54.5" cy="41.4" r="1.1" fill="#ef4444" />
-
-            {/* 3. Scomparto Destro: Busta di Tabacco DRUM Ufficiale + Cartine */}
             <rect x="70" y="36" width="30" height="54" rx="4" fill="#09090b" stroke="#475569" strokeWidth="1.1" />
             <text x="85" y="33.5" textAnchor="middle" fill="#38bdf8" fontSize="5" fontWeight="900">ACCESSORIO</text>
-            {/* Fili di tabacco biondo/scuro che spuntano dalla busta */}
             <path d="M75 44 Q80 39 85 43 Q90 38 95 44" stroke="#b45309" strokeWidth="2.2" fill="none" strokeLinecap="round" />
-            {/* Busta Blu Classica DRUM */}
             <rect x="73" y="44" width="24" height="32" rx="2.5" fill="#1e3a8a" stroke="#60a5fa" strokeWidth="1.3" />
             <path d="M73 44 H97 L95 53 H75 Z" fill="#2563eb" stroke="#93c5fd" strokeWidth="0.9" />
-            {/* Mezzaluna/Tamburo dorato e scritta DRUM */}
             <circle cx="85" cy="56" r="4.5" fill="#facc15" opacity="0.9" />
             <rect x="75" y="54" width="20" height="6.5" rx="1" fill="#1e3a8a" />
             <text x="85" y="59" textAnchor="middle" fill="#ffffff" fontSize="6" fontWeight="900" letterSpacing="0.5">DRUM</text>
-            {/* Targhetta bianca avvertenza sul fondo della busta */}
             <rect x="74.5" y="66" width="21" height="8" rx="1" fill="#ffffff" stroke="#09090b" strokeWidth="0.8" />
             <text x="85" y="71.5" textAnchor="middle" fill="#09090b" fontSize="4.2" fontWeight="900">100% SECCO</text>
-            {/* Libretti di cartine sotto la busta */}
             <rect x="75" y="79" width="20" height="7" rx="1.2" fill="#f97316" stroke="#ffffff" strokeWidth="0.9" />
             <text x="85" y="84" textAnchor="middle" fill="#ffffff" fontSize="4.2" fontWeight="900">CARTINE</text>
-
- {/* 4. Cupola del Blister in Plastica Trasparente Lucida sopra i 2 vani */}
             <rect x="19" y="28" width="48" height="71" rx="5.5" fill="#e0f2fe" fillOpacity="0.12" stroke="#bae6fd" strokeWidth="1.6" />
             <path d="M23 42 L35 31 M23 54 L45 31" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" opacity="0.55" />
             <rect x="69" y="35" width="32" height="56" rx="4.5" fill="#e0f2fe" fillOpacity="0.12" stroke="#bae6fd" strokeWidth="1.5" />
@@ -1215,51 +1100,37 @@ export function ChioscoItemArtwork({ id, size = 'md' }) {
           </g>
         )}
 
-        {/* ⛺ TENDINA OPZIONE A: TENDA DA ESTERNO CON MANOVELLA + FACCIA DI TENDINA SOTTO */}
         {normId === 'tendina_sole' && (
           <g>
-            {/* 1. Struttura pergola in legno scuro e Asta Manovella laterale */}
             <rect x="12" y="8" width="96" height="6" rx="2" fill="url(#proWood3D)" stroke="#1c0a00" strokeWidth="1.5" />
             <path d="M98 28 V68 L104 72 V80" fill="none" stroke="url(#proGold3D)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
             <circle cx="104" cy="81" r="2.5" fill="#dc2626" />
-
-            {/* 2. Tenda da Sole da Bar a spicchi Crema/Verde + Mantovana Ondulata (come nella foto!) */}
             <polygon points="14,14 106,14 112,30 8,30" fill="#fef3c7" stroke="#78350f" strokeWidth="1.6" strokeLinejoin="round" />
             <polygon points="28,14 44,14 41,30 23,30" fill="#15803d" />
             <polygon points="60,14 76,14 77,30 59,30" fill="#15803d" />
             <polygon points="90,14 106,14 112,30 95,30" fill="#15803d" />
-            {/* Mantovana bianca ondulata sotto la tenda da esterno */}
             <path
               d="M8 30 H112 V36 C106 41, 100 41, 95 36 C90 41, 84 41, 79 36 C74 41, 68 41, 63 36 C58 41, 52 41, 47 36 C42 41, 36 41, 31 36 C26 41, 20 41, 15 36 C11 40, 8 39, 8 36 Z"
               fill="#f8fafc"
               stroke="#94a3b8"
               strokeWidth="1.4"
             />
-
-            {/* 3. Busto di Tendina (Maglietta nera con logo verde BALI) */}
             <path d="M26 105 C28 85, 42 79, 60 79 C78 79, 92 85, 94 105 Z" fill="#18181b" stroke="#3f3f46" strokeWidth="1.8" />
             <circle cx="73" cy="92" r="4.5" fill="#86efac" opacity="0.85" />
             <text x="73" y="99" textAnchor="middle" fill="#ffffff" fontSize="4.2" fontWeight="900">BALI</text>
-
-            {/* 4. Viso di Tendina (Barbetta corta, Sopracciglia folte e Sorrisone a 32 denti) */}
             <rect x="54" y="73" width="12" height="9" fill="url(#proMarioSkin)" />
             <ellipse cx="36" cy="59" rx="3.8" ry="6" fill="url(#proMarioSkin)" stroke="#7c2d12" strokeWidth="1.1" />
             <ellipse cx="84" cy="59" rx="3.8" ry="6" fill="url(#proMarioSkin)" stroke="#7c2d12" strokeWidth="1.1" />
             <path d="M38 51 C38 35, 82 35, 82 51 C83 68, 74 78, 60 78 C46 78, 37 68, 38 51 Z" fill="url(#proMarioSkin)" stroke="#7c2d12" strokeWidth="1.5" />
-            {/* Barbetta corta sfumata e baffi */}
             <path d="M39 59 C40 72, 48 78, 60 78 C72 78, 80 72, 81 59 C78 65, 74 67, 69 65 C65 61, 55 61, 51 65 C46 67, 42 65, 39 59 Z" fill="#27272a" opacity="0.82" />
-            {/* Sopracciglia scure marcate + Occhi sorridenti + Naso */}
             <path d="M44 51 Q49 48.5 55 51 M65 51 Q71 48.5 76 51" stroke="#18181b" strokeWidth="2.4" strokeLinecap="round" fill="none" />
             <ellipse cx="49.5" cy="55" rx="3.8" ry="2.5" fill="#ffffff" stroke="#451a03" strokeWidth="1" />
             <circle cx="49.5" cy="55" r="1.8" fill="#1c1917" />
             <ellipse cx="70.5" cy="55" rx="3.8" ry="2.5" fill="#ffffff" stroke="#451a03" strokeWidth="1" />
             <circle cx="70.5" cy="55" r="1.8" fill="#1c1917" />
             <path d="M58.5 54 V61.5 C57 63, 63 63, 61.5 61.5" fill="none" stroke="#7c2d12" strokeWidth="1.6" strokeLinecap="round" />
-            {/* Sorrisone bianco a 32 denti */}
             <path d="M49 65.5 H71 C69.5 72.5, 50.5 72.5, 49 65.5 Z" fill="#ffffff" stroke="#451a03" strokeWidth="1.2" />
             <line x1="52" y1="68.5" x2="68" y2="68.5" stroke="#cbd5e1" strokeWidth="0.9" />
-
-            {/* 5. I CAPELLI A TENDINA DI TENDINA (che fanno da seconda tenda sotto la mantovana!) */}
             <path
               d="M59.5 36 C45 36, 34 43, 34 57 C34 63, 36 67, 40 69 C39 61, 41 53, 46 48 C51 44, 56 41, 59.5 38 Z"
               fill="url(#tendinaHairGrad)"
@@ -1272,16 +1143,12 @@ export function ChioscoItemArtwork({ id, size = 'md' }) {
               stroke="#1c0a00"
               strokeWidth="1.4"
             />
-            {/* Ciocche interne a tendina sulla fronte */}
             <path d="M58.5 38 C53 44, 48 49, 47 56 M61.5 38 C67 44, 72 49, 73 56" stroke="#78350f" strokeWidth="2" strokeLinecap="round" fill="none" />
           </g>
         )}
 
-
-        {/* 🐼 PELUCHE MAESTRO SHIFU (FEDELE AL 100% ALLA FOTO: ORECCHIE BICOLORI, BRACCIA CONSERTE, TUNICA ED ETICHETTA NERA!) */}
         {normId === 'shifu_peluche' && (
           <g>
-            {/* 1. Coda a anelli bianchi e marroni che scende in basso a destra (come nella foto!) */}
             <path
               d="M60 78 C60 92, 65 106, 75 109 C83 110, 86 100, 81 88 C78 81, 71 78, 60 78 Z"
               fill="#f8fafc"
@@ -1290,27 +1157,19 @@ export function ChioscoItemArtwork({ id, size = 'md' }) {
             />
             <path d="M61 84 L79 83 L81 88 L62 89 Z" fill="#b45309" />
             <path d="M63 93 L83 92 L84 98 L65 99 Z" fill="#b45309" />
-
-            {/* 2. L'iconica ETICHETTA NERA DEL PELUCHE che spunta tra le gambe (dettaglio reale della foto!) */}
             <g transform="rotate(8 59 83)">
               <rect x="54" y="77" width="11" height="13" rx="1" fill="#09090b" stroke="#475569" strokeWidth="0.8" />
               <circle cx="59.5" cy="81.5" r="2" fill="none" stroke="#e2e8f0" strokeWidth="0.8" />
               <line x1="56.5" y1="86" x2="62.5" y2="86" stroke="#e2e8f0" strokeWidth="0.8" />
             </g>
-
-            {/* 3. Gambe corte marroni scure, fasce verdi/grigie alle caviglie e piedini imbottiti */}
             <rect x="40" y="74" width="13" height="15" rx="3" fill="#271206" />
             <rect x="67" y="74" width="13" height="15" rx="3" fill="#271206" />
-            {/* Fasce caviglie */}
             <rect x="40" y="84" width="13" height="4.5" rx="1" fill="#57534e" stroke="#292524" strokeWidth="0.9" />
             <rect x="67" y="84" width="13" height="4.5" rx="1" fill="#57534e" stroke="#292524" strokeWidth="0.9" />
-            {/* Piedini peluche arancio-marrone con suola scura */}
             <ellipse cx="46.5" cy="93" rx="7.5" ry="5.5" fill="#b45309" stroke="#78350f" strokeWidth="1.2" />
             <ellipse cx="46.5" cy="96" rx="6" ry="2.5" fill="#271206" />
             <ellipse cx="73.5" cy="93" rx="7.5" ry="5.5" fill="#b45309" stroke="#78350f" strokeWidth="1.2" />
             <ellipse cx="73.5" cy="96" rx="6" ry="2.5" fill="#271206" />
-
-            {/* 4. Tunica Kung Fu Arancio/Caramello con Cintura Marrone Scuro e Bordo Arrotondato */}
             <path
               d="M39 48 H81 L85 75 C72 80, 48 80, 35 75 Z"
               fill="#c26a27"
@@ -1318,35 +1177,21 @@ export function ChioscoItemArtwork({ id, size = 'md' }) {
               strokeWidth="1.8"
               strokeLinejoin="round"
             />
-            {/* Risvolto a V sul petto + Cintura marrone scuro in vita */}
             <path d="M50 48 L58 60 L68 48" fill="none" stroke="#271206" strokeWidth="3" />
             <rect x="38" y="59" width="44" height="7.5" rx="1.5" fill="#271206" />
-            {/* Cucitura in rilievo dell'orlo inferiore della tunica */}
             <path d="M35 74 C48 79, 72 79, 85 74" fill="none" stroke="#e09145" strokeWidth="2.5" strokeLinecap="round" />
-
-            {/* 5. BRACCIA CONSERTE SUL PETTO CON POLSINI GRIGI E MANI SCURE (Come nella foto!) */}
-            {/* Spalle arancioni morbide */}
             <ellipse cx="36" cy="52" rx="9" ry="7.5" fill="#c26a27" stroke="#78350f" strokeWidth="1.5" />
             <ellipse cx="84" cy="52" rx="9" ry="7.5" fill="#c26a27" stroke="#78350f" strokeWidth="1.5" />
-            {/* Maniche interne marroni scure incrociate al centro */}
             <rect x="44" y="47" width="32" height="11" rx="4" fill="#271206" stroke="#09090b" strokeWidth="1.2" />
             <line x1="46" y1="52.5" x2="74" y2="52.5" stroke="#451a03" strokeWidth="1.4" />
-            {/* Polsini larghi grigio chiaro ai due lati delle braccia incrociate */}
             <rect x="40" y="46" width="8.5" height="13" rx="2" fill="#94a3b8" stroke="#475569" strokeWidth="1.2" />
             <rect x="71.5" y="46" width="8.5" height="13" rx="2" fill="#94a3b8" stroke="#475569" strokeWidth="1.2" />
-
-            {/* 6. GRANDI ORECCHIE A PUNTA BICOLORI (Punta marrone, fascia bianca, interno marrone) */}
-            {/* Orecchio Sinistro */}
             <path d="M34 30 L26 8 C34 5, 45 12, 48 24 Z" fill="#f8fafc" stroke="#94a3b8" strokeWidth="1.4" strokeLinejoin="round" />
             <path d="M29.5 17 L26 8 C31 6.5, 37 9, 41 14 Z" fill="#9a4a17" />
             <path d="M34 26 L31 19 C36 18, 41 20, 44 24 Z" fill="#7c2d12" />
-            {/* Orecchio Destro */}
             <path d="M86 30 L94 8 C86 5, 75 12, 72 24 Z" fill="#f8fafc" stroke="#94a3b8" strokeWidth="1.4" strokeLinejoin="round" />
             <path d="M90.5 17 L94 8 C89 6.5, 83 9, 79 14 Z" fill="#9a4a17" />
             <path d="M86 26 L89 19 C84 18, 79 20, 76 24 Z" fill="#7c2d12" />
-
-            {/* 7. TESTA PELOSA DEL MAESTRO SHIFU (Ciuffi bianchi laterali, mascherina marrone, occhi azzurri e bocca severa) */}
-            {/* Ciuffi di pelo bianco spettinato sulle guance e sopracciglia */}
             <path
               d="M28 31 L22 28 L27 35 L21 36 L28 40 C31 46, 42 50, 60 50 C78 50, 89 46, 92 40 L99 36 L93 35 L98 28 L92 31 C86 22, 75 19, 60 19 C45 19, 34 22, 28 31 Z"
               fill="#f8fafc"
@@ -1354,40 +1199,28 @@ export function ChioscoItemArtwork({ id, size = 'md' }) {
               strokeWidth="1.5"
               strokeLinejoin="round"
             />
-            {/* Macchiolina marrone sulla fronte */}
             <ellipse cx="60" cy="24" rx="4.5" ry="2.2" fill="#854d0e" opacity="0.75" />
-
-            {/* Toppe marroni intorno agli occhi */}
             <ellipse cx="46" cy="36" rx="10.5" ry="7.5" fill="#9a4a17" transform="rotate(-8 46 36)" />
             <ellipse cx="74" cy="36" rx="10.5" ry="7.5" fill="#9a4a17" transform="rotate(8 74 36)" />
-
-            {/* Sopracciglia bianche folte da peluche */}
             <path d="M34 30 Q45 26 55 32 M86 30 Q75 26 65 32" stroke="#ffffff" strokeWidth="3.5" strokeLinecap="round" fill="none" />
-
-            {/* Occhi Azzurri Spalancati con pupilla nera (identici alla foto!) */}
             <circle cx="47.5" cy="35.5" r="4.2" fill="#ffffff" stroke="#1e293b" strokeWidth="0.9" />
             <circle cx="48" cy="35.5" r="2.8" fill="#0284c7" />
             <circle cx="48" cy="35.5" r="1.4" fill="#09090b" />
             <circle cx="48.8" cy="34.7" r="0.7" fill="#ffffff" />
-
             <circle cx="72.5" cy="35.5" r="4.2" fill="#ffffff" stroke="#1e293b" strokeWidth="0.9" />
             <circle cx="72" cy="35.5" r="2.8" fill="#0284c7" />
             <circle cx="72" cy="35.5" r="1.4" fill="#09090b" />
             <circle cx="72.8" cy="34.7" r="0.7" fill="#ffffff" />
-
-            {/* Musetto bianco in rilievo 3D, nasino marrone e bocca imbronciata/severa */}
             <ellipse cx="60" cy="41.5" rx="10.5" ry="7.5" fill="#ffffff" stroke="#e2e8f0" strokeWidth="1.2" />
             <ellipse cx="60" cy="37.5" rx="3.5" ry="2.3" fill="#451a03" />
             <path d="M53.5 43.5 Q60 41.5 66.5 43.5" stroke="#1c1917" strokeWidth="1.8" strokeLinecap="round" fill="none" />
-
-            {/* Pizzetto di pelo bianco soffice sotto il mento sopra le braccia conserte */}
             <path d="M55 48 L58 55 L60 52 L63 56 L65 48 Z" fill="#ffffff" opacity="0.9" />
           </g>
         )}
       </svg>
     </div>
   );
-}                     
+}
 
 // ============================================================================
 // 🎒 VETRINA "I MIEI AVERI" NEL BOLLETTINO MEDICO
@@ -1663,11 +1496,405 @@ export function GodPinModal({ isOpen, onClose, onUnlock }) {
 }
 
 // ============================================================================
-// 🏪 COMPONENTE PRINCIPALE DEL CHIOSCO (ORA A 5 CATEGORIE CON I SANTINI!)
+// 🎲 MINIGIOCO 1: SVUOTA IL BOCCALE (50 TAP • TOCCA OVUNQUE • CENTESIMI)
 // ============================================================================
-export default function Chiosco({ isGodMode = false, ownedItems = [], onToggleOwnItem }) {
+const TARGET_BOCCALE_TAPS = 50;
+
+function SvuotaBoccaleArena({ opponentName, onComplete, onCancel }) {
+  const [phase, setPhase] = useState('countdown'); // 'countdown' | 'playing' | 'finished'
+  const [countdownVal, setCountdownVal] = useState(3);
+  const [taps, setTaps] = useState(0);
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const startTimeRef = useRef(null);
+  const finishedRef = useRef(false);
+
+  useEffect(() => {
+    if (phase !== 'countdown') return;
+    if (countdownVal <= 0) {
+      startTimeRef.current = performance.now();
+      setPhase('playing');
+      return;
+    }
+    const t = setTimeout(() => setCountdownVal(v => v - 1), 650);
+    return () => clearTimeout(t);
+  }, [phase, countdownVal]);
+
+  useEffect(() => {
+    if (phase !== 'playing') return;
+    let rafId;
+    const tick = () => {
+      if (startTimeRef.current && !finishedRef.current) {
+        setElapsedMs(Math.round(performance.now() - startTimeRef.current));
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [phase]);
+
+  const handleScreenTap = () => {
+    if (phase !== 'playing' || finishedRef.current) return;
+    const nextTaps = taps + 1;
+    setTaps(nextTaps);
+
+    if (nextTaps >= TARGET_BOCCALE_TAPS) {
+      finishedRef.current = true;
+      const finalMs = Math.max(10, Math.round(performance.now() - (startTimeRef.current || performance.now())));
+      setElapsedMs(finalMs);
+      setPhase('finished');
+    }
+  };
+
+  const fillPercent = Math.max(0, Math.round(((TARGET_BOCCALE_TAPS - taps) / TARGET_BOCCALE_TAPS) * 100));
+  const formattedSeconds = (elapsedMs / 1000).toFixed(2).replace('.', ',');
+
+  return (
+    <div
+      onPointerDown={phase === 'playing' ? handleScreenTap : undefined}
+      className={`fixed inset-0 z-[220] flex flex-col items-center justify-between p-5 select-none touch-manipulation ${
+        phase === 'playing'
+          ? 'bg-gradient-to-b from-amber-950/90 via-slate-950 to-black cursor-pointer'
+          : 'bg-slate-950/95 backdrop-blur-md'
+      }`}
+    >
+      <div className="w-full max-w-sm flex items-center justify-between" onPointerDown={(e) => e.stopPropagation()}>
+        <div>
+          <span className="text-[10px] font-black uppercase text-amber-400 block">
+            ⚡ Rapidità • Sfida contro {opponentName}
+          </span>
+          <h3 className="text-base font-black text-white">Svuota il Boccale ({TARGET_BOCCALE_TAPS} Tap)</h3>
+        </div>
+        {phase !== 'playing' && (
+          <button type="button" onClick={onCancel} className="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold">
+            Esci
+          </button>
+        )}
+      </div>
+
+      <div className="w-full max-w-sm grid grid-cols-2 gap-3 text-center">
+        <div className="bg-slate-900/90 border border-amber-500/40 rounded-2xl p-3">
+          <span className="text-[9px] font-black uppercase text-slate-400 block">Cronometro</span>
+          <span className="text-2xl font-mono font-black text-amber-300">{formattedSeconds}s</span>
+        </div>
+        <div className="bg-slate-900/90 border border-emerald-500/40 rounded-2xl p-3">
+          <span className="text-[9px] font-black uppercase text-slate-400 block">Tap Mancanti</span>
+          <span className="text-2xl font-mono font-black text-emerald-300">
+            {Math.max(0, TARGET_BOCCALE_TAPS - taps)}
+          </span>
+        </div>
+      </div>
+
+      <div className="flex flex-col items-center justify-center my-2">
+        <div className="relative w-40 h-48 rounded-3xl bg-slate-900/80 border-2 border-amber-400/60 overflow-hidden shadow-[0_0_35px_rgba(251,191,36,0.25)] flex items-end justify-center">
+          <div
+            className="w-full bg-gradient-to-t from-amber-600 via-amber-400 to-yellow-200 transition-[height] duration-75 ease-out relative"
+            style={{ height: `${fillPercent}%` }}
+          >
+            {fillPercent > 4 && (
+              <div className="w-full h-3 bg-white/95 shadow-[0_0_10px_#ffffff]" />
+            )}
+          </div>
+
+          <svg viewBox="0 0 120 140" className="pointer-events-none absolute inset-0 w-full h-full">
+            <rect x="24" y="24" width="60" height="96" rx="10" fill="none" stroke="#f8fafc" strokeWidth="4" />
+            <path d="M84 44 H98 C104 44, 106 48, 106 72 C106 96, 104 100, 98 100 H84" fill="none" stroke="#f8fafc" strokeWidth="4" strokeLinejoin="round" />
+            <text x="54" y="80" textAnchor="middle" fill="#0f172a" fontSize="16" fontWeight="900" opacity="0.65">
+              {fillPercent}%
+            </text>
+          </svg>
+        </div>
+
+        {phase === 'countdown' && (
+          <div className="mt-4 text-5xl font-black text-amber-400 animate-bounce">
+            {countdownVal > 0 ? countdownVal : 'VIA!'}
+          </div>
+        )}
+
+        {phase === 'playing' && (
+          <p className="mt-4 text-xs font-black uppercase tracking-wider text-amber-300 animate-pulse text-center">
+            👆 TOCCA OVUNQUE SULLO SCHERMO PIÙ VELOCE CHE PUOI!
+          </p>
+        )}
+      </div>
+
+      <div className="w-full max-w-sm" onPointerDown={(e) => e.stopPropagation()}>
+        {phase === 'finished' ? (
+          <div className="bg-slate-900 border-2 border-emerald-400 rounded-2xl p-4 text-center space-y-3 shadow-2xl">
+            <span className="text-[10px] font-black uppercase text-emerald-400 block">
+              🏁 Boccale Svuotato in {formattedSeconds}s!
+            </span>
+            <p className="text-xs text-slate-200">
+              Tempo registrato al centesimo: <strong className="text-amber-300 font-mono">{formattedSeconds} secondi</strong>.
+            </p>
+            <button
+              type="button"
+              onClick={() => onComplete(elapsedMs)}
+              className="w-full py-3 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 text-xs font-black uppercase shadow-lg"
+            >
+              Invia Tempo ({formattedSeconds}s)
+            </button>
+          </div>
+        ) : (
+          <div className="text-center text-[11px] text-slate-400 font-semibold">
+            Vince chi svuota il boccale in meno tempo • Posta: 1 birra offerta
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// 🎰 MINIGIOCO 2: SLOT DI DIMA (3 RULLI • 74 / BOCCALE / LATTINA • LEGGENDA)
+// ============================================================================
+const DIMA_SYMBOLS = [
+  { id: '74', label: '74', title: 'Il 74 del Gruppo', pts: 30, color: 'text-amber-300 border-amber-400 bg-amber-500/20' },
+  { id: 'boccale', label: '🍺', title: 'Boccale', pts: 15, color: 'text-yellow-300 border-yellow-400/70 bg-yellow-500/15' },
+  { id: 'lattina', label: '🥫', title: 'Lattina Spiaccicata', pts: 5, color: 'text-emerald-300 border-emerald-500/60 bg-emerald-950/50' }
+];
+
+const pickWeightedDimaSymbol = () => {
+  const r = Math.random();
+  if (r < 0.22) return DIMA_SYMBOLS[0];
+  if (r < 0.62) return DIMA_SYMBOLS[1];
+  return DIMA_SYMBOLS[2];
+};
+
+const evaluateDimaSpin = (reels) => {
+  const [a, b, c] = reels;
+  const allSame = a.id === b.id && b.id === c.id;
+
+  if (allSame && a.id === '74') {
+    return {
+      score: 100,
+      label: '👑 JACKPOT 74 • 74 • 74! (100 pt • 2 Birre in palio!)',
+      isRareExtreme: true
+    };
+  }
+  if (allSame && a.id === 'lattina') {
+    return {
+      score: 1,
+      label: '🥫 DISASTRO 3x LATTINA! (1 pt • 2 Birre in palio!)',
+      isRareExtreme: true
+    };
+  }
+  if (allSame && a.id === 'boccale') {
+    return {
+      score: 55,
+      label: '🍺 TRIS DI BOCCALI! (55 pt)',
+      isRareExtreme: false
+    };
+  }
+
+  const totalPts = a.pts + b.pts + c.pts;
+  return {
+    score: totalPts,
+    label: `Combinazione ${a.label} ${b.label} ${c.label} (${totalPts} pt)`,
+    isRareExtreme: false
+  };
+};
+
+function SlotDiDimaArena({ opponentName, onComplete, onCancel }) {
+  const [spinning, setSpinning] = useState(false);
+  const [stoppedReels, setStoppedReels] = useState([false, false, false]);
+  const [reels, setReels] = useState([DIMA_SYMBOLS[1], DIMA_SYMBOLS[0], DIMA_SYMBOLS[2]]);
+  const [resultObj, setResultObj] = useState(null);
+  const [showLegend, setShowLegend] = useState(true);
+
+  const handlePullLever = () => {
+    if (spinning || resultObj) return;
+    setSpinning(true);
+    setStoppedReels([false, false, false]);
+
+    const finalReels = [
+      pickWeightedDimaSymbol(),
+      pickWeightedDimaSymbol(),
+      pickWeightedDimaSymbol()
+    ];
+
+    const interval = setInterval(() => {
+      setReels(prev => [
+        stoppedReels[0] ? prev[0] : DIMA_SYMBOLS[Math.floor(Math.random() * DIMA_SYMBOLS.length)],
+        stoppedReels[1] ? prev[1] : DIMA_SYMBOLS[Math.floor(Math.random() * DIMA_SYMBOLS.length)],
+        stoppedReels[2] ? prev[2] : DIMA_SYMBOLS[Math.floor(Math.random() * DIMA_SYMBOLS.length)]
+      ]);
+    }, 85);
+
+    setTimeout(() => {
+      setReels(prev => [finalReels[0], prev[1], prev[2]]);
+      setStoppedReels([true, false, false]);
+    }, 750);
+
+    setTimeout(() => {
+      setReels(prev => [finalReels[0], finalReels[1], prev[2]]);
+      setStoppedReels([true, true, false]);
+    }, 1450);
+
+    setTimeout(() => {
+      clearInterval(interval);
+      setReels(finalReels);
+      setStoppedReels([true, true, true]);
+      setSpinning(false);
+      setResultObj(evaluateDimaSpin(finalReels));
+    }, 2150);
+  };
+
+  return (
+    <div onClick={onCancel} className="fixed inset-0 z-[220] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-sm bg-slate-900 border-2 border-amber-400 rounded-3xl p-4 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-black uppercase text-amber-400 block">
+              🎰 Fortuna • Sfida contro {opponentName}
+            </span>
+            <h3 className="text-base font-black text-white">La Slot di Dima</h3>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setShowLegend(v => !v)}
+              className="px-2.5 py-1.5 rounded-xl bg-slate-800 border border-amber-400/40 text-amber-300 text-[10px] font-black uppercase flex items-center gap-1"
+            >
+              <HelpCircle className="w-3.5 h-3.5" /> Leggenda
+            </button>
+            <button type="button" onClick={onCancel} className="w-8 h-8 rounded-xl bg-slate-800 text-slate-300 text-xs font-black">
+              ✕
+            </button>
+          </div>
+        </div>
+
+        <div className="bg-slate-950 border-2 border-amber-500/50 rounded-2xl p-3.5 space-y-2.5">
+          <div className="grid grid-cols-3 gap-2">
+            {reels.map((sym, idx) => {
+              const isLocked = stoppedReels[idx] && !spinning;
+              return (
+                <div
+                  key={idx}
+                  className={`h-24 rounded-2xl border-2 flex flex-col items-center justify-center transition ${
+                    spinning && !stoppedReels[idx]
+                      ? 'border-amber-400 bg-slate-900 animate-pulse'
+                      : isLocked
+                      ? `${sym.color} scale-[1.02]`
+                      : 'border-slate-700 bg-slate-900'
+                  }`}
+                >
+                  <span className={`font-black leading-none ${sym.id === '74' ? 'text-2xl tracking-tighter' : 'text-3xl'}`}>
+                    {sym.label}
+                  </span>
+                  <span className="text-[9px] font-black uppercase mt-1 text-slate-200">
+                    {sym.pts} pt
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {resultObj && (
+            <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-400/50 text-center">
+              <span className="text-xs font-black text-amber-200 block">{resultObj.label}</span>
+            </div>
+          )}
+        </div>
+
+        {showLegend && (
+          <div className="bg-slate-950 border border-slate-800 rounded-2xl p-3 space-y-1.5 text-[11px] text-slate-300">
+            <span className="text-[10px] font-black uppercase text-amber-400 block">
+              📜 Indice Simboli & Valori
+            </span>
+            <div className="flex justify-between"><span><strong>74</strong> (stile slot 7)</span><strong className="text-amber-300">30 pt</strong></div>
+            <div className="flex justify-between"><span><strong>🍺</strong> Boccale Classico</span><strong className="text-yellow-300">15 pt</strong></div>
+            <div className="flex justify-between"><span><strong>🥫</strong> Lattina Spiaccicata</span><strong className="text-emerald-300">5 pt</strong></div>
+            <p className="text-[10px] text-slate-400 pt-1 border-t border-slate-800/80 leading-snug">
+              Le combinazioni miste sommano i punti dei 3 rulli. Tris uguali rari; <strong>3x 74</strong> (100 pt) o <strong>3x Lattina</strong> (1 pt) sono rarissimi e mettono in palio <strong>2 birre</strong>!
+            </p>
+          </div>
+        )}
+
+        {!resultObj ? (
+          <button
+            type="button"
+            disabled={spinning}
+            onClick={handlePullLever}
+            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 disabled:opacity-50 text-slate-950 text-xs font-black uppercase tracking-wider shadow-lg"
+          >
+            {spinning ? '🎰 I rulli si stanno fermando...' : '🕹️ Tira la Leva della Slot di Dima'}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onComplete(resultObj.score, resultObj)}
+            className="w-full py-3.5 rounded-2xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 text-xs font-black uppercase tracking-wider shadow-lg"
+          >
+            Conferma Punteggio ({resultObj.score} pt)
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// 🏪 COMPONENTE PRINCIPALE DEL CHIOSCO (5 CATEGORIE + SEZIONE SISAL)
+// ============================================================================
+export default function Chiosco({
+  isGodMode = false,
+  currentUser = null,
+  members = [],
+  sisalChallenges = [],
+  sisalWeeklyCount = 0,
+  sisalMaxWeekly = 2,
+  onCreateSisalChallenge,
+  onSubmitSisalScore,
+  onDeclineSisalChallenge,
+  ownedItems = [],
+  onToggleOwnItem
+}) {
+  const [sectionMode, setSectionMode] = useState('gadget'); // 'gadget' | 'sisal'
   const [activeCategory, setActiveCategory] = useState('cavatappi');
   const [inspectedItem, setInspectedItem] = useState(null);
+
+  const opponents = (members || []).filter(m => m.id !== currentUser?.id);
+  const [selectedOpponentId, setSelectedOpponentId] = useState(() => opponents[0]?.id || '');
+  const [selectedGameType, setSelectedGameType] = useState('boccale');
+  const [activeArena, setActiveArena] = useState(null);
+
+  useEffect(() => {
+    if (!selectedOpponentId && opponents.length > 0) {
+      setSelectedOpponentId(opponents[0].id);
+    }
+  }, [opponents, selectedOpponentId]);
+
+  const myChallenges = (sisalChallenges || []).filter(
+    ch => ch.challengerId === currentUser?.id || ch.opponentId === currentUser?.id
+  );
+
+  const handleStartNewChallenge = () => {
+    if (!onCreateSisalChallenge || !selectedOpponentId) return;
+    const opp = opponents.find(m => m.id === selectedOpponentId);
+    const createdId = onCreateSisalChallenge({
+      opponentId: selectedOpponentId,
+      gameType: selectedGameType
+    });
+    if (createdId) {
+      setActiveArena({
+        challengeId: createdId,
+        role: 'challenger',
+        gameType: selectedGameType,
+        opponentName: opp?.name || 'Avversario'
+      });
+    }
+  };
+
+  const handleArenaFinish = (scoreValue, slotDetails = null) => {
+    if (!activeArena || !onSubmitSisalScore) return;
+    onSubmitSisalScore({
+      challengeId: activeArena.challengeId,
+      role: activeArena.role,
+      scoreValue,
+      slotDetails
+    });
+    setActiveArena(null);
+  };
 
   const categories = [
     { id: 'cavatappi', label: 'Cavatappi', icon: Wrench },
@@ -1693,188 +1920,384 @@ export default function Chiosco({ isGodMode = false, ownedItems = [], onToggleOw
 
   return (
     <div className="space-y-4 pb-6">
-      {/* INTESTAZIONE DEL CHIOSCO */}
-      <div className="bg-gradient-to-r from-amber-500/20 via-slate-900 to-slate-950 border border-amber-500/40 rounded-2xl px-3.5 py-2.5 shadow-xl flex items-center justify-between">
-        <span className="text-xs font-black uppercase text-amber-400 flex items-center gap-1.5">
-          <Sparkles className="w-4 h-4" /> Il Chiosco Ufficiale • {ALL_CHIOSCO_ITEMS.length} Carte
-        </span>
-        <span className="text-[9px] font-black uppercase bg-slate-950 text-amber-300 border border-amber-400/40 px-2 py-0.5 rounded-full">
-          {isGodMode ? '⚡ Tutto Gratis' : 'Tocca una carta'}
-        </span>
-      </div>
-
-      {/* SELETTORE DELLE 5 CATEGORIE */}
-      <div className="grid grid-cols-5 gap-1 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
-        {categories.map(cat => {
-          const IconComp = cat.icon;
-          const isSelected = activeCategory === cat.id;
-          const isSantiniTab = cat.id === 'santini';
-          return (
-            <button
-              key={cat.id}
-              type="button"
-              onClick={() => setActiveCategory(cat.id)}
-              className={`py-2 px-1 rounded-xl text-[9px] font-black uppercase flex flex-col items-center justify-center gap-1 transition ${
-                isSelected
-                  ? isSantiniTab
-                    ? 'bg-gradient-to-br from-rose-500 via-fuchsia-400 to-cyan-300 text-slate-950 shadow-lg shadow-rose-500/30'
-                    : 'bg-gradient-to-br from-amber-400 to-amber-500 text-slate-950 shadow-lg shadow-amber-500/20'
-                  : isSantiniTab
-                  ? 'text-rose-300 hover:text-white bg-rose-950/30 border border-rose-500/30'
-                  : 'text-slate-400 hover:text-white bg-slate-900/60'
-              }`}
-            >
-              <IconComp className="w-4 h-4" />
-              <span className="truncate max-w-full">{cat.label}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* GRIGLIA DEGLI OGGETTI DELLA CATEGORIA ATTIVA */}
-      <div className="grid grid-cols-2 gap-3">
-        {currentItems.map(item => {
-          const style = RARITY_STYLES[item.rarity] || RARITY_STYLES.COMUNE;
-          const owned = isItemOwned(item);
-
-          return (
-            <div
-              key={item.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => setInspectedItem(item)}
-              className={`w-full bg-gradient-to-b ${style.cardBg} border-2 ${style.cardBorder} rounded-2xl p-3 flex flex-col items-center justify-between text-center cursor-pointer transition active:scale-95 shadow-lg relative overflow-hidden group`}
-            >
-              {/* Header Carta: Solo Rarità */}
-              <div className="w-full flex items-center justify-center pointer-events-none">
-                <span className={`text-[9px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow ${style.badgeBg}`}>
-                  {style.label}
-                </span>
-              </div>
-
-              {/* Illustrazione Vettoriale PRO 3D */}
-              <div className="my-1.5 group-hover:scale-105 transition-transform pointer-events-none">
-                <ChioscoItemArtwork id={item.id} size="md" />
-              </div>
-
-              {/* Nome, Anteprima Frase e Tasto Apri */}
-              <div className="w-full space-y-1.5 pointer-events-none">
-                <h3 className="text-xs font-black text-white leading-tight line-clamp-1">
-                  {item.name}
-                </h3>
-                <p className="text-[10px] text-amber-200/90 line-clamp-2 leading-tight italic px-0.5">
-                  "{item.desc}"
-                </p>
-                <div className={`w-full py-1.5 rounded-xl border text-[10px] font-black uppercase flex items-center justify-center gap-1 ${
-                  owned
-                    ? 'bg-emerald-500/20 border-emerald-400/60 text-emerald-300'
-                    : 'bg-amber-500/20 border-amber-400/50 text-amber-300'
-                }`}>
-                  <Eye className="w-3 h-3" />
-                  <span>{owned ? 'Nei tuoi averi ✅' : isGodMode ? 'Apri • ⚡ Gratis' : 'Apri Carta • 🔒'}</span>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* =====================================================================
-          MODALE ISPEZIONE CARTA A TUTTO SCHERMO (STILE CLASH ROYALE / FIFA)
-      ===================================================================== */}
-      {inspectedItem && activeModalStyle && (
-        <div
-          onClick={() => setInspectedItem(null)}
-          className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto"
+      {/* Selettore Modalità Chiosco: Gadget vs SISAL */}
+      <div className="grid grid-cols-2 gap-1.5 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
+        <button
+          type="button"
+          onClick={() => setSectionMode('gadget')}
+          className={`py-2 rounded-xl text-[10px] font-black uppercase transition ${
+            sectionMode === 'gadget'
+              ? 'bg-amber-400 text-slate-950 shadow'
+              : 'text-slate-400 hover:text-white'
+          }`}
         >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className={`bg-gradient-to-b ${activeModalStyle.cardBg} border-2 ${activeModalStyle.modalBorder} rounded-3xl max-w-sm w-full max-h-[90vh] overflow-y-auto p-5 text-center space-y-3 relative`}
-          >
-            {/* Pulsante X in alto a destra */}
-            <button
-              type="button"
-              onClick={() => setInspectedItem(null)}
-              className="absolute top-3.5 right-3.5 w-8 h-8 rounded-full bg-slate-950 border border-slate-700 text-slate-200 hover:text-white flex items-center justify-center z-10"
-            >
-              <X className="w-4 h-4" />
-            </button>
+          🏪 Gadget ({ALL_CHIOSCO_ITEMS.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setSectionMode('sisal')}
+          className={`py-2 rounded-xl text-[10px] font-black uppercase transition ${
+            sectionMode === 'sisal'
+              ? 'bg-gradient-to-r from-emerald-400 to-amber-400 text-slate-950 shadow'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          🎲 SISAL ({myChallenges.length})
+        </button>
+      </div>
 
-            {/* Top Badge Solo Rarità */}
-            <div className="flex items-center justify-center">
-              <span className={`text-xs font-black uppercase tracking-widest px-4 py-1 rounded-full shadow-lg ${activeModalStyle.badgeBg}`}>
-                ★ {activeModalStyle.label} ★
+      {sectionMode === 'sisal' ? (
+        <div className="space-y-4">
+          <div className="bg-gradient-to-r from-emerald-950/80 via-slate-900 to-amber-950/60 border border-emerald-400/50 rounded-2xl p-3.5 space-y-1.5 shadow-lg">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black uppercase text-emerald-300">
+                🎲 Sala Scommesse SISAL
+              </span>
+              <span className="text-[10px] font-mono font-black px-2 py-0.5 rounded-full bg-slate-950 border border-amber-400/40 text-amber-300">
+                {sisalWeeklyCount}/{sisalMaxWeekly} a settimana
               </span>
             </div>
+            <p className="text-[11px] text-slate-200 leading-snug">
+              Sfida un compagno della lega: in palio c'è <strong>una birra offerta</strong>! Se rifiuti la sfida, perdi per rinuncia e offri comunque la birra.
+            </p>
+          </div>
 
-            {/* Area Grafica Gigante con Bagliore Radiale */}
-            <div
-              className="py-3 flex items-center justify-center rounded-2xl mx-auto"
-              style={{ background: activeModalStyle.radialBg }}
-            >
-              <ChioscoItemArtwork id={inspectedItem.id} size="xl" />
-            </div>
-
-            {/* Titolo, Sottotitolo e BOX DESCRIZIONE SPIRITOSA */}
-            <div className="space-y-2.5">
-              <div>
-                <h2 className="text-xl font-black uppercase text-white tracking-wide leading-tight">
-                  {inspectedItem.name}
-                </h2>
-                <span className="text-[10px] font-black uppercase text-amber-400 tracking-wider block mt-0.5">
-                  {inspectedItem.subtitle}
-                </span>
-              </div>
-
-              <div className="bg-slate-950/95 border-2 border-amber-400/50 rounded-2xl p-4 text-center shadow-lg">
-                <span className="text-[9px] font-black uppercase tracking-widest text-amber-400 block mb-1.5">
-                  📜 Descrizione Ufficiale del Chiosco
-                </span>
-                <p className="text-xs text-white leading-relaxed font-bold italic">
-                  "{inspectedItem.desc}"
-                </p>
-              </div>
-            </div>
-
-            {/* Pulsante Azione */}
-            <div className="pt-1 space-y-2">
-              {isGodMode && onToggleOwnItem ? (
-                <button
-                  type="button"
-                  onClick={() => onToggleOwnItem(inspectedItem)}
-                  className={`w-full py-3 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition ${
-                    inspectedOwned
-                      ? 'bg-red-600/25 hover:bg-red-600/40 border-2 border-red-400 text-red-200'
-                      : 'bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 text-slate-950'
-                  }`}
-                >
-                  <span>
-                    {inspectedOwned
-                      ? '🗑️ Togli dai Miei Averi (God Mode)'
-                      : '⚡ Prendi Gratis (0 Tappi • God Mode)'}
-                  </span>
-                </button>
-              ) : inspectedOwned ? (
-                <div className="w-full py-2.5 rounded-2xl bg-emerald-950/80 border border-emerald-400/60 text-emerald-300 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2">
-                  <span>✅ Già presente nei tuoi averi!</span>
-                </div>
-              ) : (
-                <div className="w-full py-2.5 rounded-2xl bg-slate-950 border border-amber-500/40 text-amber-300 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2">
-                  <Lock className="w-4 h-4 text-amber-400" />
-                  <span>Bloccato • Presto coi Tappi d'Oro</span>
-                </div>
-              )}
-
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 space-y-3">
+            <span className="text-[10px] font-black uppercase text-amber-400 block">
+              1. Scegli il Minigioco
+            </span>
+            <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => setInspectedItem(null)}
-                className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black uppercase transition shadow-lg"
+                onClick={() => setSelectedGameType('boccale')}
+                className={`p-2.5 rounded-xl border text-left transition ${
+                  selectedGameType === 'boccale' ? 'bg-amber-500/20 border-amber-400 text-white' : 'bg-slate-950 border-slate-800 text-slate-400'
+                }`}
               >
-                Chiudi Carta
+                <span className="text-xs font-black block">🍺 Svuota il Boccale</span>
+                <span className="text-[10px] text-slate-400 block">50 tap ovunque • Centesimi</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedGameType('slot_dima')}
+                className={`p-2.5 rounded-xl border text-left transition ${
+                  selectedGameType === 'slot_dima' ? 'bg-amber-500/20 border-amber-400 text-white' : 'bg-slate-950 border-slate-800 text-slate-400'
+                }`}
+              >
+                <span className="text-xs font-black block">🎰 Slot di Dima</span>
+                <span className="text-[10px] text-slate-400 block">74 • Boccale • Lattina</span>
               </button>
             </div>
+
+            <div>
+              <label className="block text-[10px] font-black uppercase text-amber-400 mb-1">
+                2. Scegli l'Avversario
+              </label>
+              {opponents.length === 0 ? (
+                <p className="text-[11px] text-slate-400">Non ci sono altri membri nella lega.</p>
+              ) : (
+                <select
+                  value={selectedOpponentId}
+                  onChange={(e) => setSelectedOpponentId(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs font-bold text-white focus:outline-none focus:border-amber-400"
+                >
+                  {opponents.map(m => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            <button
+              type="button"
+              disabled={opponents.length === 0 || (sisalWeeklyCount >= sisalMaxWeekly && !isGodMode)}
+              onClick={handleStartNewChallenge}
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 disabled:opacity-40 text-slate-950 text-xs font-black uppercase tracking-wider shadow-lg transition"
+            >
+              {sisalWeeklyCount >= sisalMaxWeekly && !isGodMode
+                ? 'Limite 2 Sfide Settimanali Raggiunto'
+                : '🔥 Lancia Sfida (1 Birra in Palio)'}
+            </button>
           </div>
+
+          <div className="space-y-2.5">
+            <span className="text-[10px] font-black uppercase text-slate-400 block">
+              Le Tue Sfide SISAL ({myChallenges.length})
+            </span>
+
+            {myChallenges.length === 0 ? (
+              <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-5 text-center text-xs text-slate-400">
+                Nessuna sfida SISAL ancora lanciata o ricevuta.
+              </div>
+            ) : (
+              myChallenges.map(ch => {
+                const isChallenger = ch.challengerId === currentUser?.id;
+                const otherName = isChallenger ? ch.opponentName : ch.challengerName;
+                const gameTitle = ch.gameType === 'boccale' ? 'Svuota il Boccale' : 'Slot di Dima';
+                const iNeedToPlayAsOpponent = !isChallenger && ch.status === 'pending_opponent' && ch.opponentScore === null;
+
+                return (
+                  <div key={ch.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 space-y-2.5 shadow">
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <span className="text-xs font-black text-white block">
+                          {ch.gameType === 'boccale' ? '🍺' : '🎰'} {gameTitle}
+                        </span>
+                        <span className="text-[10px] text-slate-400">
+                          {isChallenger ? `Hai sfidato ${otherName}` : `${otherName} ti ha sfidato`}
+                        </span>
+                      </div>
+                      <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                        ch.status === 'completed'
+                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                          : ch.status === 'declined'
+                          ? 'bg-red-500/20 text-red-300 border border-red-500/40'
+                          : 'bg-amber-500/20 text-amber-300 border border-amber-400/40'
+                      }`}>
+                        {ch.status === 'completed' ? 'Conclusa' : ch.status === 'declined' ? 'Rifiutata' : 'In Corso'}
+                      </span>
+                    </div>
+
+                    {iNeedToPlayAsOpponent && (
+                      <div className="grid grid-cols-2 gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => onDeclineSisalChallenge?.(ch.id)}
+                          className="py-2 rounded-xl bg-red-950/70 hover:bg-red-900 border border-red-500/50 text-red-200 text-[10px] font-black uppercase flex items-center justify-center gap-1"
+                        >
+                          <XCircle className="w-3.5 h-3.5" /> Rifiuta (Offri Birra)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setActiveArena({
+                            challengeId: ch.id,
+                            role: 'opponent',
+                            gameType: ch.gameType,
+                            opponentName: ch.challengerName
+                          })}
+                          className="py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-[10px] font-black uppercase flex items-center justify-center gap-1"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Accetta e Gioca
+                        </button>
+                      </div>
+                    )}
+
+                    {ch.status === 'completed' && ch.outcome && (
+                      <div className={`p-2.5 rounded-xl border text-xs font-black text-center ${
+                        ch.outcome.isDraw
+                          ? 'bg-slate-950 border-slate-700 text-slate-200'
+                          : ch.outcome.winnerId === currentUser?.id
+                          ? 'bg-emerald-950/60 border-emerald-400 text-emerald-300'
+                          : 'bg-red-950/60 border-red-500 text-red-300'
+                      }`}>
+                        {ch.outcome.isDraw
+                          ? '🤝 Pareggio! Nessuna birra offerta.'
+                          : ch.outcome.winnerId === currentUser?.id
+                          ? `🏆 HAI VINTO, ${ch.outcome.loserName} TI DEVE OFFRIRE ${ch.outcome.beersStake === 2 ? '2 BIRRE' : 'UNA BIRRA'}!`
+                          : `💀 HAI PERSO, DEVI OFFRIRE ${ch.outcome.beersStake === 2 ? '2 BIRRE' : 'UNA BIRRA'} A ${ch.outcome.winnerName}!`}
+                      </div>
+                    )}
+
+                    {ch.status === 'declined' && ch.outcome && (
+                      <div className="p-2.5 rounded-xl bg-red-950/60 border border-red-500/60 text-xs font-black text-center text-red-200">
+                        {ch.outcome.loserId === currentUser?.id
+                          ? `🏳️ HAI RIFIUTATO: DEVI OFFRIRE UNA BIRRA A ${ch.outcome.winnerName}!`
+                          : `🍻 ${ch.outcome.loserName} HA RIFIUTATO: TI DEVE OFFRIRE UNA BIRRA!`}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {activeArena?.gameType === 'boccale' && (
+            <SvuotaBoccaleArena
+              opponentName={activeArena.opponentName}
+              onComplete={(ms) => handleArenaFinish(ms)}
+              onCancel={() => setActiveArena(null)}
+            />
+          )}
+          {activeArena?.gameType === 'slot_dima' && (
+            <SlotDiDimaArena
+              opponentName={activeArena.opponentName}
+              onComplete={(pts, details) => handleArenaFinish(pts, details)}
+              onCancel={() => setActiveArena(null)}
+            />
+          )}
         </div>
+      ) : (
+        <>
+          <div className="bg-gradient-to-r from-amber-500/20 via-slate-900 to-slate-950 border border-amber-500/40 rounded-2xl px-3.5 py-2.5 shadow-xl flex items-center justify-between">
+            <span className="text-xs font-black uppercase text-amber-400 flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4" /> Il Chiosco Ufficiale • {ALL_CHIOSCO_ITEMS.length} Carte
+            </span>
+            <span className="text-[9px] font-black uppercase bg-slate-950 text-amber-300 border border-amber-400/40 px-2 py-0.5 rounded-full">
+              {isGodMode ? '⚡ Tutto Gratis' : 'Tocca una carta'}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-5 gap-1 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
+            {categories.map(cat => {
+              const IconComp = cat.icon;
+              const isSelected = activeCategory === cat.id;
+              const isSantiniTab = cat.id === 'santini';
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setActiveCategory(cat.id)}
+                  className={`py-2 px-1 rounded-xl text-[9px] font-black uppercase flex flex-col items-center justify-center gap-1 transition ${
+                    isSelected
+                      ? isSantiniTab
+                        ? 'bg-gradient-to-br from-rose-500 via-fuchsia-400 to-cyan-300 text-slate-950 shadow-lg shadow-rose-500/30'
+                        : 'bg-gradient-to-br from-amber-400 to-amber-500 text-slate-950 shadow-lg shadow-amber-500/20'
+                      : isSantiniTab
+                      ? 'text-rose-300 hover:text-white bg-rose-950/30 border border-rose-500/30'
+                      : 'text-slate-400 hover:text-white bg-slate-900/60'
+                  }`}
+                >
+                  <IconComp className="w-4 h-4" />
+                  <span className="truncate max-w-full">{cat.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            {currentItems.map(item => {
+              const style = RARITY_STYLES[item.rarity] || RARITY_STYLES.COMUNE;
+              const owned = isItemOwned(item);
+
+              return (
+                <div
+                  key={item.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setInspectedItem(item)}
+                  className={`w-full bg-gradient-to-b ${style.cardBg} border-2 ${style.cardBorder} rounded-2xl p-3 flex flex-col items-center justify-between text-center cursor-pointer transition active:scale-95 shadow-lg relative overflow-hidden group`}
+                >
+                  <div className="w-full flex items-center justify-center pointer-events-none">
+                    <span className={`text-[9px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow ${style.badgeBg}`}>
+                      {style.label}
+                    </span>
+                  </div>
+
+                  <div className="my-1.5 group-hover:scale-105 transition-transform pointer-events-none">
+                    <ChioscoItemArtwork id={item.id} size="md" />
+                  </div>
+
+                  <div className="w-full space-y-1.5 pointer-events-none">
+                    <h3 className="text-xs font-black text-white leading-tight line-clamp-1">
+                      {item.name}
+                    </h3>
+                    <p className="text-[10px] text-amber-200/90 line-clamp-2 leading-tight italic px-0.5">
+                      "{item.desc}"
+                    </p>
+                    <div className={`w-full py-1.5 rounded-xl border text-[10px] font-black uppercase flex items-center justify-center gap-1 ${
+                      owned
+                        ? 'bg-emerald-500/20 border-emerald-400/60 text-emerald-300'
+                        : 'bg-amber-500/20 border-amber-400/50 text-amber-300'
+                    }`}>
+                      <Eye className="w-3 h-3" />
+                      <span>{owned ? 'Nei tuoi averi ✅' : isGodMode ? 'Apri • ⚡ Gratis' : 'Apri Carta • 🔒'}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {inspectedItem && activeModalStyle && (
+            <div
+              onClick={() => setInspectedItem(null)}
+              className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto"
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className={`bg-gradient-to-b ${activeModalStyle.cardBg} border-2 ${activeModalStyle.modalBorder} rounded-3xl max-w-sm w-full max-h-[90vh] overflow-y-auto p-5 text-center space-y-3 relative`}
+              >
+                <button
+                  type="button"
+                  onClick={() => setInspectedItem(null)}
+                  className="absolute top-3.5 right-3.5 w-8 h-8 rounded-full bg-slate-950 border border-slate-700 text-slate-200 hover:text-white flex items-center justify-center z-10"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+
+                <div className="flex items-center justify-center">
+                  <span className={`text-xs font-black uppercase tracking-widest px-4 py-1 rounded-full shadow-lg ${activeModalStyle.badgeBg}`}>
+                    ★ {activeModalStyle.label} ★
+                  </span>
+                </div>
+
+                <div
+                  className="py-3 flex items-center justify-center rounded-2xl mx-auto"
+                  style={{ background: activeModalStyle.radialBg }}
+                >
+                  <ChioscoItemArtwork id={inspectedItem.id} size="xl" />
+                </div>
+
+                <div className="space-y-2.5">
+                  <div>
+                    <h2 className="text-xl font-black uppercase text-white tracking-wide leading-tight">
+                      {inspectedItem.name}
+                    </h2>
+                    <span className="text-[10px] font-black uppercase text-amber-400 tracking-wider block mt-0.5">
+                      {inspectedItem.subtitle}
+                    </span>
+                  </div>
+
+                  <div className="bg-slate-950/95 border-2 border-amber-400/50 rounded-2xl p-4 text-center shadow-lg">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-amber-400 block mb-1.5">
+                      📜 Descrizione Ufficiale del Chiosco
+                    </span>
+                    <p className="text-xs text-white leading-relaxed font-bold italic">
+                      "{inspectedItem.desc}"
+                    </p>
+                  </div>
+                </div>
+
+                <div className="pt-1 space-y-2">
+                  {isGodMode && onToggleOwnItem ? (
+                    <button
+                      type="button"
+                      onClick={() => onToggleOwnItem(inspectedItem)}
+                      className={`w-full py-3 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition ${
+                        inspectedOwned
+                          ? 'bg-red-600/25 hover:bg-red-600/40 border-2 border-red-400 text-red-200'
+                          : 'bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 text-slate-950'
+                      }`}
+                    >
+                      <span>
+                        {inspectedOwned
+                          ? '🗑️ Togli dai Miei Averi (God Mode)'
+                          : '⚡ Prendi Gratis (0 Tappi • God Mode)'}
+                      </span>
+                    </button>
+                  ) : inspectedOwned ? (
+                    <div className="w-full py-2.5 rounded-2xl bg-emerald-950/80 border border-emerald-400/60 text-emerald-300 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2">
+                      <span>✅ Già presente nei tuoi averi!</span>
+                    </div>
+                  ) : (
+                    <div className="w-full py-2.5 rounded-2xl bg-slate-950 border border-amber-500/40 text-amber-300 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2">
+                      <Lock className="w-4 h-4 text-amber-400" />
+                      <span>Bloccato • Presto coi Tappi d'Oro</span>
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setInspectedItem(null)}
+                    className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black uppercase transition shadow-lg"
+                  >
+                    Chiudi Carta
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

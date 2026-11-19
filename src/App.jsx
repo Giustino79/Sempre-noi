@@ -2086,7 +2086,226 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
       return updated;
     }));
   };
+// --- GESTIONE SFIDE MINIGIOCHI SISAL (MAX 2 A SETTIMANA • POSTA: 1 BIRRA OFFERTA) ---
+  const SISAL_MAX_WEEKLY_CHALLENGES = 2;
 
+  const getSisalWeeklyCount = (member, weekKey = currentWeekKey) => {
+    if (!member) return 0;
+    if (member.sisalWeekKey !== weekKey) return 0;
+    return Number(member.sisalWeekCount || 0);
+  };
+
+  const resolveSisalOutcome = (challenge, challengerScore, opponentScore) => {
+    // Nel gioco 'boccale': vince chi impiega MENO millisecondi (più veloce).
+    // Nel gioco 'slot_dima': vince chi fa PIÙ punti.
+    const isSpeedGame = challenge.gameType === 'boccale';
+    if (challengerScore === opponentScore) {
+      return { winnerId: null, loserId: null, isDraw: true, beersStake: 1 };
+    }
+
+    const challengerWins = isSpeedGame
+      ? Number(challengerScore) < Number(opponentScore)
+      : Number(challengerScore) > Number(opponentScore);
+
+    const winnerId = challengerWins ? challenge.challengerId : challenge.opponentId;
+    const loserId = challengerWins ? challenge.opponentId : challenge.challengerId;
+    const winnerScore = challengerWins ? challengerScore : opponentScore;
+
+    // Scenari rarissimi (solo se il vincitore ha fatto il triplo 74 o ha perso col triplo 74 -> 2 birre)
+    const isRareDoubleBeer =
+      challenge.gameType === 'slot_dima' &&
+      (winnerScore === 100 || Number(challenge.challengerScore) === 100 || Number(challenge.opponentScore) === 100);
+
+    return {
+      winnerId,
+      loserId,
+      isDraw: false,
+      beersStake: isRareDoubleBeer ? 2 : 1
+    };
+  };
+
+  const handleCreateSisalChallenge = ({ opponentId, gameType }) => {
+    if (!activeLeagueId || !currentUser || !myMemberProfile) return;
+    const usedThisWeek = getSisalWeeklyCount(myMemberProfile, currentWeekKey);
+    if (usedThisWeek >= SISAL_MAX_WEEKLY_CHALLENGES && !isGodMode) {
+      return showToast('🔒 Hai già usato le 2 sfide SISAL disponibili questa settimana!', 'warning');
+    }
+
+    const targetOpponent = (activeLeague.members || []).find(m => m.id === opponentId);
+    if (!targetOpponent || targetOpponent.id === currentUser.id) {
+      return showToast('⚠️ Scegli un avversario valido della lega!', 'warning');
+    }
+
+    const nowMs = Date.now();
+    const challengeId = 'sisal_' + nowMs;
+    const newChallenge = {
+      id: challengeId,
+      leagueId: activeLeagueId,
+      weekKey: currentWeekKey,
+      gameType, // 'boccale' | 'slot_dima'
+      challengerId: currentUser.id,
+      challengerName: currentUser.username,
+      opponentId: targetOpponent.id,
+      opponentName: targetOpponent.name,
+      challengerScore: null,
+      opponentScore: null,
+      challengerSlotResult: null,
+      opponentSlotResult: null,
+      status: 'pending_opponent', // 'pending_opponent' | 'declined' | 'completed'
+      outcome: null,
+      createdAtMs: nowMs,
+      expiresAtMs: nowMs + 48 * 60 * 60 * 1000
+    };
+
+    setLeagues(prev => prev.map(l => {
+      if (l.id !== activeLeagueId) return l;
+      const updated = {
+        ...l,
+        sisalChallenges: [newChallenge, ...(l.sisalChallenges || [])],
+        members: (l.members || []).map(m => {
+          if (m.id !== currentUser.id) return m;
+          const prevCnt = getSisalWeeklyCount(m, currentWeekKey);
+          return {
+            ...m,
+            sisalWeekKey: currentWeekKey,
+            sisalWeekCount: prevCnt + 1
+          };
+        })
+      };
+      pushLeagueToCloud(updated);
+      return updated;
+    }));
+
+    showToast(`🎲 Sfida SISAL inviata a ${targetOpponent.name}! Tocca a te giocare il tuo turno.`, 'success');
+    return challengeId;
+  };
+
+  const handleSubmitSisalScore = ({ challengeId, role, scoreValue, slotDetails = null }) => {
+    if (!activeLeagueId || !challengeId) return;
+    const nowMs = Date.now();
+    let finalToastText = '✅ Risultato SISAL registrato sul Cloud!';
+    let finalToastType = 'success';
+
+    setLeagues(prev => prev.map(l => {
+      if (l.id !== activeLeagueId) return l;
+      const existingList = l.sisalChallenges || [];
+      let nextGazzetta = [...(l.gazzetta || [])];
+
+      const updatedChallenges = existingList.map(ch => {
+        if (ch.id !== challengeId) return ch;
+
+        const nextCh = {
+          ...ch,
+          challengerScore: role === 'challenger' ? scoreValue : ch.challengerScore,
+          opponentScore: role === 'opponent' ? scoreValue : ch.opponentScore,
+          challengerSlotResult: role === 'challenger' && slotDetails ? slotDetails : ch.challengerSlotResult,
+          opponentSlotResult: role === 'opponent' && slotDetails ? slotDetails : ch.opponentSlotResult
+        };
+
+        if (nextCh.challengerScore !== null && nextCh.opponentScore !== null) {
+          const res = resolveSisalOutcome(nextCh, nextCh.challengerScore, nextCh.opponentScore);
+          const winnerName = res.winnerId === nextCh.challengerId ? nextCh.challengerName : nextCh.opponentName;
+          const loserName = res.loserId === nextCh.challengerId ? nextCh.challengerName : nextCh.opponentName;
+          const gameLabel = nextCh.gameType === 'boccale' ? 'Svuota il Boccale' : 'Slot di Dima';
+
+          if (!res.isDraw && winnerName && loserName) {
+            const beersTxt = res.beersStake === 2 ? '2 BIRRE' : 'UNA BIRRA';
+            nextGazzetta = filterActiveGazzettaNews([{
+              id: `news_sisal_${ch.id}_${nowMs}`,
+              category: `VERDETTO SISAL: ${winnerName.toUpperCase()} TRIONFA!`,
+              icon: '🍻',
+              badgeColor: 'bg-amber-400 text-slate-950',
+              text: `Nella sfida "${gameLabel}", ${winnerName} batte ${loserName}: ${loserName} deve offrire ${beersTxt} a ${winnerName}!`,
+              timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
+              dateLabel: new Date().toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }),
+              createdAtMs: nowMs
+            }, ...nextGazzetta], nowMs);
+
+            finalToastText = `🏆 Sfida chiusa! ${loserName} deve offrire ${beersTxt} a ${winnerName}!`;
+          } else {
+            finalToastText = '🤝 Pareggio perfetto al SISAL! Nessuna birra offerta.';
+            finalToastType = 'warning';
+          }
+
+          return {
+            ...nextCh,
+            status: 'completed',
+            completedAtMs: nowMs,
+            outcome: {
+              ...res,
+              winnerName,
+              loserName
+            }
+          };
+        }
+
+        return nextCh;
+      });
+
+      const updated = {
+        ...l,
+        sisalChallenges: updatedChallenges,
+        gazzetta: nextGazzetta
+      };
+      pushLeagueToCloud(updated);
+      return updated;
+    }));
+
+    showToast(finalToastText, finalToastType);
+  };
+
+  const handleDeclineSisalChallenge = (challengeId) => {
+    if (!activeLeagueId || !challengeId) return;
+    const nowMs = Date.now();
+    let loserLabel = '';
+    let winnerLabel = '';
+
+    setLeagues(prev => prev.map(l => {
+      if (l.id !== activeLeagueId) return l;
+      const updatedChallenges = (l.sisalChallenges || []).map(ch => {
+        if (ch.id !== challengeId) return ch;
+        loserLabel = ch.opponentName;
+        winnerLabel = ch.challengerName;
+        return {
+          ...ch,
+          status: 'declined',
+          completedAtMs: nowMs,
+          outcome: {
+            winnerId: ch.challengerId,
+            loserId: ch.opponentId,
+            winnerName: ch.challengerName,
+            loserName: ch.opponentName,
+            isDraw: false,
+            beersStake: 1,
+            byRefusal: true
+          }
+        };
+      });
+
+      const nextGazzetta = loserLabel && winnerLabel
+        ? filterActiveGazzettaNews([{
+            id: `news_sisal_refusal_${challengeId}_${nowMs}`,
+            category: `SFIDA RIFIUTATA AL SISAL: ${loserLabel.toUpperCase()} PAGA!`,
+            icon: '🏳️',
+            badgeColor: 'bg-red-600 text-white',
+            text: `${loserLabel} rifiuta la sfida SISAL lanciata da ${winnerLabel} e perde per rinuncia: dovrà offrire una birra a ${winnerLabel}!`,
+            timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
+            dateLabel: new Date().toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }),
+            createdAtMs: nowMs
+          }, ...(l.gazzetta || [])], nowMs)
+        : (l.gazzetta || []);
+
+      const updated = {
+        ...l,
+        sisalChallenges: updatedChallenges,
+        gazzetta: nextGazzetta
+      };
+      pushLeagueToCloud(updated);
+      return updated;
+    }));
+
+    showToast(`🏳️ Hai rifiutato la sfida: devi offrire una birra a ${winnerLabel || 'chi ti ha sfidato'}!`, 'danger');
+  };
 // Scarica le foto dall'archivio Cloud separato (/albums) SOLO quando si apre l'Album
   // e sposta in automatico eventuali vecchie foto pesanti fuori dalla classifica!
   const handleOpenAlbum = async (targetMember) => {
@@ -5452,14 +5671,22 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
             </div>
           )}
 
-          {/* TAB 5: IL CHIOSCO DEI GADGET */}
-         {activeTab === 'chiosco' && (
-         <Chiosco
-           isGodMode={isGodMode}
-           ownedItems={myMemberProfile?.ownedItems || []}
-           onToggleOwnItem={handleToggleChioscoItem}
-         />
-       )}
+         {/* TAB 5: IL CHIOSCO DEI GADGET & SISAL */}
+          {activeTab === 'chiosco' && (
+            <Chiosco
+              isGodMode={isGodMode}
+              currentUser={currentUser}
+              members={activeLeague?.members || []}
+              sisalChallenges={activeLeague?.sisalChallenges || []}
+              sisalWeeklyCount={getSisalWeeklyCount(myMemberProfile, currentWeekKey)}
+              sisalMaxWeekly={SISAL_MAX_WEEKLY_CHALLENGES}
+              onCreateSisalChallenge={handleCreateSisalChallenge}
+              onSubmitSisalScore={handleSubmitSisalScore}
+              onDeclineSisalChallenge={handleDeclineSisalChallenge}
+              ownedItems={myMemberProfile?.ownedItems || []}
+              onToggleOwnItem={handleToggleChioscoItem}
+            />
+          )}
        <GodPinModal
          isOpen={showGodPinModal}
          onClose={() => setShowGodPinModal(false)}
