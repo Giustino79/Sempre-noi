@@ -1938,8 +1938,8 @@ function CorsaDelLuppoloArena({ opponentName, isFreePlay = false, onComplete, on
   const trackWrapRef = useRef(null);
   const scoreBadgeRef = useRef(null);
 
-  const laneRef = useRef(1);         // Corsia bersaglio: 0 (SX), 1 (CENTRO), 2 (DX)
-  const visualLaneRef = useRef(1);   // Posizione fluida animata
+  const laneRef = useRef(1);
+  const visualLaneRef = useRef(1);
   const scoreRef = useRef(0);
   const lastShownScoreRef = useRef(-1);
   const itemsRef = useRef([]);
@@ -1994,8 +1994,23 @@ function CorsaDelLuppoloArena({ opponentName, isFreePlay = false, onComplete, on
     const canvas = canvasRef.current;
     const wrap = trackWrapRef.current;
     if (!canvas || !wrap) return;
-    const ctx = canvas.getContext('2d', { alpha: false });
+    const ctx = canvas.getContext('2d');
     if (!ctx) return;
+
+    const drawRoundRect = (x, y, w, h, r) => {
+      const rad = Math.min(r, w / 2, h / 2);
+      ctx.beginPath();
+      ctx.moveTo(x + rad, y);
+      ctx.lineTo(x + w - rad, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + rad);
+      ctx.lineTo(x + w, y + h - rad);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - rad, y + h);
+      ctx.lineTo(x + rad, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - rad);
+      ctx.lineTo(x, y + rad);
+      ctx.quadraticCurveTo(x, y, x + rad, y);
+      ctx.closePath();
+    };
 
     let width = wrap.clientWidth || 340;
     let height = wrap.clientHeight || 480;
@@ -2015,10 +2030,9 @@ function CorsaDelLuppoloArena({ opponentName, isFreePlay = false, onComplete, on
 
     const loop = (now) => {
       if (!runningRef.current) return;
-      const dt = Math.min(40, now - lastTime) / 16.67;
+      const dt = Math.min(40, Math.max(0, now - lastTime)) / 16.67;
       lastTime = now;
 
-      // Velocità e punteggio
       speedRef.current = Math.min(2.75, speedRef.current + 0.00075 * dt);
       scoreRef.current += 0.65 * dt;
       roadOffsetRef.current = (roadOffsetRef.current + speedRef.current * 6.5 * dt) % 44;
@@ -2029,10 +2043,8 @@ function CorsaDelLuppoloArena({ opponentName, isFreePlay = false, onComplete, on
         if (scoreBadgeRef.current) scoreBadgeRef.current.textContent = `${shownScore} pt`;
       }
 
-      // Movimento ultra-reattivo verso la corsia scelta
       visualLaneRef.current += (laneRef.current - visualLaneRef.current) * Math.min(1, 0.45 * dt);
 
-      // Generazione ostacoli e bonus
       const spawnInterval = Math.max(350, 880 - speedRef.current * 195);
       if (now - lastSpawnRef.current > spawnInterval) {
         lastSpawnRef.current = now;
@@ -2050,7 +2062,6 @@ function CorsaDelLuppoloArena({ opponentName, isFreePlay = false, onComplete, on
         itemsRef.current.push({ lane: spawnLane, y: -0.08, kind, icon, label });
       }
 
-      // Aggiorna oggetti e collisioni
       const nextItems = [];
       for (let i = 0; i < itemsRef.current.length; i++) {
         const it = itemsRef.current[i];
@@ -2085,238 +2096,225 @@ function CorsaDelLuppoloArena({ opponentName, isFreePlay = false, onComplete, on
       }
       itemsRef.current = nextItems;
 
-    function SlotDiDimaArena({ opponentName, onComplete, onCancel }) {
-  const [spinning, setSpinning] = useState(false);
-  const [stoppedReels, setStoppedReels] = useState([false, false, false]);
-  const [reels, setReels] = useState([DIMA_SYMBOLS[1], DIMA_SYMBOLS[0], DIMA_SYMBOLS[2]]);
-  const [suspenseSymbol, setSuspenseSymbol] = useState(null); // '74' | 'boccale' | 'lattina' | null
-  const [resultObj, setResultObj] = useState(null);
-  const [showLegend, setShowLegend] = useState(true);
+      // Sfondo pista
+      const bgGrad = ctx.createLinearGradient(0, 0, 0, height);
+      bgGrad.addColorStop(0, '#0b1224');
+      bgGrad.addColorStop(0.6, '#111b33');
+      bgGrad.addColorStop(1, '#1e1626');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, width, height);
 
-  const stoppedRef = useRef([false, false, false]);
-  const timersRef = useRef([]);
-  const intervalRef = useRef(null);
+      const laneW = width / 3;
 
-  const clearAllTimers = () => {
-    timersRef.current.forEach(t => clearTimeout(t));
-    timersRef.current = [];
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-  };
+      // Corsia attiva illuminata
+      const laneGrad = ctx.createLinearGradient(0, 0, 0, height);
+      laneGrad.addColorStop(0, 'rgba(251, 191, 36, 0.03)');
+      laneGrad.addColorStop(1, 'rgba(251, 191, 36, 0.16)');
+      ctx.fillStyle = laneGrad;
+      ctx.fillRect(laneRef.current * laneW, 0, laneW, height);
 
-  useEffect(() => () => clearAllTimers(), []);
+      // Strisce scorrevoli
+      ctx.strokeStyle = 'rgba(251, 191, 36, 0.45)';
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([22, 22]);
+      ctx.lineDashOffset = -roadOffsetRef.current;
+      ctx.beginPath();
+      ctx.moveTo(laneW, 0);
+      ctx.lineTo(laneW, height);
+      ctx.moveTo(laneW * 2, 0);
+      ctx.lineTo(laneW * 2, height);
+      ctx.stroke();
+      ctx.setLineDash([]);
 
-  const pickDifferentSymbol = (currentSym) => {
-    const others = DIMA_SYMBOLS.filter(s => s.id !== currentSym?.id);
-    return others[Math.floor(Math.random() * others.length)] || DIMA_SYMBOLS[0];
-  };
+      // Disegno ostacoli e bonus colorati
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
 
-  const handlePullLever = () => {
-    if (spinning || resultObj) return;
-    clearAllTimers();
-    setSpinning(true);
-    setSuspenseSymbol(null);
-    stoppedRef.current = [false, false, false];
-    setStoppedReels([false, false, false]);
+      for (let i = 0; i < itemsRef.current.length; i++) {
+        const it = itemsRef.current[i];
+        const x = it.lane * laneW + laneW / 2;
+        const y = it.y * height;
 
-    const finalReels = [
-      pickWeightedDimaSymbol(),
-      pickWeightedDimaSymbol(),
-      pickWeightedDimaSymbol()
-    ];
+        if (it.kind === 'obs_can') {
+          ctx.beginPath();
+          ctx.arc(x, y, 25, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(239, 68, 68, 0.25)';
+          ctx.fill();
 
-    const startTickLoop = (ms) => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      intervalRef.current = setInterval(() => {
-        setReels(prev => [
-          stoppedRef.current[0] ? finalReels[0] : pickDifferentSymbol(prev[0]),
-          stoppedRef.current[1] ? finalReels[1] : pickDifferentSymbol(prev[1]),
-          stoppedRef.current[2] ? finalReels[2] : pickDifferentSymbol(prev[2])
-        ]);
-      }, ms);
-    };
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(-0.14);
+          drawRoundRect(-14, -19, 28, 38, 6);
+          ctx.fillStyle = '#10b981';
+          ctx.fill();
+          ctx.lineWidth = 2.5;
+          ctx.strokeStyle = '#6ee7b7';
+          ctx.stroke();
+          ctx.fillStyle = '#facc15';
+          ctx.fillRect(-13, -7, 26, 14);
+          ctx.fillStyle = '#ef4444';
+          ctx.fillRect(-13, -4, 26, 8);
+          ctx.fillStyle = '#f8fafc';
+          ctx.fillRect(-11, -21, 22, 4);
+          ctx.fillStyle = '#ffffff';
+          ctx.font = '900 9px sans-serif';
+          ctx.fillText('-5', 0, 1);
+          ctx.restore();
+        } else if (it.kind === 'obs_red') {
+          ctx.beginPath();
+          ctx.arc(x, y, 25, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(239, 68, 68, 0.34)';
+          ctx.fill();
 
-    startTickLoop(75);
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(0.12);
+          drawRoundRect(-14, -20, 28, 40, 5);
+          ctx.fillStyle = '#ff1e38';
+          ctx.fill();
+          ctx.lineWidth = 2.8;
+          ctx.strokeStyle = '#ffffff';
+          ctx.stroke();
+          ctx.fillStyle = '#ffffff';
+          ctx.font = '900 10px sans-serif';
+          ctx.fillText('VAR', 0, 1);
+          ctx.restore();
+        } else if (it.kind === 'obs_cone') {
+          ctx.beginPath();
+          ctx.arc(x, y, 26, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(249, 115, 22, 0.28)';
+          ctx.fill();
 
-    // 1ª Colonna si ferma
-    timersRef.current.push(setTimeout(() => {
-      stoppedRef.current[0] = true;
-      setReels(prev => [finalReels[0], prev[1], prev[2]]);
-      setStoppedReels([true, false, false]);
-      navigator.vibrate?.(25);
-    }, 850));
+          drawRoundRect(x - 21, y - 12, 42, 20, 4);
+          ctx.fillStyle = '#facc15';
+          ctx.fill();
+          ctx.lineWidth = 2.2;
+          ctx.strokeStyle = '#fb923c';
+          ctx.stroke();
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(x - 14, y - 10, 7, 16);
+          ctx.fillRect(x - 1, y - 10, 7, 16);
+          ctx.fillRect(x + 12, y - 10, 6, 16);
+          ctx.fillStyle = '#cbd5e1';
+          ctx.fillRect(x - 16, y + 8, 5, 10);
+          ctx.fillRect(x + 11, y + 8, 5, 10);
+          ctx.fillStyle = '#ff2e2e';
+          ctx.beginPath();
+          ctx.arc(x - 13, y - 15, 4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(x + 13, y - 15, 4, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (it.kind === 'bonus_beer') {
+          ctx.beginPath();
+          ctx.arc(x, y, 24, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(52, 211, 153, 0.28)';
+          ctx.fill();
 
-    // 2ª Colonna si ferma
-    const isTease = finalReels[0].id === finalReels[1].id;
-    timersRef.current.push(setTimeout(() => {
-      stoppedRef.current[1] = true;
-      setReels(prev => [finalReels[0], finalReels[1], prev[2]]);
-      setStoppedReels([true, true, false]);
-      navigator.vibrate?.(35);
+          drawRoundRect(x + 9, y - 8, 9, 16, 4);
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = '#fef08a';
+          ctx.stroke();
+          drawRoundRect(x - 13, y - 13, 24, 29, 5);
+          ctx.fillStyle = '#f59e0b';
+          ctx.fill();
+          ctx.lineWidth = 2.2;
+          ctx.strokeStyle = '#fef9c3';
+          ctx.stroke();
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(x - 6, y - 14, 7, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(x + 1, y - 16, 8, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(x + 7, y - 14, 6, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          ctx.beginPath();
+          ctx.arc(x, y, 26, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(250, 204, 21, 0.34)';
+          ctx.fill();
 
-      if (isTease) {
-        setSuspenseSymbol(finalReels[0].id);
+          ctx.beginPath();
+          ctx.arc(x, y, 18, 0, Math.PI * 2);
+          ctx.fillStyle = '#facc15';
+          ctx.fill();
+          ctx.lineWidth = 3.2;
+          ctx.strokeStyle = '#ffffff';
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.arc(x, y, 13, 0, Math.PI * 2);
+          ctx.fillStyle = '#d97706';
+          ctx.fill();
+
+          ctx.fillStyle = '#fffbeb';
+          ctx.font = '900 12px sans-serif';
+          ctx.fillText('74', x, y + 1);
+        }
       }
-    }, 1800));
 
-    if (isTease) {
-      // Suspense lunga sulla 3ª colonna con rallentamento progressivo
-      timersRef.current.push(setTimeout(() => startTickLoop(145), 2550));
-      timersRef.current.push(setTimeout(() => startTickLoop(250), 3200));
-      timersRef.current.push(setTimeout(() => {
-        clearAllTimers();
-        stoppedRef.current = [true, true, true];
-        setReels(finalReels);
-        setStoppedReels([true, true, true]);
-        setSuspenseSymbol(null);
-        setSpinning(false);
-        setResultObj(evaluateDimaSpin(finalReels));
-        navigator.vibrate?.([45, 35, 90]);
-      }, 3950));
-    } else {
-      // Rallentamento breve sulla 3ª colonna e blocco finale
-      timersRef.current.push(setTimeout(() => startTickLoop(150), 2350));
-      timersRef.current.push(setTimeout(() => {
-        clearAllTimers();
-        stoppedRef.current = [true, true, true];
-        setReels(finalReels);
-        setStoppedReels([true, true, true]);
-        setSpinning(false);
-        setResultObj(evaluateDimaSpin(finalReels));
-        navigator.vibrate?.(50);
-      }, 2750));
-    }
-  };
+      // Giocatore (Boccale Turbo)
+      const px = visualLaneRef.current * laneW + laneW / 2;
+      const py = height * 0.82;
+      const tiltAngle = (laneRef.current - visualLaneRef.current) * 0.25;
 
-  return (
-    <div onClick={onCancel} className="fixed inset-0 z-[220] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-sm bg-slate-900 border-2 border-amber-400 rounded-3xl p-4 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between">
-          <div>
-            <span className="text-[10px] font-black uppercase text-amber-400 block">
-              🎰 Fortuna • Sfida contro {opponentName}
-            </span>
-            <h3 className="text-base font-black text-white">La Slot di Dima</h3>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => setShowLegend(v => !v)}
-              className="px-2.5 py-1.5 rounded-xl bg-slate-800 border border-amber-400/40 text-amber-300 text-[10px] font-black uppercase flex items-center gap-1"
-            >
-              <HelpCircle className="w-3.5 h-3.5" /> Leggenda
-            </button>
-            <button type="button" onClick={onCancel} className="w-8 h-8 rounded-xl bg-slate-800 text-slate-300 text-xs font-black">
-              ✕
-            </button>
-          </div>
-        </div>
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.rotate(tiltAngle);
 
-        <div className={`bg-slate-950 border-2 rounded-2xl p-3.5 space-y-2.5 transition-all ${
-          suspenseSymbol === '74'
-            ? 'border-amber-300 shadow-[0_0_28px_rgba(251,191,36,0.55)]'
-            : suspenseSymbol === 'lattina'
-            ? 'border-red-500 shadow-[0_0_28px_rgba(239,68,68,0.55)]'
-            : suspenseSymbol === 'boccale'
-            ? 'border-yellow-400 shadow-[0_0_24px_rgba(250,204,21,0.45)]'
-            : 'border-amber-500/50'
-        }`}>
-          <div className="grid grid-cols-3 gap-2">
-            {reels.map((sym, idx) => {
-              const isLocked = stoppedReels[idx];
-              const isSuspenseThird = idx === 2 && !isLocked && Boolean(suspenseSymbol);
-              return (
-                <div
-                  key={idx}
-                  className={`h-24 rounded-2xl border-2 flex flex-col items-center justify-center relative transition-all duration-150 ${
-                    isSuspenseThird
-                      ? suspenseSymbol === 'lattina'
-                        ? 'border-red-400 bg-red-950/70 scale-105 animate-pulse shadow-[0_0_20px_rgba(239,68,68,0.75)]'
-                        : 'border-amber-300 bg-amber-500/25 scale-105 animate-pulse shadow-[0_0_20px_rgba(251,191,36,0.8)]'
-                      : spinning && !isLocked
-                      ? 'border-amber-400/60 bg-slate-900'
-                      : isLocked
-                      ? `${sym.color} scale-[1.03] shadow-lg`
-                      : 'border-slate-700 bg-slate-900'
-                  }`}
-                >
-                  {isLocked && (
-                    <span className="absolute top-1 right-1.5 text-[9px] font-black text-white/70">🔒</span>
-                  )}
-                  <span className={`font-black leading-none ${sym.id === '74' ? 'text-2xl tracking-tighter' : 'text-3xl'}`}>
-                    {sym.label}
-                  </span>
-                  <span className="text-[9px] font-black uppercase mt-1 text-slate-200">
-                    {sym.pts} pt
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+      drawRoundRect(-27, -27, 54, 54, 16);
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.22)';
+      ctx.fill();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#38bdf8';
+      ctx.stroke();
 
-          {suspenseSymbol && (
-            <div className={`p-2 rounded-xl border text-center text-[11px] font-black uppercase tracking-wide animate-pulse ${
-              suspenseSymbol === 'lattina'
-                ? 'bg-red-950/80 border-red-400 text-red-200'
-                : 'bg-amber-500/20 border-amber-300 text-amber-200'
-            }`}>
-              {suspenseSymbol === '74'
-                ? '🔥 DOPPIO 74! IN CORSA PER IL JACKPOT DA 2 BIRRE...'
-                : suspenseSymbol === 'lattina'
-                ? '😱 DOPPIA LATTINA! ATTENTO AL DISASTRO DA 2 BIRRE...'
-                : '🍺 DOPPIO BOCCALE! IN CORSA PER IL TRIS (55 PT)...'}
-            </div>
-          )}
+      drawRoundRect(10, -8, 10, 18, 4);
+      ctx.lineWidth = 3.5;
+      ctx.strokeStyle = '#ffffff';
+      ctx.stroke();
 
-          {resultObj && (
-            <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-400/50 text-center">
-              <span className="text-xs font-black text-amber-200 block">{resultObj.label}</span>
-            </div>
-          )}
-        </div>
+      drawRoundRect(-14, -13, 26, 30, 6);
+      ctx.fillStyle = '#fbbf24';
+      ctx.fill();
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = '#ffffff';
+      ctx.stroke();
 
-        {showLegend && (
-          <div className="bg-slate-950 border border-slate-800 rounded-2xl p-3 space-y-1.5 text-[11px] text-slate-300">
-            <span className="text-[10px] font-black uppercase text-amber-400 block">
-              📜 Indice Simboli & Valori
-            </span>
-            <div className="flex justify-between"><span><strong>74</strong> (stile slot 7)</span><strong className="text-amber-300">30 pt</strong></div>
-            <div className="flex justify-between"><span><strong>🍺</strong> Boccale Classico</span><strong className="text-yellow-300">15 pt</strong></div>
-            <div className="flex justify-between"><span><strong>🥫</strong> Lattina Spiaccicata</span><strong className="text-emerald-300">5 pt</strong></div>
-            <p className="text-[10px] text-slate-400 pt-1 border-t border-slate-800/80 leading-snug">
-              Le combinazioni miste sommano i punti dei 3 rulli. Tris uguali rari; <strong>3x 74</strong> (100 pt) o <strong>3x Lattina</strong> (1 pt) sono rarissimi e mettono in palio <strong>2 birre</strong>!
-            </p>
-          </div>
-        )}
+      ctx.fillStyle = '#fef08a';
+      ctx.fillRect(-10, -8, 6, 20);
 
-        {!resultObj ? (
-          <button
-            type="button"
-            disabled={spinning}
-            onClick={handlePullLever}
-            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 disabled:opacity-50 text-slate-950 text-xs font-black uppercase tracking-wider shadow-lg"
-          >
-            {spinning
-              ? suspenseSymbol
-                ? '🥁 BRIVIDO SULLA 3ª COLONNA...'
-                : '🎰 I rulli si stanno fermando...'
-              : '🕹️ Tira la Leva della Slot di Dima'}
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => onComplete(resultObj.score, { ...resultObj, reels })}
-            className="w-full py-3.5 rounded-2xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 text-xs font-black uppercase tracking-wider shadow-lg"
-          >
-            Conferma Punteggio ({resultObj.score} pt)
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(-7, -14, 7.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(1, -16, 8.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(8, -14, 6.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // Popup punti
+      const nextPopups = [];
+      ctx.font = '900 16px monospace';
+      for (let i = 0; i < popupsRef.current.length; i++) {
+        const p = popupsRef.current[i];
+        p.y -= 0.012 * dt;
+        p.alpha -= 0.04 * dt;
+        if (p.alpha > 0) {
+          ctx.globalAlpha = Math.max(0, p.alpha);
+          ctx.fillStyle = p.color;
+          ctx.fillText(p.text, p.lane * laneW + laneW / 2, p.y * height);
+          nextPopups.push(p);
+        }
+      }
+      ctx.globalAlpha = 1;
+      popupsRef.current = nextPopups;
 
       rafId = requestAnimationFrame(loop);
     };
@@ -2364,7 +2362,6 @@ function CorsaDelLuppoloArena({ opponentName, isFreePlay = false, onComplete, on
         </div>
       </div>
 
-      {/* Pista Canvas 60 FPS: tocca o trascina il dito direttamente sulla corsia */}
       <div
         ref={trackWrapRef}
         onPointerDown={(e) => {
@@ -2380,7 +2377,6 @@ function CorsaDelLuppoloArena({ opponentName, isFreePlay = false, onComplete, on
       >
         <canvas ref={canvasRef} className="w-full h-full block" />
 
-        {/* Overlay Inizio */}
         {phase === 'ready' && (
           <div className="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center p-5 text-center space-y-4">
             <span className="text-5xl">🏃‍♂️🍺</span>
@@ -2399,7 +2395,6 @@ function CorsaDelLuppoloArena({ opponentName, isFreePlay = false, onComplete, on
           </div>
         )}
 
-        {/* Overlay Game Over */}
         {phase === 'gameover' && (
           <div className="absolute inset-0 bg-slate-950/92 flex flex-col items-center justify-center p-5 text-center space-y-3">
             <span className="text-4xl">💥</span>
@@ -2431,7 +2426,6 @@ function CorsaDelLuppoloArena({ opponentName, isFreePlay = false, onComplete, on
         )}
       </div>
 
-      {/* 3 Tasti Diretti Istantanei: SX | CENTRO | DX */}
       <div className="w-full max-w-sm grid grid-cols-3 gap-2">
         <button
           type="button"
