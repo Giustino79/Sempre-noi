@@ -1698,12 +1698,36 @@ function SlotDiDimaArena({ opponentName, onComplete, onCancel }) {
   const [spinning, setSpinning] = useState(false);
   const [stoppedReels, setStoppedReels] = useState([false, false, false]);
   const [reels, setReels] = useState([DIMA_SYMBOLS[1], DIMA_SYMBOLS[0], DIMA_SYMBOLS[2]]);
+  const [suspenseSymbol, setSuspenseSymbol] = useState(null); // '74' | 'boccale' | 'lattina' | null
   const [resultObj, setResultObj] = useState(null);
   const [showLegend, setShowLegend] = useState(true);
 
+  const stoppedRef = useRef([false, false, false]);
+  const timersRef = useRef([]);
+  const intervalRef = useRef(null);
+
+  const clearAllTimers = () => {
+    timersRef.current.forEach(t => clearTimeout(t));
+    timersRef.current = [];
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  };
+
+  useEffect(() => () => clearAllTimers(), []);
+
+  const pickDifferentSymbol = (currentSym) => {
+    const others = DIMA_SYMBOLS.filter(s => s.id !== currentSym?.id);
+    return others[Math.floor(Math.random() * others.length)] || DIMA_SYMBOLS[0];
+  };
+
   const handlePullLever = () => {
     if (spinning || resultObj) return;
+    clearAllTimers();
     setSpinning(true);
+    setSuspenseSymbol(null);
+    stoppedRef.current = [false, false, false];
     setStoppedReels([false, false, false]);
 
     const finalReels = [
@@ -1712,31 +1736,67 @@ function SlotDiDimaArena({ opponentName, onComplete, onCancel }) {
       pickWeightedDimaSymbol()
     ];
 
-    const interval = setInterval(() => {
-      setReels(prev => [
-        stoppedReels[0] ? prev[0] : DIMA_SYMBOLS[Math.floor(Math.random() * DIMA_SYMBOLS.length)],
-        stoppedReels[1] ? prev[1] : DIMA_SYMBOLS[Math.floor(Math.random() * DIMA_SYMBOLS.length)],
-        stoppedReels[2] ? prev[2] : DIMA_SYMBOLS[Math.floor(Math.random() * DIMA_SYMBOLS.length)]
-      ]);
-    }, 85);
+    const startTickLoop = (ms) => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      intervalRef.current = setInterval(() => {
+        setReels(prev => [
+          stoppedRef.current[0] ? finalReels[0] : pickDifferentSymbol(prev[0]),
+          stoppedRef.current[1] ? finalReels[1] : pickDifferentSymbol(prev[1]),
+          stoppedRef.current[2] ? finalReels[2] : pickDifferentSymbol(prev[2])
+        ]);
+      }, ms);
+    };
 
-    setTimeout(() => {
+    startTickLoop(75);
+
+    // 1ª Colonna si ferma
+    timersRef.current.push(setTimeout(() => {
+      stoppedRef.current[0] = true;
       setReels(prev => [finalReels[0], prev[1], prev[2]]);
       setStoppedReels([true, false, false]);
-    }, 750);
+      navigator.vibrate?.(25);
+    }, 850));
 
-    setTimeout(() => {
+    // 2ª Colonna si ferma
+    const isTease = finalReels[0].id === finalReels[1].id;
+    timersRef.current.push(setTimeout(() => {
+      stoppedRef.current[1] = true;
       setReels(prev => [finalReels[0], finalReels[1], prev[2]]);
       setStoppedReels([true, true, false]);
-    }, 1450);
+      navigator.vibrate?.(35);
 
-    setTimeout(() => {
-      clearInterval(interval);
-      setReels(finalReels);
-      setStoppedReels([true, true, true]);
-      setSpinning(false);
-      setResultObj(evaluateDimaSpin(finalReels));
-    }, 2150);
+      if (isTease) {
+        setSuspenseSymbol(finalReels[0].id);
+      }
+    }, 1800));
+
+    if (isTease) {
+      // Suspense lunga sulla 3ª colonna con rallentamento progressivo
+      timersRef.current.push(setTimeout(() => startTickLoop(145), 2550));
+      timersRef.current.push(setTimeout(() => startTickLoop(250), 3200));
+      timersRef.current.push(setTimeout(() => {
+        clearAllTimers();
+        stoppedRef.current = [true, true, true];
+        setReels(finalReels);
+        setStoppedReels([true, true, true]);
+        setSuspenseSymbol(null);
+        setSpinning(false);
+        setResultObj(evaluateDimaSpin(finalReels));
+        navigator.vibrate?.([45, 35, 90]);
+      }, 3950));
+    } else {
+      // Rallentamento breve sulla 3ª colonna e blocco finale
+      timersRef.current.push(setTimeout(() => startTickLoop(150), 2350));
+      timersRef.current.push(setTimeout(() => {
+        clearAllTimers();
+        stoppedRef.current = [true, true, true];
+        setReels(finalReels);
+        setStoppedReels([true, true, true]);
+        setSpinning(false);
+        setResultObj(evaluateDimaSpin(finalReels));
+        navigator.vibrate?.(50);
+      }, 2750));
+    }
   };
 
   return (
@@ -1763,21 +1823,37 @@ function SlotDiDimaArena({ opponentName, onComplete, onCancel }) {
           </div>
         </div>
 
-        <div className="bg-slate-950 border-2 border-amber-500/50 rounded-2xl p-3.5 space-y-2.5">
+        <div className={`bg-slate-950 border-2 rounded-2xl p-3.5 space-y-2.5 transition-all ${
+          suspenseSymbol === '74'
+            ? 'border-amber-300 shadow-[0_0_28px_rgba(251,191,36,0.55)]'
+            : suspenseSymbol === 'lattina'
+            ? 'border-red-500 shadow-[0_0_28px_rgba(239,68,68,0.55)]'
+            : suspenseSymbol === 'boccale'
+            ? 'border-yellow-400 shadow-[0_0_24px_rgba(250,204,21,0.45)]'
+            : 'border-amber-500/50'
+        }`}>
           <div className="grid grid-cols-3 gap-2">
             {reels.map((sym, idx) => {
-              const isLocked = stoppedReels[idx] && !spinning;
+              const isLocked = stoppedReels[idx];
+              const isSuspenseThird = idx === 2 && !isLocked && Boolean(suspenseSymbol);
               return (
                 <div
                   key={idx}
-                  className={`h-24 rounded-2xl border-2 flex flex-col items-center justify-center transition ${
-                    spinning && !stoppedReels[idx]
-                      ? 'border-amber-400 bg-slate-900 animate-pulse'
+                  className={`h-24 rounded-2xl border-2 flex flex-col items-center justify-center relative transition-all duration-150 ${
+                    isSuspenseThird
+                      ? suspenseSymbol === 'lattina'
+                        ? 'border-red-400 bg-red-950/70 scale-105 animate-pulse shadow-[0_0_20px_rgba(239,68,68,0.75)]'
+                        : 'border-amber-300 bg-amber-500/25 scale-105 animate-pulse shadow-[0_0_20px_rgba(251,191,36,0.8)]'
+                      : spinning && !isLocked
+                      ? 'border-amber-400/60 bg-slate-900'
                       : isLocked
-                      ? `${sym.color} scale-[1.02]`
+                      ? `${sym.color} scale-[1.03] shadow-lg`
                       : 'border-slate-700 bg-slate-900'
                   }`}
                 >
+                  {isLocked && (
+                    <span className="absolute top-1 right-1.5 text-[9px] font-black text-white/70">🔒</span>
+                  )}
                   <span className={`font-black leading-none ${sym.id === '74' ? 'text-2xl tracking-tighter' : 'text-3xl'}`}>
                     {sym.label}
                   </span>
@@ -1788,6 +1864,20 @@ function SlotDiDimaArena({ opponentName, onComplete, onCancel }) {
               );
             })}
           </div>
+
+          {suspenseSymbol && (
+            <div className={`p-2 rounded-xl border text-center text-[11px] font-black uppercase tracking-wide animate-pulse ${
+              suspenseSymbol === 'lattina'
+                ? 'bg-red-950/80 border-red-400 text-red-200'
+                : 'bg-amber-500/20 border-amber-300 text-amber-200'
+            }`}>
+              {suspenseSymbol === '74'
+                ? '🔥 DOPPIO 74! IN CORSA PER IL JACKPOT DA 2 BIRRE...'
+                : suspenseSymbol === 'lattina'
+                ? '😱 DOPPIA LATTINA! ATTENTO AL DISASTRO DA 2 BIRRE...'
+                : '🍺 DOPPIO BOCCALE! IN CORSA PER IL TRIS (55 PT)...'}
+            </div>
+          )}
 
           {resultObj && (
             <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-400/50 text-center">
@@ -1817,7 +1907,11 @@ function SlotDiDimaArena({ opponentName, onComplete, onCancel }) {
             onClick={handlePullLever}
             className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 disabled:opacity-50 text-slate-950 text-xs font-black uppercase tracking-wider shadow-lg"
           >
-            {spinning ? '🎰 I rulli si stanno fermando...' : '🕹️ Tira la Leva della Slot di Dima'}
+            {spinning
+              ? suspenseSymbol
+                ? '🥁 BRIVIDO SULLA 3ª COLONNA...'
+                : '🎰 I rulli si stanno fermando...'
+              : '🕹️ Tira la Leva della Slot di Dima'}
           </button>
         ) : (
           <button
@@ -1991,75 +2085,238 @@ function CorsaDelLuppoloArena({ opponentName, isFreePlay = false, onComplete, on
       }
       itemsRef.current = nextItems;
 
-      // --- DISEGNO SU CANVAS (60 FPS NATIVI) ---
-      ctx.fillStyle = '#090d16';
-      ctx.fillRect(0, 0, width, height);
+    function SlotDiDimaArena({ opponentName, onComplete, onCancel }) {
+  const [spinning, setSpinning] = useState(false);
+  const [stoppedReels, setStoppedReels] = useState([false, false, false]);
+  const [reels, setReels] = useState([DIMA_SYMBOLS[1], DIMA_SYMBOLS[0], DIMA_SYMBOLS[2]]);
+  const [suspenseSymbol, setSuspenseSymbol] = useState(null); // '74' | 'boccale' | 'lattina' | null
+  const [resultObj, setResultObj] = useState(null);
+  const [showLegend, setShowLegend] = useState(true);
 
-      const laneW = width / 3;
+  const stoppedRef = useRef([false, false, false]);
+  const timersRef = useRef([]);
+  const intervalRef = useRef(null);
 
-      // Evidenzia corsia attiva
-      ctx.fillStyle = 'rgba(251, 191, 36, 0.06)';
-      ctx.fillRect(laneRef.current * laneW, 0, laneW, height);
+  const clearAllTimers = () => {
+    timersRef.current.forEach(t => clearTimeout(t));
+    timersRef.current = [];
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  };
 
-      // Strisce scorrevoli delle 3 corsie
-      ctx.strokeStyle = 'rgba(148, 163, 184, 0.32)';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([20, 24]);
-      ctx.lineDashOffset = -roadOffsetRef.current;
-      ctx.beginPath();
-      ctx.moveTo(laneW, 0);
-      ctx.lineTo(laneW, height);
-      ctx.moveTo(laneW * 2, 0);
-      ctx.lineTo(laneW * 2, height);
-      ctx.stroke();
-      ctx.setLineDash([]);
+  useEffect(() => () => clearAllTimers(), []);
 
-      // Oggetti in caduta
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.font = '32px sans-serif';
-      for (let i = 0; i < itemsRef.current.length; i++) {
-        const it = itemsRef.current[i];
-        const x = it.lane * laneW + laneW / 2;
-        const y = it.y * height;
-        if (it.kind.startsWith('bonus_')) {
-          ctx.beginPath();
-          ctx.arc(x, y, 22, 0, Math.PI * 2);
-          ctx.fillStyle = 'rgba(251, 191, 36, 0.16)';
-          ctx.fill();
-        }
-        ctx.fillText(it.icon, x, y);
+  const pickDifferentSymbol = (currentSym) => {
+    const others = DIMA_SYMBOLS.filter(s => s.id !== currentSym?.id);
+    return others[Math.floor(Math.random() * others.length)] || DIMA_SYMBOLS[0];
+  };
+
+  const handlePullLever = () => {
+    if (spinning || resultObj) return;
+    clearAllTimers();
+    setSpinning(true);
+    setSuspenseSymbol(null);
+    stoppedRef.current = [false, false, false];
+    setStoppedReels([false, false, false]);
+
+    const finalReels = [
+      pickWeightedDimaSymbol(),
+      pickWeightedDimaSymbol(),
+      pickWeightedDimaSymbol()
+    ];
+
+    const startTickLoop = (ms) => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      intervalRef.current = setInterval(() => {
+        setReels(prev => [
+          stoppedRef.current[0] ? finalReels[0] : pickDifferentSymbol(prev[0]),
+          stoppedRef.current[1] ? finalReels[1] : pickDifferentSymbol(prev[1]),
+          stoppedRef.current[2] ? finalReels[2] : pickDifferentSymbol(prev[2])
+        ]);
+      }, ms);
+    };
+
+    startTickLoop(75);
+
+    // 1ª Colonna si ferma
+    timersRef.current.push(setTimeout(() => {
+      stoppedRef.current[0] = true;
+      setReels(prev => [finalReels[0], prev[1], prev[2]]);
+      setStoppedReels([true, false, false]);
+      navigator.vibrate?.(25);
+    }, 850));
+
+    // 2ª Colonna si ferma
+    const isTease = finalReels[0].id === finalReels[1].id;
+    timersRef.current.push(setTimeout(() => {
+      stoppedRef.current[1] = true;
+      setReels(prev => [finalReels[0], finalReels[1], prev[2]]);
+      setStoppedReels([true, true, false]);
+      navigator.vibrate?.(35);
+
+      if (isTease) {
+        setSuspenseSymbol(finalReels[0].id);
       }
+    }, 1800));
 
-      // Giocatore (Boccale in corsa)
-      const px = visualLaneRef.current * laneW + laneW / 2;
-      const py = height * 0.82;
-      ctx.beginPath();
-      ctx.roundRect(px - 26, py - 26, 52, 52, 14);
-      ctx.fillStyle = 'rgba(251, 191, 36, 0.22)';
-      ctx.fill();
-      ctx.lineWidth = 2.5;
-      ctx.strokeStyle = '#fbbf24';
-      ctx.stroke();
-      ctx.font = '30px sans-serif';
-      ctx.fillText('🍺', px, py + 1);
+    if (isTease) {
+      // Suspense lunga sulla 3ª colonna con rallentamento progressivo
+      timersRef.current.push(setTimeout(() => startTickLoop(145), 2550));
+      timersRef.current.push(setTimeout(() => startTickLoop(250), 3200));
+      timersRef.current.push(setTimeout(() => {
+        clearAllTimers();
+        stoppedRef.current = [true, true, true];
+        setReels(finalReels);
+        setStoppedReels([true, true, true]);
+        setSuspenseSymbol(null);
+        setSpinning(false);
+        setResultObj(evaluateDimaSpin(finalReels));
+        navigator.vibrate?.([45, 35, 90]);
+      }, 3950));
+    } else {
+      // Rallentamento breve sulla 3ª colonna e blocco finale
+      timersRef.current.push(setTimeout(() => startTickLoop(150), 2350));
+      timersRef.current.push(setTimeout(() => {
+        clearAllTimers();
+        stoppedRef.current = [true, true, true];
+        setReels(finalReels);
+        setStoppedReels([true, true, true]);
+        setSpinning(false);
+        setResultObj(evaluateDimaSpin(finalReels));
+        navigator.vibrate?.(50);
+      }, 2750));
+    }
+  };
 
-      // Popup punti raccolti (+50 / +100)
-      const nextPopups = [];
-      ctx.font = '900 15px monospace';
-      for (let i = 0; i < popupsRef.current.length; i++) {
-        const p = popupsRef.current[i];
-        p.y -= 0.012 * dt;
-        p.alpha -= 0.04 * dt;
-        if (p.alpha > 0) {
-          ctx.globalAlpha = Math.max(0, p.alpha);
-          ctx.fillStyle = p.color;
-          ctx.fillText(p.text, p.lane * laneW + laneW / 2, p.y * height);
-          nextPopups.push(p);
-        }
-      }
-      ctx.globalAlpha = 1;
-      popupsRef.current = nextPopups;
+  return (
+    <div onClick={onCancel} className="fixed inset-0 z-[220] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-sm bg-slate-900 border-2 border-amber-400 rounded-3xl p-4 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-black uppercase text-amber-400 block">
+              🎰 Fortuna • Sfida contro {opponentName}
+            </span>
+            <h3 className="text-base font-black text-white">La Slot di Dima</h3>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setShowLegend(v => !v)}
+              className="px-2.5 py-1.5 rounded-xl bg-slate-800 border border-amber-400/40 text-amber-300 text-[10px] font-black uppercase flex items-center gap-1"
+            >
+              <HelpCircle className="w-3.5 h-3.5" /> Leggenda
+            </button>
+            <button type="button" onClick={onCancel} className="w-8 h-8 rounded-xl bg-slate-800 text-slate-300 text-xs font-black">
+              ✕
+            </button>
+          </div>
+        </div>
+
+        <div className={`bg-slate-950 border-2 rounded-2xl p-3.5 space-y-2.5 transition-all ${
+          suspenseSymbol === '74'
+            ? 'border-amber-300 shadow-[0_0_28px_rgba(251,191,36,0.55)]'
+            : suspenseSymbol === 'lattina'
+            ? 'border-red-500 shadow-[0_0_28px_rgba(239,68,68,0.55)]'
+            : suspenseSymbol === 'boccale'
+            ? 'border-yellow-400 shadow-[0_0_24px_rgba(250,204,21,0.45)]'
+            : 'border-amber-500/50'
+        }`}>
+          <div className="grid grid-cols-3 gap-2">
+            {reels.map((sym, idx) => {
+              const isLocked = stoppedReels[idx];
+              const isSuspenseThird = idx === 2 && !isLocked && Boolean(suspenseSymbol);
+              return (
+                <div
+                  key={idx}
+                  className={`h-24 rounded-2xl border-2 flex flex-col items-center justify-center relative transition-all duration-150 ${
+                    isSuspenseThird
+                      ? suspenseSymbol === 'lattina'
+                        ? 'border-red-400 bg-red-950/70 scale-105 animate-pulse shadow-[0_0_20px_rgba(239,68,68,0.75)]'
+                        : 'border-amber-300 bg-amber-500/25 scale-105 animate-pulse shadow-[0_0_20px_rgba(251,191,36,0.8)]'
+                      : spinning && !isLocked
+                      ? 'border-amber-400/60 bg-slate-900'
+                      : isLocked
+                      ? `${sym.color} scale-[1.03] shadow-lg`
+                      : 'border-slate-700 bg-slate-900'
+                  }`}
+                >
+                  {isLocked && (
+                    <span className="absolute top-1 right-1.5 text-[9px] font-black text-white/70">🔒</span>
+                  )}
+                  <span className={`font-black leading-none ${sym.id === '74' ? 'text-2xl tracking-tighter' : 'text-3xl'}`}>
+                    {sym.label}
+                  </span>
+                  <span className="text-[9px] font-black uppercase mt-1 text-slate-200">
+                    {sym.pts} pt
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {suspenseSymbol && (
+            <div className={`p-2 rounded-xl border text-center text-[11px] font-black uppercase tracking-wide animate-pulse ${
+              suspenseSymbol === 'lattina'
+                ? 'bg-red-950/80 border-red-400 text-red-200'
+                : 'bg-amber-500/20 border-amber-300 text-amber-200'
+            }`}>
+              {suspenseSymbol === '74'
+                ? '🔥 DOPPIO 74! IN CORSA PER IL JACKPOT DA 2 BIRRE...'
+                : suspenseSymbol === 'lattina'
+                ? '😱 DOPPIA LATTINA! ATTENTO AL DISASTRO DA 2 BIRRE...'
+                : '🍺 DOPPIO BOCCALE! IN CORSA PER IL TRIS (55 PT)...'}
+            </div>
+          )}
+
+          {resultObj && (
+            <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-400/50 text-center">
+              <span className="text-xs font-black text-amber-200 block">{resultObj.label}</span>
+            </div>
+          )}
+        </div>
+
+        {showLegend && (
+          <div className="bg-slate-950 border border-slate-800 rounded-2xl p-3 space-y-1.5 text-[11px] text-slate-300">
+            <span className="text-[10px] font-black uppercase text-amber-400 block">
+              📜 Indice Simboli & Valori
+            </span>
+            <div className="flex justify-between"><span><strong>74</strong> (stile slot 7)</span><strong className="text-amber-300">30 pt</strong></div>
+            <div className="flex justify-between"><span><strong>🍺</strong> Boccale Classico</span><strong className="text-yellow-300">15 pt</strong></div>
+            <div className="flex justify-between"><span><strong>🥫</strong> Lattina Spiaccicata</span><strong className="text-emerald-300">5 pt</strong></div>
+            <p className="text-[10px] text-slate-400 pt-1 border-t border-slate-800/80 leading-snug">
+              Le combinazioni miste sommano i punti dei 3 rulli. Tris uguali rari; <strong>3x 74</strong> (100 pt) o <strong>3x Lattina</strong> (1 pt) sono rarissimi e mettono in palio <strong>2 birre</strong>!
+            </p>
+          </div>
+        )}
+
+        {!resultObj ? (
+          <button
+            type="button"
+            disabled={spinning}
+            onClick={handlePullLever}
+            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 disabled:opacity-50 text-slate-950 text-xs font-black uppercase tracking-wider shadow-lg"
+          >
+            {spinning
+              ? suspenseSymbol
+                ? '🥁 BRIVIDO SULLA 3ª COLONNA...'
+                : '🎰 I rulli si stanno fermando...'
+              : '🕹️ Tira la Leva della Slot di Dima'}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onComplete(resultObj.score, { ...resultObj, reels })}
+            className="w-full py-3.5 rounded-2xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 text-xs font-black uppercase tracking-wider shadow-lg"
+          >
+            Conferma Punteggio ({resultObj.score} pt)
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
 
       rafId = requestAnimationFrame(loop);
     };
