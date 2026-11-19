@@ -1837,30 +1837,42 @@ function SlotDiDimaArena({ opponentName, onComplete, onCancel }) {
 // ============================================================================
 function CorsaDelLuppoloArena({ opponentName, isFreePlay = false, onComplete, onCancel }) {
   const [phase, setPhase] = useState('ready'); // 'ready' | 'playing' | 'gameover'
-  const [lane, setLane] = useState(1); // 0 = sinistra, 1 = centro, 2 = destra
-  const [score, setScore] = useState(0);
-  const [items, setItems] = useState([]);
+  const [finalScore, setFinalScore] = useState(0);
   const [hitReason, setHitReason] = useState('');
 
-  const laneRef = useRef(1);
-  const scoreRef = useRef(0);
-  const itemsRef = useRef([]);
-  const speedRef = useRef(1.15);
-  const lastSpawnRef = useRef(0);
-  const touchStartXRef = useRef(null);
-  const runningRef = useRef(false);
+  const canvasRef = useRef(null);
+  const trackWrapRef = useRef(null);
+  const scoreBadgeRef = useRef(null);
 
-  const moveLane = (dir) => {
+  const laneRef = useRef(1);         // Corsia bersaglio: 0 (SX), 1 (CENTRO), 2 (DX)
+  const visualLaneRef = useRef(1);   // Posizione fluida animata
+  const scoreRef = useRef(0);
+  const lastShownScoreRef = useRef(-1);
+  const itemsRef = useRef([]);
+  const popupsRef = useRef([]);
+  const roadOffsetRef = useRef(0);
+  const speedRef = useRef(1.2);
+  const lastSpawnRef = useRef(0);
+  const runningRef = useRef(false);
+  const isPointerDownRef = useRef(false);
+
+  const setTargetLane = (nextLane) => {
     if (!runningRef.current) return;
-    const next = Math.max(0, Math.min(2, laneRef.current + dir));
-    laneRef.current = next;
-    setLane(next);
+    laneRef.current = Math.max(0, Math.min(2, nextLane));
+  };
+
+  const moveLaneBy = (dir) => {
+    if (!runningRef.current) return;
+    laneRef.current = Math.max(0, Math.min(2, laneRef.current + dir));
   };
 
   useEffect(() => {
     const onKeyDown = (e) => {
-      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') moveLane(-1);
-      if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') moveLane(1);
+      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') moveLaneBy(-1);
+      if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') moveLaneBy(1);
+      if (e.key === '1') setTargetLane(0);
+      if (e.key === '2') setTargetLane(1);
+      if (e.key === '3') setTargetLane(2);
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
@@ -1868,20 +1880,42 @@ function CorsaDelLuppoloArena({ opponentName, isFreePlay = false, onComplete, on
 
   const startGame = () => {
     laneRef.current = 1;
+    visualLaneRef.current = 1;
     scoreRef.current = 0;
+    lastShownScoreRef.current = 0;
     itemsRef.current = [];
-    speedRef.current = 1.15;
+    popupsRef.current = [];
+    roadOffsetRef.current = 0;
+    speedRef.current = 1.2;
     lastSpawnRef.current = performance.now();
     runningRef.current = true;
-    setLane(1);
-    setScore(0);
-    setItems([]);
+    if (scoreBadgeRef.current) scoreBadgeRef.current.textContent = '0 pt';
+    setFinalScore(0);
     setHitReason('');
     setPhase('playing');
   };
 
   useEffect(() => {
     if (phase !== 'playing') return;
+    const canvas = canvasRef.current;
+    const wrap = trackWrapRef.current;
+    if (!canvas || !wrap) return;
+    const ctx = canvas.getContext('2d', { alpha: false });
+    if (!ctx) return;
+
+    let width = wrap.clientWidth || 340;
+    let height = wrap.clientHeight || 480;
+    const resizeCanvas = () => {
+      width = wrap.clientWidth || 340;
+      height = wrap.clientHeight || 480;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
     let rafId;
     let lastTime = performance.now();
 
@@ -1890,12 +1924,22 @@ function CorsaDelLuppoloArena({ opponentName, isFreePlay = false, onComplete, on
       const dt = Math.min(40, now - lastTime) / 16.67;
       lastTime = now;
 
-      // Aumenta velocità e punteggio distanza
-      speedRef.current = Math.min(2.6, speedRef.current + 0.0007 * dt);
-      scoreRef.current += 0.6 * dt;
+      // Velocità e punteggio
+      speedRef.current = Math.min(2.75, speedRef.current + 0.00075 * dt);
+      scoreRef.current += 0.65 * dt;
+      roadOffsetRef.current = (roadOffsetRef.current + speedRef.current * 6.5 * dt) % 44;
 
-      // Genera nuovi ostacoli o bonus
-      const spawnInterval = Math.max(380, 920 - speedRef.current * 200);
+      const shownScore = Math.floor(scoreRef.current);
+      if (shownScore !== lastShownScoreRef.current) {
+        lastShownScoreRef.current = shownScore;
+        if (scoreBadgeRef.current) scoreBadgeRef.current.textContent = `${shownScore} pt`;
+      }
+
+      // Movimento ultra-reattivo verso la corsia scelta
+      visualLaneRef.current += (laneRef.current - visualLaneRef.current) * Math.min(1, 0.45 * dt);
+
+      // Generazione ostacoli e bonus
+      const spawnInterval = Math.max(350, 880 - speedRef.current * 195);
       if (now - lastSpawnRef.current > spawnInterval) {
         lastSpawnRef.current = now;
         const spawnLane = Math.floor(Math.random() * 3);
@@ -1906,63 +1950,139 @@ function CorsaDelLuppoloArena({ opponentName, isFreePlay = false, onComplete, on
         if (r < 0.25) { kind = 'obs_can'; icon = '🥫'; label = 'Lattina Rumena'; }
         else if (r < 0.45) { kind = 'obs_red'; icon = '🟥'; label = 'Cartellino Rosso VAR'; }
         else if (r < 0.60) { kind = 'obs_cone'; icon = '🚧'; label = 'Transenna Chiusura'; }
-        else if (r < 0.85) { kind = 'bonus_beer'; icon = '🍺'; label = '+50 pt'; }
-        else { kind = 'bonus_cap'; icon = '🪙'; label = '+100 pt'; }
+        else if (r < 0.85) { kind = 'bonus_beer'; icon = '🍺'; label = '+50'; }
+        else { kind = 'bonus_cap'; icon = '🪙'; label = '+100'; }
 
-        itemsRef.current.push({
-          id: now + Math.random(),
-          lane: spawnLane,
-          y: -10,
-          kind,
-          icon,
-          label
-        });
+        itemsRef.current.push({ lane: spawnLane, y: -0.08, kind, icon, label });
       }
 
-      // Muove gli oggetti e controlla collisioni
+      // Aggiorna oggetti e collisioni
       const nextItems = [];
-      for (const it of itemsRef.current) {
-        const ny = it.y + speedRef.current * 1.45 * dt;
-        const inHitZone = ny >= 74 && ny <= 89 && it.lane === laneRef.current;
+      for (let i = 0; i < itemsRef.current.length; i++) {
+        const it = itemsRef.current[i];
+        it.y += speedRef.current * 0.0145 * dt;
 
-        if (inHitZone) {
+        const inHitY = it.y >= 0.75 && it.y <= 0.88;
+        const inHitX = Math.abs(it.lane - visualLaneRef.current) < 0.42;
+
+        if (inHitY && inHitX) {
           if (it.kind.startsWith('bonus_')) {
-            scoreRef.current += it.kind === 'bonus_cap' ? 100 : 50;
+            const pts = it.kind === 'bonus_cap' ? 100 : 50;
+            scoreRef.current += pts;
+            popupsRef.current.push({
+              lane: it.lane,
+              y: 0.76,
+              text: `+${pts}`,
+              color: it.kind === 'bonus_cap' ? '#fde047' : '#34d399',
+              alpha: 1
+            });
             continue;
           } else {
             runningRef.current = false;
+            const endScore = Math.floor(scoreRef.current);
+            if (scoreBadgeRef.current) scoreBadgeRef.current.textContent = `${endScore} pt`;
+            setFinalScore(endScore);
             setHitReason(`${it.icon} Hai preso: ${it.label}!`);
-            setScore(Math.floor(scoreRef.current));
             setPhase('gameover');
             return;
           }
         }
-        if (ny < 108) nextItems.push({ ...it, y: ny });
+        if (it.y < 1.1) nextItems.push(it);
+      }
+      itemsRef.current = nextItems;
+
+      // --- DISEGNO SU CANVAS (60 FPS NATIVI) ---
+      ctx.fillStyle = '#090d16';
+      ctx.fillRect(0, 0, width, height);
+
+      const laneW = width / 3;
+
+      // Evidenzia corsia attiva
+      ctx.fillStyle = 'rgba(251, 191, 36, 0.06)';
+      ctx.fillRect(laneRef.current * laneW, 0, laneW, height);
+
+      // Strisce scorrevoli delle 3 corsie
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.32)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([20, 24]);
+      ctx.lineDashOffset = -roadOffsetRef.current;
+      ctx.beginPath();
+      ctx.moveTo(laneW, 0);
+      ctx.lineTo(laneW, height);
+      ctx.moveTo(laneW * 2, 0);
+      ctx.lineTo(laneW * 2, height);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Oggetti in caduta
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = '32px sans-serif';
+      for (let i = 0; i < itemsRef.current.length; i++) {
+        const it = itemsRef.current[i];
+        const x = it.lane * laneW + laneW / 2;
+        const y = it.y * height;
+        if (it.kind.startsWith('bonus_')) {
+          ctx.beginPath();
+          ctx.arc(x, y, 22, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(251, 191, 36, 0.16)';
+          ctx.fill();
+        }
+        ctx.fillText(it.icon, x, y);
       }
 
-      itemsRef.current = nextItems;
-      setItems([...nextItems]);
-      setScore(Math.floor(scoreRef.current));
+      // Giocatore (Boccale in corsa)
+      const px = visualLaneRef.current * laneW + laneW / 2;
+      const py = height * 0.82;
+      ctx.beginPath();
+      ctx.roundRect(px - 26, py - 26, 52, 52, 14);
+      ctx.fillStyle = 'rgba(251, 191, 36, 0.22)';
+      ctx.fill();
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = '#fbbf24';
+      ctx.stroke();
+      ctx.font = '30px sans-serif';
+      ctx.fillText('🍺', px, py + 1);
+
+      // Popup punti raccolti (+50 / +100)
+      const nextPopups = [];
+      ctx.font = '900 15px monospace';
+      for (let i = 0; i < popupsRef.current.length; i++) {
+        const p = popupsRef.current[i];
+        p.y -= 0.012 * dt;
+        p.alpha -= 0.04 * dt;
+        if (p.alpha > 0) {
+          ctx.globalAlpha = Math.max(0, p.alpha);
+          ctx.fillStyle = p.color;
+          ctx.fillText(p.text, p.lane * laneW + laneW / 2, p.y * height);
+          nextPopups.push(p);
+        }
+      }
+      ctx.globalAlpha = 1;
+      popupsRef.current = nextPopups;
+
       rafId = requestAnimationFrame(loop);
     };
 
     rafId = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(rafId);
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', resizeCanvas);
+    };
   }, [phase]);
 
-  const handleTouchStart = (e) => {
-    touchStartXRef.current = e.touches[0].clientX;
-  };
-
-  const handleTouchEnd = (e) => {
-    if (touchStartXRef.current === null) return;
-    const dx = e.changedTouches[0].clientX - touchStartXRef.current;
-    touchStartXRef.current = null;
-    if (Math.abs(dx) > 25) moveLane(dx > 0 ? 1 : -1);
+  const updateLaneFromClientX = (clientX) => {
+    const wrap = trackWrapRef.current;
+    if (!wrap || !runningRef.current) return;
+    const rect = wrap.getBoundingClientRect();
+    const relX = (clientX - rect.left) / rect.width;
+    if (relX < 0.333) setTargetLane(0);
+    else if (relX < 0.666) setTargetLane(1);
+    else setTargetLane(2);
   };
 
   return (
-    <div className="fixed inset-0 z-[220] bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-between p-4 select-none touch-none">
+    <div className="fixed inset-0 z-[220] bg-slate-950 flex flex-col items-center justify-between p-4 select-none touch-none">
       <div className="w-full max-w-sm flex items-center justify-between">
         <div>
           <span className="text-[10px] font-black uppercase text-amber-400 block">
@@ -1971,8 +2091,11 @@ function CorsaDelLuppoloArena({ opponentName, isFreePlay = false, onComplete, on
           <h3 className="text-base font-black text-white">Corsa del Luppolo</h3>
         </div>
         <div className="flex items-center gap-2">
-          <span className="px-3 py-1 rounded-xl bg-slate-900 border border-amber-400/50 font-mono text-sm font-black text-amber-300">
-            {score} pt
+          <span
+            ref={scoreBadgeRef}
+            className="px-3 py-1 rounded-xl bg-slate-900 border border-amber-400/50 font-mono text-sm font-black text-amber-300"
+          >
+            {finalScore} pt
           </span>
           <button
             type="button"
@@ -1984,55 +2107,29 @@ function CorsaDelLuppoloArena({ opponentName, isFreePlay = false, onComplete, on
         </div>
       </div>
 
-      {/* Pista 3 Corsie */}
+      {/* Pista Canvas 60 FPS: tocca o trascina il dito direttamente sulla corsia */}
       <div
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-        className="relative w-full max-w-sm flex-1 my-3 rounded-3xl bg-gradient-to-b from-slate-900 via-slate-950 to-amber-950/40 border-2 border-amber-400/50 overflow-hidden shadow-2xl"
+        ref={trackWrapRef}
+        onPointerDown={(e) => {
+          isPointerDownRef.current = true;
+          updateLaneFromClientX(e.clientX);
+        }}
+        onPointerMove={(e) => {
+          if (isPointerDownRef.current) updateLaneFromClientX(e.clientX);
+        }}
+        onPointerUp={() => { isPointerDownRef.current = false; }}
+        onPointerCancel={() => { isPointerDownRef.current = false; }}
+        className="relative w-full max-w-sm flex-1 my-3 rounded-3xl bg-slate-950 border-2 border-amber-400/50 overflow-hidden shadow-2xl"
       >
-        {/* Linee delle 3 corsie */}
-        <div className="absolute inset-0 grid grid-cols-3 pointer-events-none">
-          <div className="border-r border-dashed border-slate-700/70" />
-          <div className="border-r border-dashed border-slate-700/70" />
-          <div />
-        </div>
-
-        {/* Oggetti in caduta */}
-        {items.map(it => (
-          <div
-            key={it.id}
-            style={{
-              left: `${it.lane * 33.33 + 16.66}%`,
-              top: `${it.y}%`,
-              transform: 'translate(-50%, -50%)'
-            }}
-            className={`absolute text-3xl drop-shadow-lg ${it.kind.startsWith('bonus_') ? 'animate-pulse' : ''}`}
-          >
-            {it.icon}
-          </div>
-        ))}
-
-        {/* Giocatore (Boccale in corsa) */}
-        <div
-          style={{
-            left: `${lane * 33.33 + 16.66}%`,
-            top: '82%',
-            transform: 'translate(-50%, -50%)'
-          }}
-          className="absolute transition-all duration-100 ease-out"
-        >
-          <div className="w-12 h-12 rounded-2xl bg-amber-400/20 border-2 border-amber-400 flex items-center justify-center text-3xl shadow-[0_0_20px_rgba(251,191,36,0.6)]">
-            🍺
-          </div>
-        </div>
+        <canvas ref={canvasRef} className="w-full h-full block" />
 
         {/* Overlay Inizio */}
         {phase === 'ready' && (
-          <div className="absolute inset-0 bg-slate-950/85 flex flex-col items-center justify-center p-5 text-center space-y-4">
+          <div className="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center p-5 text-center space-y-4">
             <span className="text-5xl">🏃‍♂️🍺</span>
             <h4 className="text-lg font-black uppercase text-amber-400">Schiva il Degrado!</h4>
             <p className="text-xs text-slate-300 leading-relaxed">
-              Fai <strong>swipe a destra/sinistra</strong> (o usa i tasti sotto) per cambiare corsia.<br />
+              <strong>Tocca o trascina</strong> direttamente sulla corsia (oppure usa i 3 tasti sotto) per saltare subito da destra a sinistra!<br />
               Raccogli <strong>🍺 (+50)</strong> e <strong>🪙 (+100)</strong>, evita <strong>🥫 🟥 🚧</strong>!
             </p>
             <button
@@ -2047,21 +2144,21 @@ function CorsaDelLuppoloArena({ opponentName, isFreePlay = false, onComplete, on
 
         {/* Overlay Game Over */}
         {phase === 'gameover' && (
-          <div className="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center p-5 text-center space-y-3">
+          <div className="absolute inset-0 bg-slate-950/92 flex flex-col items-center justify-center p-5 text-center space-y-3">
             <span className="text-4xl">💥</span>
             <h4 className="text-base font-black uppercase text-red-400">Corsa Finita!</h4>
             <p className="text-xs text-slate-300 font-bold">{hitReason}</p>
             <div className="px-5 py-2.5 rounded-2xl bg-slate-900 border border-amber-400/50">
               <span className="text-[10px] uppercase text-slate-400 block font-bold">Punteggio Finale</span>
-              <span className="text-2xl font-mono font-black text-amber-300">{score} pt</span>
+              <span className="text-2xl font-mono font-black text-amber-300">{finalScore} pt</span>
             </div>
             <div className="w-full space-y-2 pt-1">
               <button
                 type="button"
-                onClick={() => onComplete(score)}
+                onClick={() => onComplete(finalScore)}
                 className="w-full py-3 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 text-xs font-black uppercase shadow-lg"
               >
-                {isFreePlay ? `Salva Record (${score} pt)` : `Invia Punteggio (${score} pt)`}
+                {isFreePlay ? `Salva Record (${finalScore} pt)` : `Invia Punteggio (${finalScore} pt)`}
               </button>
               {isFreePlay && (
                 <button
@@ -2077,21 +2174,28 @@ function CorsaDelLuppoloArena({ opponentName, isFreePlay = false, onComplete, on
         )}
       </div>
 
-      {/* Comandi Rapidi a Pollice */}
-      <div className="w-full max-w-sm grid grid-cols-2 gap-3">
+      {/* 3 Tasti Diretti Istantanei: SX | CENTRO | DX */}
+      <div className="w-full max-w-sm grid grid-cols-3 gap-2">
         <button
           type="button"
-          onPointerDown={() => moveLane(-1)}
-          className="py-4 rounded-2xl bg-slate-900 active:bg-amber-400 active:text-slate-950 border-2 border-slate-700 text-white text-lg font-black shadow-lg"
+          onPointerDown={(e) => { e.preventDefault(); setTargetLane(0); }}
+          className="py-4 rounded-2xl bg-slate-900 active:bg-amber-400 active:text-slate-950 border-2 border-slate-700 text-white text-sm font-black shadow-lg"
         >
-          ⬅️ SINISTRA
+          ⬅️ SX
         </button>
         <button
           type="button"
-          onPointerDown={() => moveLane(1)}
-          className="py-4 rounded-2xl bg-slate-900 active:bg-amber-400 active:text-slate-950 border-2 border-slate-700 text-white text-lg font-black shadow-lg"
+          onPointerDown={(e) => { e.preventDefault(); setTargetLane(1); }}
+          className="py-4 rounded-2xl bg-slate-900 active:bg-amber-400 active:text-slate-950 border-2 border-slate-700 text-white text-sm font-black shadow-lg"
         >
-          DESTRA ➡️
+          ⬆️ CENTRO
+        </button>
+        <button
+          type="button"
+          onPointerDown={(e) => { e.preventDefault(); setTargetLane(2); }}
+          className="py-4 rounded-2xl bg-slate-900 active:bg-amber-400 active:text-slate-950 border-2 border-slate-700 text-white text-sm font-black shadow-lg"
+        >
+          DX ➡️
         </button>
       </div>
     </div>
