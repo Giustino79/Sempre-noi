@@ -1822,7 +1822,7 @@ function SlotDiDimaArena({ opponentName, onComplete, onCancel }) {
         ) : (
           <button
             type="button"
-            onClick={() => onComplete(resultObj.score, resultObj)}
+            onClick={() => onComplete(resultObj.score, { ...resultObj, reels })}
             className="w-full py-3.5 rounded-2xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 text-xs font-black uppercase tracking-wider shadow-lg"
           >
             Conferma Punteggio ({resultObj.score} pt)
@@ -2079,6 +2079,63 @@ export default function Chiosco({
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" /> Accetta e Gioca
                         </button>
+                      </div>
+                    )}
+
+                    {/* Tabellone Punteggi / Tempi e Simboli */}
+                    <div className="grid grid-cols-2 gap-2 bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-[11px]">
+                      <div className="space-y-1">
+                        <span className="text-[9px] font-black uppercase text-slate-400 block truncate">
+                          {ch.challengerName}
+                        </span>
+                        {ch.challengerScore === null || ch.challengerScore === undefined ? (
+                          <span className="text-amber-300 font-bold text-[10px]">⏳ In gioco...</span>
+                        ) : ch.gameType === 'boccale' ? (
+                          <span className="font-mono font-black text-white text-xs">
+                            {(Number(ch.challengerScore) / 1000).toFixed(2).replace('.', ',')}s
+                          </span>
+                        ) : (
+                          <div className="space-y-0.5">
+                            <span className="font-mono font-black text-amber-300 text-xs block">
+                              {ch.challengerScore} pt
+                            </span>
+                            {ch.challengerSlotResult?.reels && (
+                              <span className="text-xs font-black tracking-wider block">
+                                {ch.challengerSlotResult.reels.map(r => r.label).join(' • ')}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-1 border-l border-slate-800 pl-2">
+                        <span className="text-[9px] font-black uppercase text-slate-400 block truncate">
+                          {ch.opponentName}
+                        </span>
+                        {ch.opponentScore === null || ch.opponentScore === undefined ? (
+                          <span className="text-amber-300 font-bold text-[10px]">⏳ In attesa...</span>
+                        ) : ch.gameType === 'boccale' ? (
+                          <span className="font-mono font-black text-white text-xs">
+                            {(Number(ch.opponentScore) / 1000).toFixed(2).replace('.', ',')}s
+                          </span>
+                        ) : (
+                          <div className="space-y-0.5">
+                            <span className="font-mono font-black text-amber-300 text-xs block">
+                              {ch.opponentScore} pt
+                            </span>
+                            {ch.opponentSlotResult?.reels && (
+                              <span className="text-xs font-black tracking-wider block">
+                                {ch.opponentSlotResult.reels.map(r => r.label).join(' • ')}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {ch.status !== 'completed' && ch.status !== 'declined' && !iNeedToPlayAsOpponent && (
+                      <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-400/40 text-[10px] font-bold text-amber-200 text-center">
+                        ⏳ Turno registrato! In attesa che {otherName} accetti e giochi il suo turno.
                       </div>
                     )}
 

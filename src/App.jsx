@@ -2096,25 +2096,26 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
   };
 
   const resolveSisalOutcome = (challenge, challengerScore, opponentScore) => {
-    // Nel gioco 'boccale': vince chi impiega MENO millisecondi (più veloce).
-    // Nel gioco 'slot_dima': vince chi fa PIÙ punti.
+    if (challengerScore === null || challengerScore === undefined || opponentScore === null || opponentScore === undefined) {
+      return null;
+    }
+
+    const cNum = Number(challengerScore);
+    const oNum = Number(opponentScore);
     const isSpeedGame = challenge.gameType === 'boccale';
-    if (challengerScore === opponentScore) {
+
+    if (cNum === oNum) {
       return { winnerId: null, loserId: null, isDraw: true, beersStake: 1 };
     }
 
-    const challengerWins = isSpeedGame
-      ? Number(challengerScore) < Number(opponentScore)
-      : Number(challengerScore) > Number(opponentScore);
-
+    const challengerWins = isSpeedGame ? cNum < oNum : cNum > oNum;
     const winnerId = challengerWins ? challenge.challengerId : challenge.opponentId;
     const loserId = challengerWins ? challenge.opponentId : challenge.challengerId;
-    const winnerScore = challengerWins ? challengerScore : opponentScore;
+    const winnerScore = challengerWins ? cNum : oNum;
 
-    // Scenari rarissimi (solo se il vincitore ha fatto il triplo 74 o ha perso col triplo 74 -> 2 birre)
     const isRareDoubleBeer =
       challenge.gameType === 'slot_dima' &&
-      (winnerScore === 100 || Number(challenge.challengerScore) === 100 || Number(challenge.opponentScore) === 100);
+      (winnerScore === 100 || cNum === 100 || oNum === 100);
 
     return {
       winnerId,
@@ -2125,15 +2126,17 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
   };
 
   const handleCreateSisalChallenge = ({ opponentId, gameType }) => {
-    if (!activeLeagueId || !currentUser || !myMemberProfile) return;
+    if (!activeLeagueId || !currentUser || !myMemberProfile) return null;
     const usedThisWeek = getSisalWeeklyCount(myMemberProfile, currentWeekKey);
     if (usedThisWeek >= SISAL_MAX_WEEKLY_CHALLENGES && !isGodMode) {
-      return showToast('🔒 Hai già usato le 2 sfide SISAL disponibili questa settimana!', 'warning');
+      showToast('🔒 Hai già usato le 2 sfide SISAL disponibili questa settimana!', 'warning');
+      return null;
     }
 
     const targetOpponent = (activeLeague.members || []).find(m => m.id === opponentId);
     if (!targetOpponent || targetOpponent.id === currentUser.id) {
-      return showToast('⚠️ Scegli un avversario valido della lega!', 'warning');
+      showToast('⚠️ Scegli un avversario valido della lega!', 'warning');
+      return null;
     }
 
     const nowMs = Date.now();
@@ -2142,7 +2145,7 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
       id: challengeId,
       leagueId: activeLeagueId,
       weekKey: currentWeekKey,
-      gameType, // 'boccale' | 'slot_dima'
+      gameType,
       challengerId: currentUser.id,
       challengerName: currentUser.username,
       opponentId: targetOpponent.id,
@@ -2151,7 +2154,7 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
       opponentScore: null,
       challengerSlotResult: null,
       opponentSlotResult: null,
-      status: 'pending_opponent', // 'pending_opponent' | 'declined' | 'completed'
+      status: 'pending_opponent',
       outcome: null,
       createdAtMs: nowMs,
       expiresAtMs: nowMs + 48 * 60 * 60 * 1000
@@ -2176,14 +2179,14 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
       return updated;
     }));
 
-    showToast(`🎲 Sfida SISAL inviata a ${targetOpponent.name}! Tocca a te giocare il tuo turno.`, 'success');
+    showToast(`🎲 Sfida SISAL inviata a ${targetOpponent.name}! Turno registrato: ora tocca a ${targetOpponent.name}.`, 'success');
     return challengeId;
   };
 
   const handleSubmitSisalScore = ({ challengeId, role, scoreValue, slotDetails = null }) => {
     if (!activeLeagueId || !challengeId) return;
     const nowMs = Date.now();
-    let finalToastText = '✅ Risultato SISAL registrato sul Cloud!';
+    let finalToastText = '⏳ Turno salvato! In attesa della risposta dell\'avversario.';
     let finalToastType = 'success';
 
     setLeagues(prev => prev.map(l => {
@@ -2196,50 +2199,62 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
 
         const nextCh = {
           ...ch,
-          challengerScore: role === 'challenger' ? scoreValue : ch.challengerScore,
-          opponentScore: role === 'opponent' ? scoreValue : ch.opponentScore,
+          challengerScore: role === 'challenger' ? Number(scoreValue) : ch.challengerScore,
+          opponentScore: role === 'opponent' ? Number(scoreValue) : ch.opponentScore,
           challengerSlotResult: role === 'challenger' && slotDetails ? slotDetails : ch.challengerSlotResult,
           opponentSlotResult: role === 'opponent' && slotDetails ? slotDetails : ch.opponentSlotResult
         };
 
-        if (nextCh.challengerScore !== null && nextCh.opponentScore !== null) {
-          const res = resolveSisalOutcome(nextCh, nextCh.challengerScore, nextCh.opponentScore);
-          const winnerName = res.winnerId === nextCh.challengerId ? nextCh.challengerName : nextCh.opponentName;
-          const loserName = res.loserId === nextCh.challengerId ? nextCh.challengerName : nextCh.opponentName;
-          const gameLabel = nextCh.gameType === 'boccale' ? 'Svuota il Boccale' : 'Slot di Dima';
+        const bothPlayed =
+          nextCh.challengerScore !== null &&
+          nextCh.challengerScore !== undefined &&
+          nextCh.opponentScore !== null &&
+          nextCh.opponentScore !== undefined;
 
-          if (!res.isDraw && winnerName && loserName) {
-            const beersTxt = res.beersStake === 2 ? '2 BIRRE' : 'UNA BIRRA';
-            nextGazzetta = filterActiveGazzettaNews([{
-              id: `news_sisal_${ch.id}_${nowMs}`,
-              category: `VERDETTO SISAL: ${winnerName.toUpperCase()} TRIONFA!`,
-              icon: '🍻',
-              badgeColor: 'bg-amber-400 text-slate-950',
-              text: `Nella sfida "${gameLabel}", ${winnerName} batte ${loserName}: ${loserName} deve offrire ${beersTxt} a ${winnerName}!`,
-              timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
-              dateLabel: new Date().toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }),
-              createdAtMs: nowMs
-            }, ...nextGazzetta], nowMs);
-
-            finalToastText = `🏆 Sfida chiusa! ${loserName} deve offrire ${beersTxt} a ${winnerName}!`;
-          } else {
-            finalToastText = '🤝 Pareggio perfetto al SISAL! Nessuna birra offerta.';
-            finalToastType = 'warning';
-          }
-
+        if (!bothPlayed) {
           return {
             ...nextCh,
-            status: 'completed',
-            completedAtMs: nowMs,
-            outcome: {
-              ...res,
-              winnerName,
-              loserName
-            }
+            status: 'pending_opponent',
+            outcome: null
           };
         }
 
-        return nextCh;
+        const res = resolveSisalOutcome(nextCh, nextCh.challengerScore, nextCh.opponentScore);
+        if (!res) return nextCh;
+
+        const winnerName = res.winnerId === nextCh.challengerId ? nextCh.challengerName : nextCh.opponentName;
+        const loserName = res.loserId === nextCh.challengerId ? nextCh.challengerName : nextCh.opponentName;
+        const gameLabel = nextCh.gameType === 'boccale' ? 'Svuota il Boccale' : 'Slot di Dima';
+
+        if (!res.isDraw && winnerName && loserName) {
+          const beersTxt = res.beersStake === 2 ? '2 BIRRE' : 'UNA BIRRA';
+          nextGazzetta = filterActiveGazzettaNews([{
+            id: `news_sisal_${ch.id}_${nowMs}`,
+            category: `VERDETTO SISAL: ${winnerName.toUpperCase()} TRIONFA!`,
+            icon: '🍻',
+            badgeColor: 'bg-amber-400 text-slate-950',
+            text: `Nella sfida "${gameLabel}", ${winnerName} batte ${loserName}: ${loserName} deve offrire ${beersTxt} a ${winnerName}!`,
+            timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
+            dateLabel: new Date().toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }),
+            createdAtMs: nowMs
+          }, ...nextGazzetta], nowMs);
+
+          finalToastText = `🏆 Sfida chiusa! ${loserName} deve offrire ${beersTxt} a ${winnerName}!`;
+        } else {
+          finalToastText = '🤝 Pareggio perfetto al SISAL! Nessuna birra offerta.';
+          finalToastType = 'warning';
+        }
+
+        return {
+          ...nextCh,
+          status: 'completed',
+          completedAtMs: nowMs,
+          outcome: {
+            ...res,
+            winnerName,
+            loserName
+          }
+        };
       });
 
       const updated = {
