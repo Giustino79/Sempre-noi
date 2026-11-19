@@ -1648,63 +1648,236 @@ function SvuotaBoccaleArena({ opponentName, onComplete, onCancel }) {
 // 🎰 MINIGIOCO 2: SLOT DI DIMA (3 RULLI • 74 / BOCCALE / LATTINA • LEGGENDA)
 // ============================================================================
 const DIMA_SYMBOLS = [
-  { id: '74', label: '74', title: 'Il 74 del Gruppo', pts: 30, color: 'text-amber-300 border-amber-400 bg-amber-500/20' },
-  { id: 'boccale', label: '🍺', title: 'Boccale', pts: 15, color: 'text-yellow-300 border-yellow-400/70 bg-yellow-500/15' },
-  { id: 'lattina', label: '🥫', title: 'Lattina Spiaccicata', pts: 5, color: 'text-emerald-300 border-emerald-500/60 bg-emerald-950/50' }
+  { id: 'mario', label: '👑', name: 'Mario WILD', isWild: true, triplePts: 150, weight: 0.08 },
+  { id: '74', label: '74', name: 'Il 74 del Gruppo', isWild: false, triplePts: 80, weight: 0.14 },
+  { id: 'tappo', label: '🪙', name: "Tappo d'Oro", isWild: false, triplePts: 40, weight: 0.22 },
+  { id: 'boccale', label: '🍺', name: 'Boccale 74', isWild: false, triplePts: 20, weight: 0.28 },
+  { id: 'lattina', label: '🥫', name: 'Lattina Rumena', isWild: false, triplePts: 10, weight: 0.28 }
 ];
+
+const DIMA_PAYLINES = [
+  { id: 'top', name: 'Riga Alta', coords: [[0, 0], [1, 0], [2, 0]], color: '#38bdf8' },
+  { id: 'mid', name: 'Riga Centrale', coords: [[0, 1], [1, 1], [2, 1]], color: '#fbbf24' },
+  { id: 'bot', name: 'Riga Bassa', coords: [[0, 2], [1, 2], [2, 2]], color: '#34d399' },
+  { id: 'diag1', name: 'Diagonale ↘', coords: [[0, 0], [1, 1], [2, 2]], color: '#f472b6' },
+  { id: 'diag2', name: 'Diagonale ↗', coords: [[0, 2], [1, 1], [2, 0]], color: '#c084fc' }
+];
+
+const SISAL_SLOT_SPINS = 5;
 
 const pickWeightedDimaSymbol = () => {
   const r = Math.random();
-  if (r < 0.22) return DIMA_SYMBOLS[0];
-  if (r < 0.62) return DIMA_SYMBOLS[1];
-  return DIMA_SYMBOLS[2];
+  let acc = 0;
+  for (const sym of DIMA_SYMBOLS) {
+    acc += sym.weight;
+    if (r <= acc) return sym;
+  }
+  return DIMA_SYMBOLS[DIMA_SYMBOLS.length - 1];
 };
 
-const evaluateDimaSpin = (reels) => {
-  const [a, b, c] = reels;
-  const allSame = a.id === b.id && b.id === c.id;
+const generateDimaGrid = () => [
+  [pickWeightedDimaSymbol(), pickWeightedDimaSymbol(), pickWeightedDimaSymbol()],
+  [pickWeightedDimaSymbol(), pickWeightedDimaSymbol(), pickWeightedDimaSymbol()],
+  [pickWeightedDimaSymbol(), pickWeightedDimaSymbol(), pickWeightedDimaSymbol()]
+];
 
-  if (allSame && a.id === '74') {
-    return {
-      score: 100,
-      label: '👑 JACKPOT 74 • 74 • 74! (100 pt • 2 Birre in palio!)',
-      isRareExtreme: true
-    };
-  }
-  if (allSame && a.id === 'lattina') {
-    return {
-      score: 1,
-      label: '🥫 DISASTRO 3x LATTINA! (1 pt • 2 Birre in palio!)',
-      isRareExtreme: true
-    };
-  }
-  if (allSame && a.id === 'boccale') {
-    return {
-      score: 55,
-      label: '🍺 TRIS DI BOCCALI! (55 pt)',
-      isRareExtreme: false
-    };
+const evaluateDimaGrid = (grid) => {
+  const winningLines = [];
+  const winningCells = new Set();
+  let totalPoints = 0;
+  let hasMarioJackpot = false;
+  let bestLineReels = [grid[0][1], grid[1][1], grid[2][1]];
+  let bestLinePts = -1;
+
+  for (const line of DIMA_PAYLINES) {
+    const syms = line.coords.map(([c, r]) => grid[c][r]);
+    const nonWilds = syms.filter(s => !s.isWild);
+
+    let winSym = null;
+    if (nonWilds.length === 0) {
+      winSym = DIMA_SYMBOLS[0]; // 3x Mario WILD
+      hasMarioJackpot = true;
+    } else if (nonWilds.every(s => s.id === nonWilds[0].id)) {
+      winSym = nonWilds[0];
+    }
+
+    if (winSym) {
+      totalPoints += winSym.triplePts;
+      line.coords.forEach(([c, r]) => winningCells.add(`${c}-${r}`));
+      winningLines.push({
+        ...line,
+        symbol: winSym,
+        points: winSym.triplePts,
+        usedWild: nonWilds.length < 3
+      });
+      if (winSym.triplePts > bestLinePts) {
+        bestLinePts = winSym.triplePts;
+        bestLineReels = syms;
+      }
+    }
   }
 
-  const totalPts = a.pts + b.pts + c.pts;
+  let headline = '';
+  if (hasMarioJackpot) {
+    headline = `👑 MARIO JACKPOT! +${totalPoints} pt`;
+  } else if (totalPoints >= 100) {
+    headline = `🔥 MEGA WIN! +${totalPoints} pt (${winningLines.length} ${winningLines.length === 1 ? 'linea' : 'linee'})`;
+  } else if (totalPoints >= 60) {
+    headline = `⚡ BIG WIN! +${totalPoints} pt (${winningLines.length} ${winningLines.length === 1 ? 'linea' : 'linee'})`;
+  } else if (totalPoints > 0) {
+    headline = `✨ VINCITA +${totalPoints} pt (${winningLines.length} ${winningLines.length === 1 ? 'linea' : 'linee'})`;
+  }
+
   return {
-    score: totalPts,
-    label: `Combinazione ${a.label} ${b.label} ${c.label} (${totalPts} pt)`,
-    isRareExtreme: false
+    totalPoints,
+    winningLines,
+    winningCells,
+    hasMarioJackpot,
+    headline,
+    bestLineReels
   };
 };
 
-function SlotDiDimaArena({ opponentName, onComplete, onCancel }) {
-  const [spinning, setSpinning] = useState(false);
-  const [stoppedReels, setStoppedReels] = useState([false, false, false]);
-  const [reels, setReels] = useState([DIMA_SYMBOLS[1], DIMA_SYMBOLS[0], DIMA_SYMBOLS[2]]);
-  const [suspenseSymbol, setSuspenseSymbol] = useState(null); // '74' | 'boccale' | 'lattina' | null
-  const [resultObj, setResultObj] = useState(null);
-  const [showLegend, setShowLegend] = useState(true);
+const checkDimaSuspense = (grid) => {
+  for (const line of DIMA_PAYLINES) {
+    const s0 = grid[line.coords[0][0]][line.coords[0][1]];
+    const s1 = grid[line.coords[1][0]][line.coords[1][1]];
+    const bothHigh = (s0.id === 'mario' || s0.id === '74') && (s1.id === 'mario' || s1.id === '74');
+    if (bothHigh) return s0.id === 'mario' && s1.id === 'mario' ? 'mario' : '74';
+  }
+  return null;
+};
 
-  const stoppedRef = useRef([false, false, false]);
+function DimaSlotSymbolSvg({ id }) {
+  if (id === 'mario') {
+    return (
+      <svg viewBox="0 0 80 80" className="w-14 h-14 drop-shadow-[0_4px_8px_rgba(251,191,36,0.45)]">
+        <defs>
+          <linearGradient id="slotMarioGold" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#fef08a" />
+            <stop offset="50%" stopColor="#f59e0b" />
+            <stop offset="100%" stopColor="#b45309" />
+          </linearGradient>
+          <linearGradient id="slotMarioSkin" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#ffedd5" />
+            <stop offset="60%" stopColor="#fdba74" />
+            <stop offset="100%" stopColor="#ea580c" />
+          </linearGradient>
+        </defs>
+        <circle cx="40" cy="36" r="30" fill="#7c2d12" fillOpacity="0.45" stroke="url(#slotMarioGold)" strokeWidth="2.8" />
+        {/* Orecchie */}
+        <ellipse cx="19" cy="34" rx="3.8" ry="5.5" fill="url(#slotMarioSkin)" stroke="#7c2d12" strokeWidth="1.2" />
+        <ellipse cx="61" cy="34" rx="3.8" ry="5.5" fill="url(#slotMarioSkin)" stroke="#7c2d12" strokeWidth="1.2" />
+        {/* Testa */}
+        <path d="M21 28 C21 11, 59 11, 59 28 C60 44, 52 55, 40 55 C28 55, 20 44, 21 28 Z" fill="url(#slotMarioSkin)" stroke="#7c2d12" strokeWidth="1.5" />
+        {/* Riflesso pelata lucida */}
+        <ellipse cx="34" cy="18" rx="9" ry="3.5" fill="#ffffff" opacity="0.7" transform="rotate(-10 34 18)" />
+        {/* Sopracciglia */}
+        <path d="M27 27 Q31 24.5 36 27 M44 27 Q49 24.5 53 27" stroke="#09090b" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+        {/* Occhi laterali iconici */}
+        <ellipse cx="32" cy="31.5" rx="4" ry="2.8" fill="#ffffff" stroke="#451a03" strokeWidth="1" />
+        <circle cx="34" cy="31.5" r="1.9" fill="#09090b" />
+        <circle cx="34.6" cy="30.8" r="0.7" fill="#ffffff" />
+        <ellipse cx="48" cy="31.5" rx="4" ry="2.8" fill="#ffffff" stroke="#451a03" strokeWidth="1" />
+        <circle cx="50" cy="31.5" r="1.9" fill="#09090b" />
+        <circle cx="50.6" cy="30.8" r="0.7" fill="#ffffff" />
+        {/* Naso */}
+        <path d="M38.5 31 V37.5 C37 39.5, 43 39.5, 41.5 37.5" fill="none" stroke="#7c2d12" strokeWidth="1.7" strokeLinecap="round" />
+        {/* Barba piena */}
+        <path d="M21 34 C21 48, 29 56, 40 56 C51 56, 59 48, 59 34 C56 40, 52 42, 47 41 C44 37, 36 37, 33 41 C28 42, 24 40, 21 34 Z" fill="#18181b" />
+        {/* Sorriso */}
+        <path d="M34 43.5 C37 42.5, 43 42.5, 46 43.5 C44.5 47, 35.5 47, 34 43.5 Z" fill="#991b1b" stroke="#fca5a5" strokeWidth="0.8" />
+        {/* Targhetta WILD */}
+        <rect x="13" y="56" width="54" height="17" rx="6" fill="url(#slotMarioGold)" stroke="#ffffff" strokeWidth="1.6" />
+        <text x="40" y="68" textAnchor="middle" fill="#09090b" fontSize="11.5" fontWeight="900" letterSpacing="1.2">WILD</text>
+      </svg>
+    );
+  }
+
+  if (id === '74') {
+    return (
+      <svg viewBox="0 0 80 80" className="w-14 h-14 drop-shadow-[0_4px_10px_rgba(239,68,68,0.55)]">
+        <defs>
+          <linearGradient id="slot74Grad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#fef08a" />
+            <stop offset="45%" stopColor="#f97316" />
+            <stop offset="100%" stopColor="#dc2626" />
+          </linearGradient>
+        </defs>
+        <rect x="7" y="12" width="66" height="56" rx="14" fill="#450a0a" fillOpacity="0.65" stroke="#fbbf24" strokeWidth="2.2" />
+        <text x="40" y="52" textAnchor="middle" fill="#09090b" fontSize="36" fontWeight="900" letterSpacing="-2" dx="2" dy="2">74</text>
+        <text x="40" y="52" textAnchor="middle" fill="url(#slot74Grad)" stroke="#ffffff" strokeWidth="1.2" fontSize="36" fontWeight="900" letterSpacing="-2">74</text>
+      </svg>
+    );
+  }
+
+  if (id === 'tappo') {
+    return (
+      <svg viewBox="0 0 80 80" className="w-14 h-14 drop-shadow-[0_4px_8px_rgba(250,204,21,0.45)]">
+        <circle cx="40" cy="40" r="28" fill="#facc15" stroke="#ffffff" strokeWidth="3" strokeDasharray="6 3" />
+        <circle cx="40" cy="40" r="22" fill="#d97706" stroke="#fef08a" strokeWidth="2" />
+        <circle cx="40" cy="40" r="15" fill="#fbbf24" />
+        <text x="40" y="45" textAnchor="middle" fill="#451a03" fontSize="15" fontWeight="900">74</text>
+      </svg>
+    );
+  }
+
+  if (id === 'boccale') {
+    return (
+      <svg viewBox="0 0 80 80" className="w-14 h-14 drop-shadow-[0_4px_8px_rgba(245,158,11,0.4)]">
+        <rect x="49" y="30" width="14" height="24" rx="6" fill="none" stroke="#fef08a" strokeWidth="4.5" />
+        <rect x="19" y="25" width="34" height="41" rx="7" fill="#f59e0b" stroke="#ffffff" strokeWidth="2.4" />
+        <rect x="24" y="31" width="7" height="28" rx="3" fill="#fef08a" opacity="0.7" />
+        <circle cx="27" cy="23" r="9" fill="#ffffff" />
+        <circle cx="37" cy="20" r="10.5" fill="#ffffff" />
+        <circle cx="46" cy="23" r="8.5" fill="#ffffff" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 80 80" className="w-14 h-14 drop-shadow-[0_4px_8px_rgba(16,185,129,0.4)]">
+      <g transform="rotate(-10 40 40)">
+        <rect x="22" y="16" width="36" height="48" rx="8" fill="#10b981" stroke="#6ee7b7" strokeWidth="2.4" />
+        <rect x="24" y="30" width="32" height="19" fill="#facc15" />
+        <rect x="24" y="34" width="32" height="11" fill="#ef4444" />
+        <rect x="26" y="13" width="28" height="5" rx="2" fill="#f8fafc" />
+        <text x="40" y="43" textAnchor="middle" fill="#ffffff" fontSize="11" fontWeight="900">🥫</text>
+      </g>
+    </svg>
+  );
+}
+
+function SlotDiDimaArena({
+  opponentName,
+  isFreePlay = false,
+  bestRecord = 0,
+  onSaveFreeRecord,
+  onComplete,
+  onCancel
+}) {
+  const [grid, setGrid] = useState(() => [
+    [DIMA_SYMBOLS[3], DIMA_SYMBOLS[1], DIMA_SYMBOLS[4]],
+    [DIMA_SYMBOLS[2], DIMA_SYMBOLS[0], DIMA_SYMBOLS[3]],
+    [DIMA_SYMBOLS[4], DIMA_SYMBOLS[1], DIMA_SYMBOLS[2]]
+  ]);
+  const [spinning, setSpinning] = useState(false);
+  const [stoppedCols, setStoppedCols] = useState([true, true, true]);
+  const [suspenseType, setSuspenseType] = useState(null); // 'mario' | '74' | null
+  const [turboMode, setTurboMode] = useState(false);
+  const [showLegend, setShowLegend] = useState(false);
+
+  const [lastResult, setLastResult] = useState(null);
+  const [sessionPoints, setSessionPoints] = useState(0);
+  const [spinsDone, setSpinsDone] = useState(0);
+  const [localBestSpin, setLocalBestSpin] = useState(() => Number(bestRecord || 0));
+
+  const sisalMetaRef = useRef({ hitMarioJackpot: false, bestSinglePts: -1, bestReels: null });
+  const stoppedRef = useRef([true, true, true]);
   const timersRef = useRef([]);
   const intervalRef = useRef(null);
+
+  const sisalFinished = !isFreePlay && spinsDone >= SISAL_SLOT_SPINS && !spinning;
 
   const clearAllTimers = () => {
     timersRef.current.forEach(t => clearTimeout(t));
@@ -1717,97 +1890,140 @@ function SlotDiDimaArena({ opponentName, onComplete, onCancel }) {
 
   useEffect(() => () => clearAllTimers(), []);
 
-  const pickDifferentSymbol = (currentSym) => {
-    const others = DIMA_SYMBOLS.filter(s => s.id !== currentSym?.id);
-    return others[Math.floor(Math.random() * others.length)] || DIMA_SYMBOLS[0];
-  };
+  const randomCol = () => [
+    DIMA_SYMBOLS[Math.floor(Math.random() * DIMA_SYMBOLS.length)],
+    DIMA_SYMBOLS[Math.floor(Math.random() * DIMA_SYMBOLS.length)],
+    DIMA_SYMBOLS[Math.floor(Math.random() * DIMA_SYMBOLS.length)]
+  ];
 
-  const handlePullLever = () => {
-    if (spinning || resultObj) return;
+  const handleSpin = () => {
+    if (spinning || sisalFinished) return;
     clearAllTimers();
     setSpinning(true);
-    setSuspenseSymbol(null);
+    setLastResult(null);
+    setSuspenseType(null);
     stoppedRef.current = [false, false, false];
-    setStoppedReels([false, false, false]);
+    setStoppedCols([false, false, false]);
 
-    const finalReels = [
-      pickWeightedDimaSymbol(),
-      pickWeightedDimaSymbol(),
-      pickWeightedDimaSymbol()
-    ];
+    const finalGrid = generateDimaGrid();
+    const tease = turboMode ? null : checkDimaSuspense(finalGrid);
 
     const startTickLoop = (ms) => {
       if (intervalRef.current) clearInterval(intervalRef.current);
       intervalRef.current = setInterval(() => {
-        setReels(prev => [
-          stoppedRef.current[0] ? finalReels[0] : pickDifferentSymbol(prev[0]),
-          stoppedRef.current[1] ? finalReels[1] : pickDifferentSymbol(prev[1]),
-          stoppedRef.current[2] ? finalReels[2] : pickDifferentSymbol(prev[2])
+        setGrid([
+          stoppedRef.current[0] ? finalGrid[0] : randomCol(),
+          stoppedRef.current[1] ? finalGrid[1] : randomCol(),
+          stoppedRef.current[2] ? finalGrid[2] : randomCol()
         ]);
       }, ms);
     };
 
-    startTickLoop(75);
+    startTickLoop(turboMode ? 50 : 65);
 
-    // 1ª Colonna si ferma
+    const t1 = turboMode ? 240 : 650;
+    const t2 = turboMode ? 480 : 1300;
+    const t3 = turboMode ? 760 : tease ? 2850 : 1950;
+
+    // 1ª colonna
     timersRef.current.push(setTimeout(() => {
       stoppedRef.current[0] = true;
-      setReels(prev => [finalReels[0], prev[1], prev[2]]);
-      setStoppedReels([true, false, false]);
-      navigator.vibrate?.(25);
-    }, 850));
+      setGrid(prev => [finalGrid[0], prev[1], prev[2]]);
+      setStoppedCols([true, false, false]);
+      navigator.vibrate?.(20);
+    }, t1));
 
-    // 2ª Colonna si ferma
-    const isTease = finalReels[0].id === finalReels[1].id;
+    // 2ª colonna
     timersRef.current.push(setTimeout(() => {
       stoppedRef.current[1] = true;
-      setReels(prev => [finalReels[0], finalReels[1], prev[2]]);
-      setStoppedReels([true, true, false]);
-      navigator.vibrate?.(35);
+      setGrid(prev => [finalGrid[0], finalGrid[1], prev[2]]);
+      setStoppedCols([true, true, false]);
+      navigator.vibrate?.(25);
+      if (tease) setSuspenseType(tease);
+    }, t2));
 
-      if (isTease) {
-        setSuspenseSymbol(finalReels[0].id);
-      }
-    }, 1800));
-
-    if (isTease) {
-      // Suspense lunga sulla 3ª colonna con rallentamento progressivo
-      timersRef.current.push(setTimeout(() => startTickLoop(145), 2550));
-      timersRef.current.push(setTimeout(() => startTickLoop(250), 3200));
-      timersRef.current.push(setTimeout(() => {
-        clearAllTimers();
-        stoppedRef.current = [true, true, true];
-        setReels(finalReels);
-        setStoppedReels([true, true, true]);
-        setSuspenseSymbol(null);
-        setSpinning(false);
-        setResultObj(evaluateDimaSpin(finalReels));
-        navigator.vibrate?.([45, 35, 90]);
-      }, 3950));
-    } else {
-      // Rallentamento breve sulla 3ª colonna e blocco finale
-      timersRef.current.push(setTimeout(() => startTickLoop(150), 2350));
-      timersRef.current.push(setTimeout(() => {
-        clearAllTimers();
-        stoppedRef.current = [true, true, true];
-        setReels(finalReels);
-        setStoppedReels([true, true, true]);
-        setSpinning(false);
-        setResultObj(evaluateDimaSpin(finalReels));
-        navigator.vibrate?.(50);
-      }, 2750));
+    // Rallentamento suspense 3ª colonna
+    if (tease) {
+      timersRef.current.push(setTimeout(() => startTickLoop(130), t2 + 650));
+      timersRef.current.push(setTimeout(() => startTickLoop(210), t2 + 1150));
     }
+
+    // 3ª colonna & valutazione 5 linee
+    timersRef.current.push(setTimeout(() => {
+      clearAllTimers();
+      stoppedRef.current = [true, true, true];
+      setGrid(finalGrid);
+      setStoppedCols([true, true, true]);
+      setSuspenseType(null);
+      setSpinning(false);
+
+      const evalRes = evaluateDimaGrid(finalGrid);
+      setLastResult(evalRes);
+      setSessionPoints(prev => prev + evalRes.totalPoints);
+      setSpinsDone(prev => prev + 1);
+
+      if (evalRes.totalPoints > 0) {
+        navigator.vibrate?.(evalRes.totalPoints >= 80 ? [50, 40, 90] : 40);
+      }
+
+      if (isFreePlay && evalRes.totalPoints > localBestSpin) {
+        setLocalBestSpin(evalRes.totalPoints);
+        onSaveFreeRecord?.(evalRes.totalPoints);
+      }
+
+      if (!isFreePlay) {
+        if (evalRes.hasMarioJackpot) sisalMetaRef.current.hitMarioJackpot = true;
+        if (evalRes.totalPoints > sisalMetaRef.current.bestSinglePts) {
+          sisalMetaRef.current.bestSinglePts = evalRes.totalPoints;
+          sisalMetaRef.current.bestReels = evalRes.bestLineReels;
+        }
+      }
+    }, t3));
   };
 
+  const handleConfirmSisal = () => {
+    const meta = sisalMetaRef.current;
+    onComplete(sessionPoints, {
+      score: sessionPoints,
+      label: meta.hitMarioJackpot
+        ? `👑 MARIO JACKPOT nei 5 giri! (${sessionPoints} pt • 2 Birre!)`
+        : `🎰 Slot 3x3 (${SISAL_SLOT_SPINS} giri): ${sessionPoints} pt`,
+      isRareExtreme: meta.hitMarioJackpot,
+      reels: meta.bestReels || [grid[0][1], grid[1][1], grid[2][1]]
+    });
+  };
+
+  const ledDots = Array.from({ length: 11 });
+
   return (
-    <div onClick={onCancel} className="fixed inset-0 z-[220] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-sm bg-slate-900 border-2 border-amber-400 rounded-3xl p-4 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between">
+    <div className="fixed inset-0 z-[220] bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-center p-3 select-none">
+      <style>{`
+        @keyframes dimaLedBlink {
+          0%, 100% { opacity: 0.35; transform: scale(0.85); }
+          50% { opacity: 1; transform: scale(1.15); }
+        }
+        @keyframes dimaReelLand {
+          0% { transform: translateY(-8px) scale(0.96); }
+          60% { transform: translateY(3px) scale(1.02); }
+          100% { transform: translateY(0) scale(1); }
+        }
+        .dima-led { animation: dimaLedBlink 0.9s infinite ease-in-out; }
+        .dima-led-fast { animation: dimaLedBlink 0.28s infinite ease-in-out; }
+        .dima-reel-land { animation: dimaReelLand 0.22s ease-out; }
+      `}</style>
+
+      <div className="w-full max-w-sm bg-gradient-to-b from-slate-900 via-slate-950 to-slate-950 border-2 border-amber-400 rounded-3xl p-3.5 space-y-3 shadow-[0_0_40px_rgba(251,191,36,0.28)] max-h-[96vh] overflow-y-auto">
+        {/* Header Cabinato */}
+        <div className="flex items-center justify-between gap-2">
           <div>
             <span className="text-[10px] font-black uppercase text-amber-400 block">
-              🎰 Fortuna • Sfida contro {opponentName}
+              {isFreePlay
+                ? '🎰 Giri Infiniti • Passatempo 3x3'
+                : `🎰 Sfida 5 Giri contro ${opponentName}`}
             </span>
-            <h3 className="text-base font-black text-white">La Slot di Dima</h3>
+            <h3 className="text-base font-black text-white leading-tight">
+              La Slot di Dima <span className="text-amber-300 text-xs">3×3</span>
+            </h3>
           </div>
           <div className="flex items-center gap-1.5">
             <button
@@ -1815,112 +2031,235 @@ function SlotDiDimaArena({ opponentName, onComplete, onCancel }) {
               onClick={() => setShowLegend(v => !v)}
               className="px-2.5 py-1.5 rounded-xl bg-slate-800 border border-amber-400/40 text-amber-300 text-[10px] font-black uppercase flex items-center gap-1"
             >
-              <HelpCircle className="w-3.5 h-3.5" /> Leggenda
+              <HelpCircle className="w-3.5 h-3.5" /> Premi
             </button>
-            <button type="button" onClick={onCancel} className="w-8 h-8 rounded-xl bg-slate-800 text-slate-300 text-xs font-black">
+            <button
+              type="button"
+              onClick={() => { clearAllTimers(); onCancel(); }}
+              className="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-black flex items-center justify-center"
+            >
               ✕
             </button>
           </div>
         </div>
 
-        <div className={`bg-slate-950 border-2 rounded-2xl p-3.5 space-y-2.5 transition-all ${
-          suspenseSymbol === '74'
-            ? 'border-amber-300 shadow-[0_0_28px_rgba(251,191,36,0.55)]'
-            : suspenseSymbol === 'lattina'
-            ? 'border-red-500 shadow-[0_0_28px_rgba(239,68,68,0.55)]'
-            : suspenseSymbol === 'boccale'
-            ? 'border-yellow-400 shadow-[0_0_24px_rgba(250,204,21,0.45)]'
-            : 'border-amber-500/50'
-        }`}>
-          <div className="grid grid-cols-3 gap-2">
-            {reels.map((sym, idx) => {
-              const isLocked = stoppedReels[idx];
-              const isSuspenseThird = idx === 2 && !isLocked && Boolean(suspenseSymbol);
-              return (
-                <div
-                  key={idx}
-                  className={`h-24 rounded-2xl border-2 flex flex-col items-center justify-center relative transition-all duration-150 ${
-                    isSuspenseThird
-                      ? suspenseSymbol === 'lattina'
-                        ? 'border-red-400 bg-red-950/70 scale-105 animate-pulse shadow-[0_0_20px_rgba(239,68,68,0.75)]'
-                        : 'border-amber-300 bg-amber-500/25 scale-105 animate-pulse shadow-[0_0_20px_rgba(251,191,36,0.8)]'
-                      : spinning && !isLocked
-                      ? 'border-amber-400/60 bg-slate-900'
-                      : isLocked
-                      ? `${sym.color} scale-[1.03] shadow-lg`
-                      : 'border-slate-700 bg-slate-900'
-                  }`}
-                >
-                  {isLocked && (
-                    <span className="absolute top-1 right-1.5 text-[9px] font-black text-white/70">🔒</span>
-                  )}
-                  <span className={`font-black leading-none ${sym.id === '74' ? 'text-2xl tracking-tighter' : 'text-3xl'}`}>
-                    {sym.label}
-                  </span>
-                  <span className="text-[9px] font-black uppercase mt-1 text-slate-200">
-                    {sym.pts} pt
-                  </span>
-                </div>
-              );
-            })}
+        {/* Display Digitale Punti */}
+        <div className="grid grid-cols-3 gap-1.5 text-center">
+          <div className="bg-slate-900 border border-amber-500/35 rounded-xl py-1.5 px-2">
+            <span className="text-[8px] font-black uppercase text-slate-400 block">
+              {isFreePlay ? 'Totale Sessione' : 'Totale Sfida'}
+            </span>
+            <span className="text-sm font-mono font-black text-amber-300">{sessionPoints} pt</span>
           </div>
-
-          {suspenseSymbol && (
-            <div className={`p-2 rounded-xl border text-center text-[11px] font-black uppercase tracking-wide animate-pulse ${
-              suspenseSymbol === 'lattina'
-                ? 'bg-red-950/80 border-red-400 text-red-200'
-                : 'bg-amber-500/20 border-amber-300 text-amber-200'
-            }`}>
-              {suspenseSymbol === '74'
-                ? '🔥 DOPPIO 74! IN CORSA PER IL JACKPOT DA 2 BIRRE...'
-                : suspenseSymbol === 'lattina'
-                ? '😱 DOPPIA LATTINA! ATTENTO AL DISASTRO DA 2 BIRRE...'
-                : '🍺 DOPPIO BOCCALE! IN CORSA PER IL TRIS (55 PT)...'}
-            </div>
-          )}
-
-          {resultObj && (
-            <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-400/50 text-center">
-              <span className="text-xs font-black text-amber-200 block">{resultObj.label}</span>
-            </div>
-          )}
+          <div className="bg-slate-900 border border-emerald-500/35 rounded-xl py-1.5 px-2">
+            <span className="text-[8px] font-black uppercase text-slate-400 block">Ultimo Giro</span>
+            <span className={`text-sm font-mono font-black ${lastResult?.totalPoints > 0 ? 'text-emerald-300' : 'text-slate-400'}`}>
+              {lastResult ? `+${lastResult.totalPoints}` : '—'}
+            </span>
+          </div>
+          <div className="bg-slate-900 border border-sky-500/35 rounded-xl py-1.5 px-2">
+            <span className="text-[8px] font-black uppercase text-slate-400 block">
+              {isFreePlay ? 'Record Giro' : 'Giri Rimasti'}
+            </span>
+            <span className="text-sm font-mono font-black text-sky-300">
+              {isFreePlay ? `${localBestSpin} pt` : `${Math.max(0, SISAL_SLOT_SPINS - spinsDone)}/${SISAL_SLOT_SPINS}`}
+            </span>
+          </div>
         </div>
 
+        {/* CABINATO 3x3 CON LED SUPERIORI/INFERIORI E LINEE NEON */}
+        <div className={`rounded-2xl p-2 bg-gradient-to-b from-amber-500/25 via-red-950/40 to-amber-500/25 border-2 transition-all ${
+          suspenseType
+            ? 'border-amber-300 shadow-[0_0_28px_rgba(251,191,36,0.65)]'
+            : lastResult?.totalPoints > 0
+            ? 'border-emerald-400 shadow-[0_0_24px_rgba(52,211,153,0.4)]'
+            : 'border-amber-500/60'
+        }`}>
+          {/* Barra LED Superiore */}
+          <div className="flex items-center justify-between px-2 pb-1.5">
+            {ledDots.map((_, i) => (
+              <span
+                key={`t-${i}`}
+                style={{ animationDelay: `${i * 75}ms` }}
+                className={`w-2 h-2 rounded-full ${
+                  lastResult?.totalPoints > 0 || suspenseType ? 'dima-led-fast' : 'dima-led'
+                } ${i % 2 === 0 ? 'bg-amber-300 shadow-[0_0_6px_#fde047]' : 'bg-red-500 shadow-[0_0_6px_#ef4444]'}`}
+              />
+            ))}
+          </div>
+
+          {/* Finestra Rulli 3x3 */}
+          <div className="relative rounded-xl bg-slate-950 border-2 border-amber-400/50 p-1.5 overflow-hidden shadow-inner">
+            {/* Ombre cilindriche 3D sopra e sotto */}
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-5 bg-gradient-to-b from-black/70 to-transparent z-10" />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-5 bg-gradient-to-t from-black/70 to-transparent z-10" />
+
+            <div className="grid grid-cols-3 gap-1.5 relative z-0">
+              {[0, 1, 2].map(colIdx => {
+                const colSpinning = spinning && !stoppedCols[colIdx];
+                const isSuspenseCol = colIdx === 2 && colSpinning && Boolean(suspenseType);
+
+                return (
+                  <div
+                    key={colIdx}
+                    className={`rounded-xl p-1 space-y-1.5 border transition-all ${
+                      isSuspenseCol
+                        ? 'bg-amber-500/20 border-amber-300 shadow-[0_0_18px_rgba(251,191,36,0.75)] animate-pulse'
+                        : 'bg-slate-900/90 border-slate-800'
+                    } ${!colSpinning && spinsDone > 0 ? 'dima-reel-land' : ''}`}
+                  >
+                    {[0, 1, 2].map(rowIdx => {
+                      const sym = grid[colIdx][rowIdx];
+                      const cellKey = `${colIdx}-${rowIdx}`;
+                      const isWinnerCell = Boolean(lastResult?.winningCells?.has(cellKey));
+                      const dimCell = Boolean(lastResult && lastResult.totalPoints > 0 && !isWinnerCell);
+
+                      return (
+                        <div
+                          key={cellKey}
+                          className={`h-[70px] rounded-lg flex items-center justify-center transition-all duration-150 ${
+                            colSpinning
+                              ? 'opacity-85 scale-95 blur-[0.6px]'
+                              : isWinnerCell
+                              ? 'bg-amber-400/20 ring-2 ring-amber-300 scale-105 shadow-[0_0_14px_rgba(251,191,36,0.65)]'
+                              : dimCell
+                              ? 'opacity-35 scale-95'
+                              : 'bg-slate-950/60'
+                          }`}
+                        >
+                          <DimaSlotSymbolSvg id={sym.id} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Overlay Raggi Neon delle 5 Linee Vincenti */}
+            {lastResult?.winningLines?.length > 0 && !spinning && (
+              <svg
+                viewBox="0 0 300 300"
+                preserveAspectRatio="none"
+                className="pointer-events-none absolute inset-0 w-full h-full z-20"
+              >
+                {lastResult.winningLines.map((ln) => {
+                  const [c0, r0] = ln.coords[0];
+                  const [c2, r2] = ln.coords[2];
+                  const x1 = c0 * 100 + 50;
+                  const y1 = r0 * 100 + 50;
+                  const x2 = c2 * 100 + 50;
+                  const y2 = r2 * 100 + 50;
+                  return (
+                    <g key={ln.id}>
+                      <line
+                        x1={x1} y1={y1} x2={x2} y2={y2}
+                        stroke={ln.color}
+                        strokeWidth="11"
+                        strokeLinecap="round"
+                        opacity="0.45"
+                      />
+                      <line
+                        x1={x1} y1={y1} x2={x2} y2={y2}
+                        stroke="#ffffff"
+                        strokeWidth="3.5"
+                        strokeLinecap="round"
+                      />
+                    </g>
+                  );
+                })}
+              </svg>
+            )}
+          </div>
+
+          {/* Barra LED Inferiore */}
+          <div className="flex items-center justify-between px-2 pt-1.5">
+            {ledDots.map((_, i) => (
+              <span
+                key={`b-${i}`}
+                style={{ animationDelay: `${(10 - i) * 75}ms` }}
+                className={`w-2 h-2 rounded-full ${
+                  lastResult?.totalPoints > 0 || suspenseType ? 'dima-led-fast' : 'dima-led'
+                } ${i % 2 === 1 ? 'bg-amber-300 shadow-[0_0_6px_#fde047]' : 'bg-red-500 shadow-[0_0_6px_#ef4444]'}`}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Striscia Stato / Esultanza compatta */}
+        <div className={`min-h-[38px] rounded-xl px-3 py-2 border flex items-center justify-center text-center text-xs font-black transition-all ${
+          suspenseType
+            ? 'bg-amber-500/25 border-amber-300 text-amber-200 animate-pulse'
+            : lastResult?.totalPoints > 0
+            ? 'bg-emerald-500/20 border-emerald-400 text-emerald-200'
+            : 'bg-slate-900 border-slate-800 text-slate-400'
+        }`}>
+          {suspenseType
+            ? suspenseType === 'mario'
+              ? '👑 DOPPIO MARIO WILD! BRIVIDO SULLA 3ª COLONNA...'
+              : '🔥 IN CORSA PER IL TRIS DI 74! OCCHIO AL 3° RULLO...'
+            : spinning
+            ? '🎰 I rulli del 74 stanno girando...'
+            : lastResult
+            ? lastResult.totalPoints > 0
+              ? lastResult.headline
+              : 'Nessuna linea stavolta — gira ancora! 🍺'
+            : '5 Linee (3 righe + 2 diagonali) • Mario è WILD!'}
+        </div>
+
+        {/* Leggenda Tabella Premi (a scomparsa) */}
         {showLegend && (
-          <div className="bg-slate-950 border border-slate-800 rounded-2xl p-3 space-y-1.5 text-[11px] text-slate-300">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-1.5 text-[11px] text-slate-300">
             <span className="text-[10px] font-black uppercase text-amber-400 block">
-              📜 Indice Simboli & Valori
+              📜 Tabella Premi (Tris su 5 Linee)
             </span>
-            <div className="flex justify-between"><span><strong>74</strong> (stile slot 7)</span><strong className="text-amber-300">30 pt</strong></div>
-            <div className="flex justify-between"><span><strong>🍺</strong> Boccale Classico</span><strong className="text-yellow-300">15 pt</strong></div>
-            <div className="flex justify-between"><span><strong>🥫</strong> Lattina Spiaccicata</span><strong className="text-emerald-300">5 pt</strong></div>
-            <p className="text-[10px] text-slate-400 pt-1 border-t border-slate-800/80 leading-snug">
-              Le combinazioni miste sommano i punti dei 3 rulli. Tris uguali rari; <strong>3x 74</strong> (100 pt) o <strong>3x Lattina</strong> (1 pt) sono rarissimi e mettono in palio <strong>2 birre</strong>!
+            <div className="flex justify-between"><span><strong>👑 Mario WILD</strong> (sostituisce tutto • 3x = Jackpot)</span><strong className="text-amber-300">150 pt</strong></div>
+            <div className="flex justify-between"><span><strong>🔥 74</strong> (Il 74 del Gruppo)</span><strong className="text-orange-300">80 pt</strong></div>
+            <div className="flex justify-between"><span><strong>🪙 Tappo d'Oro</strong></span><strong className="text-yellow-300">40 pt</strong></div>
+            <div className="flex justify-between"><span><strong>🍺 Boccale 74</strong></span><strong className="text-amber-200">20 pt</strong></div>
+            <div className="flex justify-between"><span><strong>🥫 Lattina Rumena</strong></span><strong className="text-emerald-300">10 pt</strong></div>
+            <p className="text-[10px] text-slate-400 pt-1 border-t border-slate-800 leading-snug">
+              Pagano le <strong>3 righe orizzontali</strong> e le <strong>2 diagonali</strong>. Se chiudi più linee insieme, i punti si sommano!
+              {!isFreePlay && ' In Sfida SISAL giochi 5 giri: 3x Mario WILD mette in palio 2 birre!'}
             </p>
           </div>
         )}
 
-        {!resultObj ? (
+        {/* Barra Comandi: Turbo + GIRA infinito (o Conferma a fine 5 giri SISAL) */}
+        {sisalFinished ? (
           <button
             type="button"
-            disabled={spinning}
-            onClick={handlePullLever}
-            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 disabled:opacity-50 text-slate-950 text-xs font-black uppercase tracking-wider shadow-lg"
+            onClick={handleConfirmSisal}
+            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 text-slate-950 text-xs font-black uppercase tracking-wider shadow-lg active:scale-95 transition"
           >
-            {spinning
-              ? suspenseSymbol
-                ? '🥁 BRIVIDO SULLA 3ª COLONNA...'
-                : '🎰 I rulli si stanno fermando...'
-              : '🕹️ Tira la Leva della Slot di Dima'}
+            ✅ Conferma Punteggio Sfida ({sessionPoints} pt)
           </button>
         ) : (
-          <button
-            type="button"
-            onClick={() => onComplete(resultObj.score, { ...resultObj, reels })}
-            className="w-full py-3.5 rounded-2xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 text-xs font-black uppercase tracking-wider shadow-lg"
-          >
-            Conferma Punteggio ({resultObj.score} pt)
-          </button>
+          <div className="grid grid-cols-4 gap-2">
+            <button
+              type="button"
+              onClick={() => setTurboMode(v => !v)}
+              className={`col-span-1 py-3.5 rounded-2xl border-2 text-[11px] font-black uppercase transition active:scale-95 ${
+                turboMode
+                  ? 'bg-amber-400/20 border-amber-400 text-amber-300 shadow-[0_0_12px_rgba(251,191,36,0.3)]'
+                  : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
+              }`}
+            >
+              ⚡ {turboMode ? 'ON' : 'Turbo'}
+            </button>
+            <button
+              type="button"
+              disabled={spinning}
+              onClick={handleSpin}
+              className="col-span-3 py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 hover:from-amber-300 hover:to-amber-400 disabled:opacity-50 text-slate-950 text-sm font-black uppercase tracking-wider shadow-lg active:scale-95 transition"
+            >
+              {spinning
+                ? '🎰 Gira...'
+                : isFreePlay
+                ? '🕹️ GIRA I RULLI'
+                : `🕹️ GIRA (${spinsDone + 1}/${SISAL_SLOT_SPINS})`}
+            </button>
+          </div>
         )}
       </div>
     </div>
@@ -2895,6 +3234,16 @@ export default function Chiosco({
           {activeArena?.gameType === 'slot_dima' && (
             <SlotDiDimaArena
               opponentName={activeArena.opponentName}
+              isFreePlay={Boolean(activeArena.isFreePlay)}
+              bestRecord={freePlayBests.slot_dima || 0}
+              onSaveFreeRecord={(newBest) => {
+                setFreePlayBests(prev => {
+                  if ((prev.slot_dima || 0) >= newBest) return prev;
+                  const next = { ...prev, slot_dima: newBest };
+                  try { localStorage.setItem('sempre_noi_freeplay_bests', JSON.stringify(next)); } catch {}
+                  return next;
+                });
+              }}
               onComplete={(pts, details) => handleArenaFinish(pts, details)}
               onCancel={() => setActiveArena(null)}
             />
