@@ -2065,97 +2065,111 @@ export default function Chiosco({
                       </span>
                     </div>
 
-                   {iNeedToPlayAsOpponent && (
-                      <div className="space-y-2 pt-1">
-                        <div className="p-2 rounded-xl bg-emerald-500/15 border border-emerald-400/50 text-[10px] font-black text-emerald-300 text-center">
-                          🎯 {ch.challengerName} ti ha sfidato! Tocca a te giocare per decidere chi offre la birra.
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <button
-                            type="button"
-                            onClick={() => onDeclineSisalChallenge?.(ch.id)}
-                            className="py-2 rounded-xl bg-red-950/70 hover:bg-red-900 border border-red-500/50 text-red-200 text-[10px] font-black uppercase flex items-center justify-center gap-1"
-                          >
-                            <XCircle className="w-3.5 h-3.5" /> Rifiuta (Offri Birra)
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setActiveArena({
-                              challengeId: ch.id,
-                              role: 'opponent',
-                              gameType: ch.gameType,
-                              opponentName: ch.challengerName
-                            })}
-                            className="py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-[10px] font-black uppercase flex items-center justify-center gap-1"
-                          >
-                            <CheckCircle2 className="w-3.5 h-3.5" /> Accetta e Gioca
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                   {(() => {
+                      const iAmOpponent = String(ch.opponentId || '').toLowerCase() === String(currentUser?.id || '').toLowerCase()
+                        || String(ch.opponentName || '').toLowerCase() === String(currentUser?.username || '').toLowerCase();
+                      const iAmChallenger = String(ch.challengerId || '').toLowerCase() === String(currentUser?.id || '').toLowerCase()
+                        || String(ch.challengerName || '').toLowerCase() === String(currentUser?.username || '').toLowerCase();
+                      const myRole = iAmOpponent ? 'opponent' : 'challenger';
+                      const opponentMissingScore = ch.opponentScore === null || ch.opponentScore === undefined || Number.isNaN(Number(ch.opponentScore));
+                      const showAcceptButtons = ch.status === 'pending_opponent' && opponentMissingScore && !iAmChallenger;
 
-                    {/* Tabellone Punteggi / Tempi e Simboli */}
-                    <div className="grid grid-cols-2 gap-2 bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-[11px]">
-                      <div className="space-y-1">
-                        <span className="text-[9px] font-black uppercase text-slate-400 block truncate">
-                          {ch.challengerName}
-                        </span>
-                        {ch.challengerScore === null || ch.challengerScore === undefined || Number.isNaN(Number(ch.challengerScore)) ? (
-                          <span className="text-amber-300 font-bold text-[10px]">
-                            {isChallenger ? '⏳ Completa il tuo turno' : '⏳ Deve ancora giocare'}
-                          </span>
-                        ) : ch.gameType === 'boccale' ? (
-                          <span className="font-mono font-black text-white text-xs">
-                            {(Number(ch.challengerScore) / 1000).toFixed(2).replace('.', ',')}s
-                          </span>
-                        ) : (
-                          <div className="space-y-0.5">
-                            <span className="font-mono font-black text-amber-300 text-xs block">
-                              {ch.challengerScore} pt
-                            </span>
-                            {ch.challengerSlotResult?.reels && (
-                              <span className="text-xs font-black tracking-wider block">
-                                {ch.challengerSlotResult.reels.map(r => r.label).join(' • ')}
+                      return (
+                        <>
+                          {showAcceptButtons && (
+                            <div className="space-y-2 pt-1">
+                              <div className="p-2 rounded-xl bg-emerald-500/15 border border-emerald-400/50 text-[10px] font-black text-emerald-300 text-center">
+                                🎯 {ch.challengerName} ti ha sfidato! Tocca a te giocare per decidere chi offre la birra.
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => onDeclineSisalChallenge?.(ch.id)}
+                                  className="py-2 rounded-xl bg-red-950/70 hover:bg-red-900 border border-red-500/50 text-red-200 text-[10px] font-black uppercase flex items-center justify-center gap-1"
+                                >
+                                  <XCircle className="w-3.5 h-3.5" /> Rifiuta (Offri Birra)
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveArena({
+                                    challengeId: ch.id,
+                                    role: myRole,
+                                    gameType: ch.gameType,
+                                    opponentName: iAmOpponent ? ch.challengerName : ch.opponentName
+                                  })}
+                                  className="py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-[10px] font-black uppercase flex items-center justify-center gap-1"
+                                >
+                                  <CheckCircle2 className="w-3.5 h-3.5" /> Accetta e Gioca
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Tabellone Punteggi / Tempi e Simboli */}
+                          <div className="grid grid-cols-2 gap-2 bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-[11px]">
+                            <div className="space-y-1">
+                              <span className="text-[9px] font-black uppercase text-slate-400 block truncate">
+                                {ch.challengerName}
                               </span>
-                            )}
-                          </div>
-                        )}
-                      </div>
+                              {ch.challengerScore === null || ch.challengerScore === undefined || Number.isNaN(Number(ch.challengerScore)) ? (
+                                <span className="text-amber-300 font-bold text-[10px]">
+                                  {iAmChallenger ? '⏳ Completa il tuo turno' : '⏳ Deve ancora giocare'}
+                                </span>
+                              ) : ch.gameType === 'boccale' ? (
+                                <span className="font-mono font-black text-white text-xs">
+                                  {(Number(ch.challengerScore) / 1000).toFixed(2).replace('.', ',')}s
+                                </span>
+                              ) : (
+                                <div className="space-y-0.5">
+                                  <span className="font-mono font-black text-amber-300 text-xs block">
+                                    {ch.challengerScore} pt
+                                  </span>
+                                  {ch.challengerSlotResult?.reels && (
+                                    <span className="text-xs font-black tracking-wider block">
+                                      {ch.challengerSlotResult.reels.map(r => r.label).join(' • ')}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
 
-                      <div className="space-y-1 border-l border-slate-800 pl-2">
-                        <span className="text-[9px] font-black uppercase text-slate-400 block truncate">
-                          {ch.opponentName}
-                        </span>
-                        {ch.opponentScore === null || ch.opponentScore === undefined || Number.isNaN(Number(ch.opponentScore)) ? (
-                          <span className="text-amber-300 font-bold text-[10px]">
-                            {!isChallenger ? '🎯 Tocca a te!' : '⏳ In attesa...'}
-                          </span>
-                        ) : ch.gameType === 'boccale' ? (
-                          <span className="font-mono font-black text-white text-xs">
-                            {(Number(ch.opponentScore) / 1000).toFixed(2).replace('.', ',')}s
-                          </span>
-                        ) : (
-                          <div className="space-y-0.5">
-                            <span className="font-mono font-black text-amber-300 text-xs block">
-                              {ch.opponentScore} pt
-                            </span>
-                            {ch.opponentSlotResult?.reels && (
-                              <span className="text-xs font-black tracking-wider block">
-                                {ch.opponentSlotResult.reels.map(r => r.label).join(' • ')}
+                            <div className="space-y-1 border-l border-slate-800 pl-2">
+                              <span className="text-[9px] font-black uppercase text-slate-400 block truncate">
+                                {ch.opponentName}
                               </span>
-                            )}
+                              {opponentMissingScore ? (
+                                <span className="text-amber-300 font-bold text-[10px]">
+                                  {iAmOpponent ? '🎯 Tocca a te!' : '⏳ In attesa...'}
+                                </span>
+                              ) : ch.gameType === 'boccale' ? (
+                                <span className="font-mono font-black text-white text-xs">
+                                  {(Number(ch.opponentScore) / 1000).toFixed(2).replace('.', ',')}s
+                                </span>
+                              ) : (
+                                <div className="space-y-0.5">
+                                  <span className="font-mono font-black text-amber-300 text-xs block">
+                                    {ch.opponentScore} pt
+                                  </span>
+                                  {ch.opponentSlotResult?.reels && (
+                                    <span className="text-xs font-black tracking-wider block">
+                                      {ch.opponentSlotResult.reels.map(r => r.label).join(' • ')}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        )}
-                      </div>
-                    </div>
 
-                    {ch.status !== 'completed' && ch.status !== 'declined' && !iNeedToPlayAsOpponent && (
-                      <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-400/40 text-[10px] font-bold text-amber-200 text-center">
-                        {isChallenger && (ch.challengerScore === null || ch.challengerScore === undefined)
-                          ? '🎮 Completa il tuo turno per registrare il punteggio!'
-                          : `⏳ Turno registrato! In attesa che ${otherName} accetti e giochi il suo turno.`}
-                      </div>
-                    )}
+                          {ch.status !== 'completed' && ch.status !== 'declined' && !showAcceptButtons && (
+                            <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-400/40 text-[10px] font-bold text-amber-200 text-center">
+                              {iAmChallenger && (ch.challengerScore === null || ch.challengerScore === undefined)
+                                ? '🎮 Completa il tuo turno per registrare il punteggio!'
+                                : `⏳ Turno registrato! In attesa che ${otherName} accetti e giochi il suo turno.`}
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
 
                     {ch.status === 'completed' && ch.outcome && (
                       <div className={`p-2.5 rounded-xl border text-xs font-black text-center ${
