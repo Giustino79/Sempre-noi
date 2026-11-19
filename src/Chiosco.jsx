@@ -1832,7 +1832,271 @@ function SlotDiDimaArena({ opponentName, onComplete, onCancel }) {
     </div>
   );
 }
+// ============================================================================
+// 🏃‍♂️ MINIGIOCO 3: CORSA DEL LUPPOLO (3 CORSIE • SWIPE O TASTI • RECORD)
+// ============================================================================
+function CorsaDelLuppoloArena({ opponentName, isFreePlay = false, onComplete, onCancel }) {
+  const [phase, setPhase] = useState('ready'); // 'ready' | 'playing' | 'gameover'
+  const [lane, setLane] = useState(1); // 0 = sinistra, 1 = centro, 2 = destra
+  const [score, setScore] = useState(0);
+  const [items, setItems] = useState([]);
+  const [hitReason, setHitReason] = useState('');
 
+  const laneRef = useRef(1);
+  const scoreRef = useRef(0);
+  const itemsRef = useRef([]);
+  const speedRef = useRef(1.15);
+  const lastSpawnRef = useRef(0);
+  const touchStartXRef = useRef(null);
+  const runningRef = useRef(false);
+
+  const moveLane = (dir) => {
+    if (!runningRef.current) return;
+    const next = Math.max(0, Math.min(2, laneRef.current + dir));
+    laneRef.current = next;
+    setLane(next);
+  };
+
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') moveLane(-1);
+      if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') moveLane(1);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  const startGame = () => {
+    laneRef.current = 1;
+    scoreRef.current = 0;
+    itemsRef.current = [];
+    speedRef.current = 1.15;
+    lastSpawnRef.current = performance.now();
+    runningRef.current = true;
+    setLane(1);
+    setScore(0);
+    setItems([]);
+    setHitReason('');
+    setPhase('playing');
+  };
+
+  useEffect(() => {
+    if (phase !== 'playing') return;
+    let rafId;
+    let lastTime = performance.now();
+
+    const loop = (now) => {
+      if (!runningRef.current) return;
+      const dt = Math.min(40, now - lastTime) / 16.67;
+      lastTime = now;
+
+      // Aumenta velocità e punteggio distanza
+      speedRef.current = Math.min(2.6, speedRef.current + 0.0007 * dt);
+      scoreRef.current += 0.6 * dt;
+
+      // Genera nuovi ostacoli o bonus
+      const spawnInterval = Math.max(380, 920 - speedRef.current * 200);
+      if (now - lastSpawnRef.current > spawnInterval) {
+        lastSpawnRef.current = now;
+        const spawnLane = Math.floor(Math.random() * 3);
+        const r = Math.random();
+        let kind = 'obs_can';
+        let icon = '🥫';
+        let label = 'Lattina Rumena';
+        if (r < 0.25) { kind = 'obs_can'; icon = '🥫'; label = 'Lattina Rumena'; }
+        else if (r < 0.45) { kind = 'obs_red'; icon = '🟥'; label = 'Cartellino Rosso VAR'; }
+        else if (r < 0.60) { kind = 'obs_cone'; icon = '🚧'; label = 'Transenna Chiusura'; }
+        else if (r < 0.85) { kind = 'bonus_beer'; icon = '🍺'; label = '+50 pt'; }
+        else { kind = 'bonus_cap'; icon = '🪙'; label = '+100 pt'; }
+
+        itemsRef.current.push({
+          id: now + Math.random(),
+          lane: spawnLane,
+          y: -10,
+          kind,
+          icon,
+          label
+        });
+      }
+
+      // Muove gli oggetti e controlla collisioni
+      const nextItems = [];
+      for (const it of itemsRef.current) {
+        const ny = it.y + speedRef.current * 1.45 * dt;
+        const inHitZone = ny >= 74 && ny <= 89 && it.lane === laneRef.current;
+
+        if (inHitZone) {
+          if (it.kind.startsWith('bonus_')) {
+            scoreRef.current += it.kind === 'bonus_cap' ? 100 : 50;
+            continue;
+          } else {
+            runningRef.current = false;
+            setHitReason(`${it.icon} Hai preso: ${it.label}!`);
+            setScore(Math.floor(scoreRef.current));
+            setPhase('gameover');
+            return;
+          }
+        }
+        if (ny < 108) nextItems.push({ ...it, y: ny });
+      }
+
+      itemsRef.current = nextItems;
+      setItems([...nextItems]);
+      setScore(Math.floor(scoreRef.current));
+      rafId = requestAnimationFrame(loop);
+    };
+
+    rafId = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(rafId);
+  }, [phase]);
+
+  const handleTouchStart = (e) => {
+    touchStartXRef.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchStartXRef.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartXRef.current;
+    touchStartXRef.current = null;
+    if (Math.abs(dx) > 25) moveLane(dx > 0 ? 1 : -1);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[220] bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-between p-4 select-none touch-none">
+      <div className="w-full max-w-sm flex items-center justify-between">
+        <div>
+          <span className="text-[10px] font-black uppercase text-amber-400 block">
+            {isFreePlay ? '🎮 Gioco Libero • Record Personale' : `🏃‍♂️ Corsa • Sfida contro ${opponentName}`}
+          </span>
+          <h3 className="text-base font-black text-white">Corsa del Luppolo</h3>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="px-3 py-1 rounded-xl bg-slate-900 border border-amber-400/50 font-mono text-sm font-black text-amber-300">
+            {score} pt
+          </span>
+          <button
+            type="button"
+            onClick={() => { runningRef.current = false; onCancel(); }}
+            className="px-2.5 py-1.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold"
+          >
+            Esci
+          </button>
+        </div>
+      </div>
+
+      {/* Pista 3 Corsie */}
+      <div
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        className="relative w-full max-w-sm flex-1 my-3 rounded-3xl bg-gradient-to-b from-slate-900 via-slate-950 to-amber-950/40 border-2 border-amber-400/50 overflow-hidden shadow-2xl"
+      >
+        {/* Linee delle 3 corsie */}
+        <div className="absolute inset-0 grid grid-cols-3 pointer-events-none">
+          <div className="border-r border-dashed border-slate-700/70" />
+          <div className="border-r border-dashed border-slate-700/70" />
+          <div />
+        </div>
+
+        {/* Oggetti in caduta */}
+        {items.map(it => (
+          <div
+            key={it.id}
+            style={{
+              left: `${it.lane * 33.33 + 16.66}%`,
+              top: `${it.y}%`,
+              transform: 'translate(-50%, -50%)'
+            }}
+            className={`absolute text-3xl drop-shadow-lg ${it.kind.startsWith('bonus_') ? 'animate-pulse' : ''}`}
+          >
+            {it.icon}
+          </div>
+        ))}
+
+        {/* Giocatore (Boccale in corsa) */}
+        <div
+          style={{
+            left: `${lane * 33.33 + 16.66}%`,
+            top: '82%',
+            transform: 'translate(-50%, -50%)'
+          }}
+          className="absolute transition-all duration-100 ease-out"
+        >
+          <div className="w-12 h-12 rounded-2xl bg-amber-400/20 border-2 border-amber-400 flex items-center justify-center text-3xl shadow-[0_0_20px_rgba(251,191,36,0.6)]">
+            🍺
+          </div>
+        </div>
+
+        {/* Overlay Inizio */}
+        {phase === 'ready' && (
+          <div className="absolute inset-0 bg-slate-950/85 flex flex-col items-center justify-center p-5 text-center space-y-4">
+            <span className="text-5xl">🏃‍♂️🍺</span>
+            <h4 className="text-lg font-black uppercase text-amber-400">Schiva il Degrado!</h4>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Fai <strong>swipe a destra/sinistra</strong> (o usa i tasti sotto) per cambiare corsia.<br />
+              Raccogli <strong>🍺 (+50)</strong> e <strong>🪙 (+100)</strong>, evita <strong>🥫 🟥 🚧</strong>!
+            </p>
+            <button
+              type="button"
+              onClick={startGame}
+              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 text-xs font-black uppercase tracking-wider shadow-lg"
+            >
+              🔥 Parti Subito!
+            </button>
+          </div>
+        )}
+
+        {/* Overlay Game Over */}
+        {phase === 'gameover' && (
+          <div className="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center p-5 text-center space-y-3">
+            <span className="text-4xl">💥</span>
+            <h4 className="text-base font-black uppercase text-red-400">Corsa Finita!</h4>
+            <p className="text-xs text-slate-300 font-bold">{hitReason}</p>
+            <div className="px-5 py-2.5 rounded-2xl bg-slate-900 border border-amber-400/50">
+              <span className="text-[10px] uppercase text-slate-400 block font-bold">Punteggio Finale</span>
+              <span className="text-2xl font-mono font-black text-amber-300">{score} pt</span>
+            </div>
+            <div className="w-full space-y-2 pt-1">
+              <button
+                type="button"
+                onClick={() => onComplete(score)}
+                className="w-full py-3 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 text-xs font-black uppercase shadow-lg"
+              >
+                {isFreePlay ? `Salva Record (${score} pt)` : `Invia Punteggio (${score} pt)`}
+              </button>
+              {isFreePlay && (
+                <button
+                  type="button"
+                  onClick={startGame}
+                  className="w-full py-2.5 rounded-xl bg-slate-800 text-amber-300 text-xs font-black uppercase"
+                >
+                  🔄 Rigioca Subito
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Comandi Rapidi a Pollice */}
+      <div className="w-full max-w-sm grid grid-cols-2 gap-3">
+        <button
+          type="button"
+          onPointerDown={() => moveLane(-1)}
+          className="py-4 rounded-2xl bg-slate-900 active:bg-amber-400 active:text-slate-950 border-2 border-slate-700 text-white text-lg font-black shadow-lg"
+        >
+          ⬅️ SINISTRA
+        </button>
+        <button
+          type="button"
+          onPointerDown={() => moveLane(1)}
+          className="py-4 rounded-2xl bg-slate-900 active:bg-amber-400 active:text-slate-950 border-2 border-slate-700 text-white text-lg font-black shadow-lg"
+        >
+          DESTRA ➡️
+        </button>
+      </div>
+    </div>
+  );
+}
 // ============================================================================
 // 🏪 COMPONENTE PRINCIPALE DEL CHIOSCO (5 CATEGORIE + SEZIONE SISAL)
 // ============================================================================
@@ -1885,8 +2149,42 @@ export default function Chiosco({
     }
   };
 
+  const [freePlayBests, setFreePlayBests] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('sempre_noi_freeplay_bests') || '{}');
+    } catch {
+      return {};
+    }
+  });
+
+  const handleStartFreePlay = () => {
+    setActiveArena({
+      challengeId: null,
+      role: 'free',
+      isFreePlay: true,
+      gameType: selectedGameType,
+      opponentName: 'Allenamento Libero'
+    });
+  };
+
   const handleArenaFinish = (scoreValue, slotDetails = null) => {
-    if (!activeArena || !onSubmitSisalScore) return;
+    if (!activeArena) return;
+    if (activeArena.isFreePlay) {
+      const g = activeArena.gameType;
+      const num = Number(scoreValue);
+      const prevBest = freePlayBests[g];
+      const isBetter =
+        prevBest === undefined ||
+        (g === 'boccale' ? num < Number(prevBest) : num > Number(prevBest));
+      if (isBetter && !Number.isNaN(num)) {
+        const nextBests = { ...freePlayBests, [g]: num };
+        setFreePlayBests(nextBests);
+        try { localStorage.setItem('sempre_noi_freeplay_bests', JSON.stringify(nextBests)); } catch {}
+      }
+      setActiveArena(null);
+      return;
+    }
+    if (!onSubmitSisalScore) return;
     onSubmitSisalScore({
       challengeId: activeArena.challengeId,
       role: activeArena.role,
@@ -1973,32 +2271,65 @@ export default function Chiosco({
             <span className="text-[10px] font-black uppercase text-amber-400 block">
               1. Scegli il Minigioco
             </span>
-            <div className="grid grid-cols-2 gap-2">
+           <div className="grid grid-cols-3 gap-1.5">
               <button
                 type="button"
                 onClick={() => setSelectedGameType('boccale')}
-                className={`p-2.5 rounded-xl border text-left transition ${
+                className={`p-2 rounded-xl border text-center transition ${
                   selectedGameType === 'boccale' ? 'bg-amber-500/20 border-amber-400 text-white' : 'bg-slate-950 border-slate-800 text-slate-400'
                 }`}
               >
-                <span className="text-xs font-black block">🍺 Svuota il Boccale</span>
-                <span className="text-[10px] text-slate-400 block">50 tap ovunque • Centesimi</span>
+                <span className="text-lg block">🍺</span>
+                <span className="text-[10px] font-black block leading-tight mt-0.5">Svuota Boccale</span>
+                {freePlayBests.boccale !== undefined && (
+                  <span className="text-[9px] font-mono text-emerald-300 block mt-0.5">
+                    Best: {(Number(freePlayBests.boccale) / 1000).toFixed(2).replace('.', ',')}s
+                  </span>
+                )}
               </button>
               <button
                 type="button"
                 onClick={() => setSelectedGameType('slot_dima')}
-                className={`p-2.5 rounded-xl border text-left transition ${
+                className={`p-2 rounded-xl border text-center transition ${
                   selectedGameType === 'slot_dima' ? 'bg-amber-500/20 border-amber-400 text-white' : 'bg-slate-950 border-slate-800 text-slate-400'
                 }`}
               >
-                <span className="text-xs font-black block">🎰 Slot di Dima</span>
-                <span className="text-[10px] text-slate-400 block">74 • Boccale • Lattina</span>
+                <span className="text-lg block">🎰</span>
+                <span className="text-[10px] font-black block leading-tight mt-0.5">Slot di Dima</span>
+                {freePlayBests.slot_dima !== undefined && (
+                  <span className="text-[9px] font-mono text-emerald-300 block mt-0.5">
+                    Best: {freePlayBests.slot_dima} pt
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedGameType('corsa_luppolo')}
+                className={`p-2 rounded-xl border text-center transition ${
+                  selectedGameType === 'corsa_luppolo' ? 'bg-amber-500/20 border-amber-400 text-white' : 'bg-slate-950 border-slate-800 text-slate-400'
+                }`}
+              >
+                <span className="text-lg block">🏃‍♂️</span>
+                <span className="text-[10px] font-black block leading-tight mt-0.5">Corsa Luppolo</span>
+                {freePlayBests.corsa_luppolo !== undefined && (
+                  <span className="text-[9px] font-mono text-emerald-300 block mt-0.5">
+                    Best: {freePlayBests.corsa_luppolo} pt
+                  </span>
+                )}
               </button>
             </div>
 
-            <div>
+            <button
+              type="button"
+              onClick={handleStartFreePlay}
+              className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-emerald-400/50 text-emerald-300 text-xs font-black uppercase tracking-wider shadow transition"
+            >
+              🎮 Gioco Libero (Sempre Disponibile • Passatempo)
+            </button>
+
+            <div className="pt-1 border-t border-slate-800">
               <label className="block text-[10px] font-black uppercase text-amber-400 mb-1">
-                2. Scegli l'Avversario
+                2. Oppure Sfida un Avversario (1 Birra in Palio)
               </label>
               {opponents.length === 0 ? (
                 <p className="text-[11px] text-slate-400">Non ci sono altri membri nella lega.</p>
@@ -2026,7 +2357,6 @@ export default function Chiosco({
                 : '🔥 Lancia Sfida (1 Birra in Palio)'}
             </button>
           </div>
-
           <div className="space-y-2.5">
             <span className="text-[10px] font-black uppercase text-slate-400 block">
               Le Tue Sfide SISAL ({myChallenges.length})
@@ -2040,7 +2370,7 @@ export default function Chiosco({
               myChallenges.map(ch => {
                 const isChallenger = ch.challengerId === currentUser?.id;
                 const otherName = isChallenger ? ch.opponentName : ch.challengerName;
-                const gameTitle = ch.gameType === 'boccale' ? 'Svuota il Boccale' : 'Slot di Dima';
+                const gameTitle = ch.gameType === 'boccale' ? 'Svuota il Boccale' : ch.gameType === 'corsa_luppolo' ? 'Corsa del Luppolo' : 'Slot di Dima';
                 const iNeedToPlayAsOpponent = !isChallenger && ch.status === 'pending_opponent' && ch.opponentScore === null;
 
                 return (
@@ -2214,6 +2544,14 @@ export default function Chiosco({
               onCancel={() => setActiveArena(null)}
             />
           )}
+          {activeArena?.gameType === 'corsa_luppolo' && (
+         <CorsaDelLuppoloArena
+           opponentName={activeArena.opponentName}
+           isFreePlay={Boolean(activeArena.isFreePlay)}
+           onComplete={(pts) => handleArenaFinish(pts)}
+           onCancel={() => setActiveArena(null)}
+         />
+       )}
         </div>
       ) : (
         <>
