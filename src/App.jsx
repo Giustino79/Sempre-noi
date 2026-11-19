@@ -613,7 +613,7 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md', isRumeno = false, crushe
             </g>
           )}
 
-          {/* 2. LAGER CLASSICA (BOCCALE DA PUB CONSFACCETTATURE E GOCCIA DI SCHIUMA) */}
+          {/* 2. LAGER CLASSICA (BOCCALE DA PUB CON SFACCETTATURE E GOCCIA DI SCHIUMA) */}
           {effectiveType === 'lager' && (
             <g>
               {/* Manico scolpito */}
