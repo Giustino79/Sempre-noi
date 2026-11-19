@@ -2200,165 +2200,166 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
       expiresAtMs: nowMs + 48 * 60 * 60 * 1000
     };
 
-    setLeagues(prev => prev.map(l => {
-      if (l.id !== activeLeagueId) return l;
-      const updated = {
-        ...l,
-        sisalChallenges: [newChallenge, ...(l.sisalChallenges || [])],
-        members: (l.members || []).map(m => {
-          if (m.id !== currentUser.id) return m;
-          const prevCnt = getSisalWeeklyCount(m, currentWeekKey);
-          return {
-            ...m,
-            sisalWeekKey: currentWeekKey,
-            sisalWeekCount: prevCnt + 1
-          };
-        })
-      };
-      pushLeagueToCloud(updated);
-      return updated;
-    }));
+    const currentLeague = leagues.find(l => l.id === activeLeagueId);
+    if (!currentLeague) return null;
 
-    showToast(`🎲 Sfida SISAL inviata a ${targetOpponent.name}! Turno registrato: ora tocca a ${targetOpponent.name}.`, 'success');
+    const updatedLeague = {
+      ...currentLeague,
+      sisalChallenges: [newChallenge, ...(currentLeague.sisalChallenges || [])],
+      members: (currentLeague.members || []).map(m => {
+        if (m.id !== currentUser.id) return m;
+        const prevCnt = getSisalWeeklyCount(m, currentWeekKey);
+        return {
+          ...m,
+          sisalWeekKey: currentWeekKey,
+          sisalWeekCount: prevCnt + 1
+        };
+      })
+    };
+
+    setLeagues(prev => prev.map(l => (l.id === activeLeagueId ? updatedLeague : l)));
+    pushLeagueToCloud(updatedLeague);
+    showToast(`🎲 Sfida SISAL inviata a ${targetOpponent.name}! Completa il tuo turno.`, 'success');
     return challengeId;
   };
 
   const handleSubmitSisalScore = ({ challengeId, role, scoreValue, slotDetails = null }) => {
     if (!activeLeagueId || !challengeId) return;
+    const currentLeague = leagues.find(l => l.id === activeLeagueId);
+    if (!currentLeague) return;
+
     const nowMs = Date.now();
     let finalToastText = '⏳ Turno salvato! In attesa della risposta dell\'avversario.';
     let finalToastType = 'success';
+    let nextGazzetta = [...(currentLeague.gazzetta || [])];
 
-    setLeagues(prev => prev.map(l => {
-      if (l.id !== activeLeagueId) return l;
-      const existingList = l.sisalChallenges || [];
-      let nextGazzetta = [...(l.gazzetta || [])];
+    const updatedChallenges = (currentLeague.sisalChallenges || []).map(ch => {
+      if (ch.id !== challengeId) return ch;
 
-      const updatedChallenges = existingList.map(ch => {
-        if (ch.id !== challengeId) return ch;
+      const numericScore = Number(scoreValue);
+      const nextCh = {
+        ...ch,
+        challengerScore: role === 'challenger' ? numericScore : ch.challengerScore,
+        opponentScore: role === 'opponent' ? numericScore : ch.opponentScore,
+        challengerSlotResult: role === 'challenger' && slotDetails ? slotDetails : ch.challengerSlotResult,
+        opponentSlotResult: role === 'opponent' && slotDetails ? slotDetails : ch.opponentSlotResult
+      };
 
-        const nextCh = {
-          ...ch,
-          challengerScore: role === 'challenger' ? Number(scoreValue) : ch.challengerScore,
-          opponentScore: role === 'opponent' ? Number(scoreValue) : ch.opponentScore,
-          challengerSlotResult: role === 'challenger' && slotDetails ? slotDetails : ch.challengerSlotResult,
-          opponentSlotResult: role === 'opponent' && slotDetails ? slotDetails : ch.opponentSlotResult
-        };
+      const bothPlayed =
+        nextCh.challengerScore !== null &&
+        nextCh.challengerScore !== undefined &&
+        !Number.isNaN(Number(nextCh.challengerScore)) &&
+        nextCh.opponentScore !== null &&
+        nextCh.opponentScore !== undefined &&
+        !Number.isNaN(Number(nextCh.opponentScore));
 
-        const bothPlayed =
-          nextCh.challengerScore !== null &&
-          nextCh.challengerScore !== undefined &&
-          nextCh.opponentScore !== null &&
-          nextCh.opponentScore !== undefined;
-
-        if (!bothPlayed) {
-          return {
-            ...nextCh,
-            status: 'pending_opponent',
-            outcome: null
-          };
-        }
-
-        const res = resolveSisalOutcome(nextCh, nextCh.challengerScore, nextCh.opponentScore);
-        if (!res) return nextCh;
-
-        const winnerName = res.winnerId === nextCh.challengerId ? nextCh.challengerName : nextCh.opponentName;
-        const loserName = res.loserId === nextCh.challengerId ? nextCh.challengerName : nextCh.opponentName;
-        const gameLabel = nextCh.gameType === 'boccale' ? 'Svuota il Boccale' : 'Slot di Dima';
-
-        if (!res.isDraw && winnerName && loserName) {
-          const beersTxt = res.beersStake === 2 ? '2 BIRRE' : 'UNA BIRRA';
-          nextGazzetta = filterActiveGazzettaNews([{
-            id: `news_sisal_${ch.id}_${nowMs}`,
-            category: `VERDETTO SISAL: ${winnerName.toUpperCase()} TRIONFA!`,
-            icon: '🍻',
-            badgeColor: 'bg-amber-400 text-slate-950',
-            text: `Nella sfida "${gameLabel}", ${winnerName} batte ${loserName}: ${loserName} deve offrire ${beersTxt} a ${winnerName}!`,
-            timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
-            dateLabel: new Date().toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }),
-            createdAtMs: nowMs
-          }, ...nextGazzetta], nowMs);
-
-          finalToastText = `🏆 Sfida chiusa! ${loserName} deve offrire ${beersTxt} a ${winnerName}!`;
-        } else {
-          finalToastText = '🤝 Pareggio perfetto al SISAL! Nessuna birra offerta.';
-          finalToastType = 'warning';
-        }
-
+      if (!bothPlayed) {
         return {
           ...nextCh,
-          status: 'completed',
-          completedAtMs: nowMs,
-          outcome: {
-            ...res,
-            winnerName,
-            loserName
-          }
+          status: 'pending_opponent',
+          outcome: null
         };
-      });
+      }
 
-      const updated = {
-        ...l,
-        sisalChallenges: updatedChallenges,
-        gazzetta: nextGazzetta
+      const res = resolveSisalOutcome(nextCh, nextCh.challengerScore, nextCh.opponentScore);
+      if (!res) return nextCh;
+
+      const winnerName = res.winnerId === nextCh.challengerId ? nextCh.challengerName : nextCh.opponentName;
+      const loserName = res.loserId === nextCh.challengerId ? nextCh.challengerName : nextCh.opponentName;
+      const gameLabel = nextCh.gameType === 'boccale' ? 'Svuota il Boccale' : 'Slot di Dima';
+
+      if (!res.isDraw && winnerName && loserName) {
+        const beersTxt = res.beersStake === 2 ? '2 BIRRE' : 'UNA BIRRA';
+        nextGazzetta = filterActiveGazzettaNews([{
+          id: `news_sisal_${ch.id}_${nowMs}`,
+          category: `VERDETTO SISAL: ${winnerName.toUpperCase()} TRIONFA!`,
+          icon: '🍻',
+          badgeColor: 'bg-amber-400 text-slate-950',
+          text: `Nella sfida "${gameLabel}", ${winnerName} batte ${loserName}: ${loserName} deve offrire ${beersTxt} a ${winnerName}!`,
+          timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
+          dateLabel: new Date().toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }),
+          createdAtMs: nowMs
+        }, ...nextGazzetta], nowMs);
+
+        finalToastText = `🏆 Sfida chiusa! ${loserName} deve offrire ${beersTxt} a ${winnerName}!`;
+      } else {
+        finalToastText = '🤝 Pareggio perfetto al SISAL! Nessuna birra offerta.';
+        finalToastType = 'warning';
+      }
+
+      return {
+        ...nextCh,
+        status: 'completed',
+        completedAtMs: nowMs,
+        outcome: {
+          ...res,
+          winnerName,
+          loserName
+        }
       };
-      pushLeagueToCloud(updated);
-      return updated;
-    }));
+    });
 
+    const updatedLeague = {
+      ...currentLeague,
+      sisalChallenges: updatedChallenges,
+      gazzetta: nextGazzetta
+    };
+
+    setLeagues(prev => prev.map(l => (l.id === activeLeagueId ? updatedLeague : l)));
+    pushLeagueToCloud(updatedLeague);
     showToast(finalToastText, finalToastType);
   };
 
   const handleDeclineSisalChallenge = (challengeId) => {
     if (!activeLeagueId || !challengeId) return;
+    const currentLeague = leagues.find(l => l.id === activeLeagueId);
+    if (!currentLeague) return;
+
     const nowMs = Date.now();
     let loserLabel = '';
     let winnerLabel = '';
 
-    setLeagues(prev => prev.map(l => {
-      if (l.id !== activeLeagueId) return l;
-      const updatedChallenges = (l.sisalChallenges || []).map(ch => {
-        if (ch.id !== challengeId) return ch;
-        loserLabel = ch.opponentName;
-        winnerLabel = ch.challengerName;
-        return {
-          ...ch,
-          status: 'declined',
-          completedAtMs: nowMs,
-          outcome: {
-            winnerId: ch.challengerId,
-            loserId: ch.opponentId,
-            winnerName: ch.challengerName,
-            loserName: ch.opponentName,
-            isDraw: false,
-            beersStake: 1,
-            byRefusal: true
-          }
-        };
-      });
-
-      const nextGazzetta = loserLabel && winnerLabel
-        ? filterActiveGazzettaNews([{
-            id: `news_sisal_refusal_${challengeId}_${nowMs}`,
-            category: `SFIDA RIFIUTATA AL SISAL: ${loserLabel.toUpperCase()} PAGA!`,
-            icon: '🏳️',
-            badgeColor: 'bg-red-600 text-white',
-            text: `${loserLabel} rifiuta la sfida SISAL lanciata da ${winnerLabel} e perde per rinuncia: dovrà offrire una birra a ${winnerLabel}!`,
-            timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
-            dateLabel: new Date().toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }),
-            createdAtMs: nowMs
-          }, ...(l.gazzetta || [])], nowMs)
-        : (l.gazzetta || []);
-
-      const updated = {
-        ...l,
-        sisalChallenges: updatedChallenges,
-        gazzetta: nextGazzetta
+    const updatedChallenges = (currentLeague.sisalChallenges || []).map(ch => {
+      if (ch.id !== challengeId) return ch;
+      loserLabel = ch.opponentName;
+      winnerLabel = ch.challengerName;
+      return {
+        ...ch,
+        status: 'declined',
+        completedAtMs: nowMs,
+        outcome: {
+          winnerId: ch.challengerId,
+          loserId: ch.opponentId,
+          winnerName: ch.challengerName,
+          loserName: ch.opponentName,
+          isDraw: false,
+          beersStake: 1,
+          byRefusal: true
+        }
       };
-      pushLeagueToCloud(updated);
-      return updated;
-    }));
+    });
 
+    const nextGazzetta = loserLabel && winnerLabel
+      ? filterActiveGazzettaNews([{
+          id: `news_sisal_refusal_${challengeId}_${nowMs}`,
+          category: `SFIDA RIFIUTATA AL SISAL: ${loserLabel.toUpperCase()} PAGA!`,
+          icon: '🏳️',
+          badgeColor: 'bg-red-600 text-white',
+          text: `${loserLabel} rifiuta la sfida SISAL lanciata da ${winnerLabel} e perde per rinuncia: dovrà offrire una birra a ${winnerLabel}!`,
+          timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
+          dateLabel: new Date().toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }),
+          createdAtMs: nowMs
+        }, ...(currentLeague.gazzetta || [])], nowMs)
+      : (currentLeague.gazzetta || []);
+
+    const updatedLeague = {
+      ...currentLeague,
+      sisalChallenges: updatedChallenges,
+      gazzetta: nextGazzetta
+    };
+
+    setLeagues(prev => prev.map(l => (l.id === activeLeagueId ? updatedLeague : l)));
+    pushLeagueToCloud(updatedLeague);
     showToast(`🏳️ Hai rifiutato la sfida: devi offrire una birra a ${winnerLabel || 'chi ti ha sfidato'}!`, 'danger');
   };
 // Scarica le foto dall'archivio Cloud separato (/albums) SOLO quando si apre l'Album
