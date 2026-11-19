@@ -1703,6 +1703,7 @@ const [bonusSempreNoi, setBonusSempreNoi] = useState(false);
 
       const nowMs = Date.now();
       const rawValues = Object.values(data);
+      
       const deletedIds = new Set(rawValues.filter(l => l && l.deleted).map(l => l.id));
       const cloudList = rawValues
         .filter(l => l && l.id && !l.deleted)
@@ -1710,6 +1711,7 @@ const [bonusSempreNoi, setBonusSempreNoi] = useState(false);
           ...l,
           members: l.members || [],
           history: l.history || [],
+          sisalChallenges: l.sisalChallenges || [],
           gazzetta: filterActiveGazzettaNews(l.gazzetta || [], nowMs),
           feed: (l.feed || []).map(item => ({
             ...item,
@@ -1721,7 +1723,45 @@ const [bonusSempreNoi, setBonusSempreNoi] = useState(false);
       setLeagues(prev => {
         const mergedMap = new Map();
         prev.forEach(item => { if (!deletedIds.has(item.id)) mergedMap.set(item.id, item); });
-        cloudList.forEach(item => mergedMap.set(item.id, item));
+        cloudList.forEach(cloudItem => {
+          const localItem = mergedMap.get(cloudItem.id);
+          const localChallenges = localItem?.sisalChallenges || [];
+          const remoteChallenges = cloudItem.sisalChallenges || [];
+
+          const challengeById = new Map();
+          remoteChallenges.forEach(ch => { if (ch?.id) challengeById.set(ch.id, ch); });
+          localChallenges.forEach(ch => {
+            if (!ch?.id) return;
+            const prevCh = challengeById.get(ch.id);
+            const isRecentLocal = ch.createdAtMs && (Date.now() - Number(ch.createdAtMs)) < 60000;
+            if (!prevCh && isRecentLocal) {
+              challengeById.set(ch.id, ch);
+            } else if (prevCh && (ch.completedAtMs || 0) > (prevCh.completedAtMs || 0)) {
+              challengeById.set(ch.id, ch);
+            }
+          });
+
+          const mergedChallenges = Array.from(challengeById.values()).sort(
+            (a, b) => Number(b.createdAtMs || 0) - Number(a.createdAtMs || 0)
+          );
+
+          const mergedMembers = (cloudItem.members || []).map(cm => {
+            const lm = (localItem?.members || []).find(m => m.id === cm.id);
+            if (!lm) return cm;
+            const useLocalSisal =
+              lm.sisalWeekKey === currentWeekKey &&
+              (cm.sisalWeekKey !== currentWeekKey || Number(lm.sisalWeekCount || 0) > Number(cm.sisalWeekCount || 0));
+            return useLocalSisal
+              ? { ...cm, sisalWeekKey: lm.sisalWeekKey, sisalWeekCount: lm.sisalWeekCount }
+              : cm;
+          });
+
+          mergedMap.set(cloudItem.id, {
+            ...cloudItem,
+            members: mergedMembers,
+            sisalChallenges: mergedChallenges
+          });
+        });
         return Array.from(mergedMap.values());
       });
 
@@ -6660,13 +6700,26 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
               <Award className="w-5 h-5" />
               <span className="text-[9px] font-bold mt-1">Albo d'Oro</span>
             </button>
-            <button
-              onClick={() => setActiveTab('chiosco')}
-              className={`flex flex-col items-center py-1 rounded-xl transition ${activeTab === 'chiosco' ? 'text-amber-400 bg-amber-500/10' : 'text-slate-400'}`}
-            >
-              <Store className="w-5 h-5" />
-              <span className="text-[9px] font-bold mt-1">Chiosco</span>
-            </button>
+            {(() => {
+              const hasSisalAlert = (activeLeague.sisalChallenges || []).some(ch => {
+                if (!ch || !currentUser) return false;
+                const isOppTurn = ch.opponentId === currentUser.id && ch.status === 'pending_opponent' && ch.opponentScore === null;
+                const isNewlyCompleted = ch.status === 'completed' && ch.completedAtMs && (Date.now() - Number(ch.completedAtMs)) < 12 * 3600000;
+                return isOppTurn || isNewlyCompleted;
+              });
+              return (
+                <button
+                  onClick={() => setActiveTab('chiosco')}
+                  className={`flex flex-col items-center py-1 rounded-xl relative transition ${activeTab === 'chiosco' ? 'text-amber-400 bg-amber-500/10' : 'text-slate-400'}`}
+                >
+                  <Store className="w-5 h-5" />
+                  {hasSisalAlert && (
+                    <span className="w-2 h-2 rounded-full bg-red-500 absolute top-1 right-3 animate-pulse" />
+                  )}
+                  <span className="text-[9px] font-bold mt-1">Chiosco</span>
+                </button>
+              );
+            })()}
           </div>
         </nav>
 

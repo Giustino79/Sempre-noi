@@ -1933,17 +1933,24 @@ export default function Chiosco({
         >
           🏪 Gadget ({ALL_CHIOSCO_ITEMS.length})
         </button>
-        <button
+      <button
           type="button"
           onClick={() => setSectionMode('sisal')}
-          className={`py-2 rounded-xl text-[10px] font-black uppercase transition ${
+          className={`py-2 rounded-xl text-[10px] font-black uppercase relative transition ${
             sectionMode === 'sisal'
               ? 'bg-gradient-to-r from-emerald-400 to-amber-400 text-slate-950 shadow'
               : 'text-slate-400 hover:text-white'
           }`}
         >
           🎲 SISAL ({myChallenges.length})
-        </button>
+          {myChallenges.some(ch => {
+            const isOppTurn = ch.opponentId === currentUser?.id && ch.status === 'pending_opponent' && ch.opponentScore === null;
+            const isRecentDone = ch.status === 'completed' && ch.completedAtMs && (Date.now() - Number(ch.completedAtMs)) < 12 * 3600000;
+            return isOppTurn || isRecentDone;
+          }) && (
+            <span className="w-2 h-2 rounded-full bg-red-600 border border-white absolute top-1 right-2 animate-pulse" />
+          )}
+        </button>  
       </div>
 
       {sectionMode === 'sisal' ? (
