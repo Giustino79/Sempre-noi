@@ -7,7 +7,13 @@ import {
   Newspaper, Store, Pencil 
 } from 'lucide-react';
 import Chiosco, { GodPinModal, GodBollettinoConsole, OwnedItemsShowcase } from './Chiosco';
-
+const isUserInBeerGroup = (beerItem, userId) => {
+  if (!beerItem || !userId) return false;
+  if (beerItem.playerId === userId) return true;
+  if (Array.isArray(beerItem.taggedIds) && beerItem.taggedIds.includes(userId)) return true;
+  if (Array.isArray(beerItem.participants) && beerItem.participants.some(p => p.id === userId)) return true;
+  return false;
+};
 // ============================================================================
 // 🔗 LINK FIREBASE REALTIME DATABASE PRECONFIGURATO
 // ============================================================================
@@ -2828,13 +2834,7 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
     });
   };
 
-  const isUserInBeerGroup = (beerItem, userId) => {
-    if (!beerItem || !userId) return false;
-    if (beerItem.playerId === userId) return true;
-    if (Array.isArray(beerItem.taggedIds) && beerItem.taggedIds.includes(userId)) return true;
-    if (Array.isArray(beerItem.participants) && beerItem.participants.some(p => p.id === userId)) return true;
-    return false;
-  };
+ 
 
   const calculatedDrink = useMemo(() => {
     const gocciaBonus = gocciaStatus.isOpen && bonusGocciaDOro ? 3 : 0;
