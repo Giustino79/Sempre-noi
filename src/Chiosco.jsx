@@ -2268,7 +2268,7 @@ function SlotDiDimaArena({
 // ============================================================================
 // 🏃‍♂️ MINIGIOCO 3: CORSA DEL LUPPOLO (3 CORSIE • SWIPE O TASTI • RECORD)
 // ============================================================================
-function CorsaDelLuppoloArena({ opponentName, isFreePlay = false, onComplete, onCancel }) {
+function CorsaDelLuppoloArena({ opponentName, isFreePlay = false, onSaveFreeRecord, onComplete, onCancel }) {
   const [phase, setPhase] = useState('ready'); // 'ready' | 'playing' | 'gameover'
   const [finalScore, setFinalScore] = useState(0);
   const [hitReason, setHitReason] = useState('');
@@ -2426,6 +2426,7 @@ function CorsaDelLuppoloArena({ opponentName, isFreePlay = false, onComplete, on
             const endScore = Math.floor(scoreRef.current);
             if (scoreBadgeRef.current) scoreBadgeRef.current.textContent = `${endScore} pt`;
             setFinalScore(endScore);
+            if (isFreePlay) onSaveFreeRecord?.(endScore);
             setHitReason(`${it.icon} Hai preso: ${it.label}!`);
             setPhase('gameover');
             return;
@@ -2817,7 +2818,7 @@ export default function Chiosco({
   const [activeArena, setActiveArena] = useState(null);
 
   useEffect(() => {
-    if (!selectedOpponentId && opponents.length > 0) {
+    if ((!selectedOpponentId || !opponents.some(o => o.id === selectedOpponentId)) && opponents.length > 0) {
       setSelectedOpponentId(opponents[0].id);
     }
   }, [opponents, selectedOpponentId]);
@@ -2936,7 +2937,7 @@ export default function Chiosco({
         >
           🎲 SISAL ({myChallenges.length})
           {myChallenges.some(ch => {
-            const isOppTurn = ch.opponentId === currentUser?.id && ch.status === 'pending_opponent' && ch.opponentScore === null;
+            const isOppTurn = ch.opponentId === currentUser?.id && ch.status === 'pending_opponent' && ch.opponentScore == null;
             const isRecentDone = ch.status === 'completed' && ch.completedAtMs && (Date.now() - Number(ch.completedAtMs)) < 12 * 3600000;
             return isOppTurn || isRecentDone;
           }) && (
@@ -3065,14 +3066,14 @@ export default function Chiosco({
                 const isChallenger = ch.challengerId === currentUser?.id;
                 const otherName = isChallenger ? ch.opponentName : ch.challengerName;
                 const gameTitle = ch.gameType === 'boccale' ? 'Svuota il Boccale' : ch.gameType === 'corsa_luppolo' ? 'Corsa del Luppolo' : 'Slot di Dima';
-                const iNeedToPlayAsOpponent = !isChallenger && ch.status === 'pending_opponent' && ch.opponentScore === null;
+                const iNeedToPlayAsOpponent = !isChallenger && ch.status === 'pending_opponent' && ch.opponentScore == null;
 
                 return (
                   <div key={ch.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 space-y-2.5 shadow">
                     <div className="flex items-center justify-between gap-2">
                       <div>
                         <span className="text-xs font-black text-white block">
-                          {ch.gameType === 'boccale' ? '🍺' : '🎰'} {gameTitle}
+                         {ch.gameType === 'boccale' ? '🍺' : ch.gameType === 'corsa_luppolo' ? '🏃‍♂️' : '🎰'} {gameTitle}
                         </span>
                         <span className="text-[10px] text-slate-400">
                           {isChallenger ? `Hai sfidato ${otherName}` : `${otherName} ti ha sfidato`}
@@ -3095,7 +3096,7 @@ export default function Chiosco({
                       const iAmChallenger = String(ch.challengerId || '').toLowerCase() === String(currentUser?.id || '').toLowerCase()
                         || String(ch.challengerName || '').toLowerCase() === String(currentUser?.username || '').toLowerCase();
                       const myRole = iAmOpponent ? 'opponent' : 'challenger';
-                      const opponentMissingScore = ch.opponentScore === null || ch.opponentScore === undefined || Number.isNaN(Number(ch.opponentScore));
+                      const opponentMissingScore = ch.opponentScore == null || ch.opponentScore === undefined || Number.isNaN(Number(ch.opponentScore));
                       const showAcceptButtons = ch.status === 'pending_opponent' && opponentMissingScore && !iAmChallenger;
 
                       return (
@@ -3185,11 +3186,24 @@ export default function Chiosco({
                           </div>
 
                           {ch.status !== 'completed' && ch.status !== 'declined' && !showAcceptButtons && (
-                            <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-400/40 text-[10px] font-bold text-amber-200 text-center">
-                              {iAmChallenger && (ch.challengerScore === null || ch.challengerScore === undefined)
-                                ? '🎮 Completa il tuo turno per registrare il punteggio!'
-                                : `⏳ Turno registrato! In attesa che ${otherName} accetti e giochi il suo turno.`}
-                            </div>
+                            iAmChallenger && (ch.challengerScore === null || ch.challengerScore === undefined) ? (
+                              <button
+                                type="button"
+                                onClick={() => setActiveArena({
+                                  challengeId: ch.id,
+                                  role: 'challenger',
+                                  gameType: ch.gameType,
+                                  opponentName: ch.opponentName
+                                })}
+                                className="w-full py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-[10px] font-black uppercase shadow"
+                              >
+                                🎮 Gioca ora il tuo turno!
+                              </button>
+                            ) : (
+                              <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-400/40 text-[10px] font-bold text-amber-200 text-center">
+                                ⏳ Turno registrato! In attesa che {otherName} accetti e giochi il suo turno.
+                              </div>
+                            )
                           )}
                         </>
                       );
@@ -3249,13 +3263,21 @@ export default function Chiosco({
             />
           )}
           {activeArena?.gameType === 'corsa_luppolo' && (
-         <CorsaDelLuppoloArena
-           opponentName={activeArena.opponentName}
-           isFreePlay={Boolean(activeArena.isFreePlay)}
-           onComplete={(pts) => handleArenaFinish(pts)}
-           onCancel={() => setActiveArena(null)}
-         />
-       )}
+          <CorsaDelLuppoloArena
+            opponentName={activeArena.opponentName}
+            isFreePlay={Boolean(activeArena.isFreePlay)}
+            onSaveFreeRecord={(newBest) => {
+              setFreePlayBests(prev => {
+                if ((prev.corsa_luppolo || 0) >= newBest) return prev;
+                const next = { ...prev, corsa_luppolo: newBest };
+                try { localStorage.setItem('sempre_noi_freeplay_bests', JSON.stringify(next)); } catch {}
+                return next;
+              });
+            }}
+            onComplete={(pts) => handleArenaFinish(pts)}
+            onCancel={() => setActiveArena(null)}
+          />
+        )}
         </div>
       ) : (
         <>
