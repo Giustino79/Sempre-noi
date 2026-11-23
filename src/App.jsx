@@ -14,6 +14,13 @@ const isUserInBeerGroup = (beerItem, userId) => {
   if (Array.isArray(beerItem.participants) && beerItem.participants.some(p => p.id === userId)) return true;
   return false;
 };
+const isCaptainBeerForUser = (beerItem, userId) => {
+  if (!beerItem || !userId) return false;
+  if (Array.isArray(beerItem.participants) && beerItem.participants.length > 0) {
+    return beerItem.participants.some(p => p && p.id === userId && p.isCaptainBeer);
+  }
+  return beerItem.playerId === userId && Boolean(beerItem.isCaptainBeer);
+};
 // ============================================================================
 // 🔗 LINK FIREBASE REALTIME DATABASE PRECONFIGURATO
 // ============================================================================
@@ -1374,7 +1381,7 @@ const settleExpiredCaptainsInLeague = (leagueObj, nowMs) => {
 
     if (confirmedCount < 4 && !isTimeExpired) return nextM;
 
-    const pendingCapBeersInVar = currentFeed.filter(b => isUserInBeerGroup(b, nextM.id) && b.isCaptainBeer);
+    const pendingCapBeersInVar = currentFeed.filter(b => isCaptainBeerForUser(b, nextM.id));
     if (confirmedCount < 4 && (confirmedCount + pendingCapBeersInVar.length) >= 4) {
       return nextM;
     }
@@ -1415,7 +1422,29 @@ const settleExpiredCaptainsInLeague = (leagueObj, nowMs) => {
         liters: Number(((nextM.liters || (nextM.beers || 0) * 0.5) + vaultLiters).toFixed(2))
       };
     } else {
-      currentFeed = currentFeed.filter(b => !(b.playerId === nextM.id && b.isCaptainBeer));
+      currentFeed = currentFeed.reduce((acc, b) => {
+        if (!isCaptainBeerForUser(b, nextM.id)) {
+          acc.push(b);
+          return acc;
+        }
+        if (Array.isArray(b.participants) && b.participants.length > 1) {
+          const remaining = b.participants.filter(p => p && p.id !== nextM.id);
+          if (remaining.length > 0) {
+            const newOwner = b.playerId === nextM.id ? remaining[0] : null;
+            acc.push({
+              ...b,
+              playerId: newOwner ? newOwner.id : b.playerId,
+              playerName: newOwner ? newOwner.name : b.playerName,
+              glassType: newOwner ? (newOwner.glassType || b.glassType) : b.glassType,
+              isCaptainBeer: remaining.some(p => p.isCaptainBeer),
+              participants: remaining,
+              taggedIds: remaining.slice(1).map(p => p.id),
+              taggedNames: remaining.slice(1).map(p => p.name)
+            });
+          }
+        }
+        return acc;
+      }, []);
       const capStartMs = Number(nextM.captainStartedAtMs || (Number(nextM.captainExpiresAtMs) - 4 * 3600000));
       // Azzera i punti delle birre del Capitano fallito anche nello storico mensile e registra il -20 pt
       currentHistory = currentHistory.map(h => {
@@ -2246,7 +2275,7 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
 
     const isRareDoubleBeer =
       challenge.gameType === 'slot_dima' &&
-      (winnerScore === 100 || cNum === 100 || oNum === 100);
+      Boolean(challenge.challengerSlotResult?.isRareExtreme || challenge.opponentSlotResult?.isRareExtreme);
 
     return {
       winnerId,
@@ -3890,7 +3919,7 @@ if (varModalBeer.inVarCloud) {
   // =========================================================================
   // VISTA 2: LISTA LEGHE ESTERNA (CON CESTINO ELIMINAZIONE)
   // =========================================================================
-  if (!activeLeagueId) {
+ if (!activeLeagueId || !activeLeague) {
     const userLeagues = leagues.filter(l => (l.members || []).some(m => m.id === currentUser.id));
 
     return (
@@ -4754,7 +4783,10 @@ if (varModalBeer.inVarCloud) {
               </div>
 {/* 🎰 CABINATO SLOT MACHINE: IMPREVISTO SETTIMANALE */}
               {(() => {
-                const activeM = myMemberProfile?.activeMission;
+                const rawMission = myMemberProfile?.activeMission;
+                const activeM = rawMission && (rawMission.status === 'active' || myMemberProfile?.missionWeekUsed === currentWeekKey)
+                  ? rawMission
+                  : null;
                 const missionDef = activeM ? WEEKLY_MISSIONS.find(x => x.id === activeM.id) : null;
                 const progressUploaded = (activeM && missionDef)
                   ? evaluateMissionProgress(activeM.id, activeM.logs || [], false)
