@@ -2391,7 +2391,7 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
 
       const winnerName = res.winnerId === nextCh.challengerId ? nextCh.challengerName : nextCh.opponentName;
       const loserName = res.loserId === nextCh.challengerId ? nextCh.challengerName : nextCh.opponentName;
-      const gameLabel = nextCh.gameType === 'boccale' ? 'Svuota il Boccale' : nextCh.gameType === 'corsa_luppolo' ? 'Corsa del Luppolo' : 'Slot di Dima';
+      const gameLabel = nextCh.gameType === 'boccale' ? 'Svuota il Boccale' : nextCh.gameType === 'corsa_luppolo' ? 'Corsa del Luppolo' : nextCh.gameType === 'spillatura' ? 'Spillatura Perfetta' : 'Slot di Dima';
       if (!res.isDraw && winnerName && loserName) {
         const beersTxt = res.beersStake === 2 ? '2 BIRRE' : 'UNA BIRRA';
         nextGazzetta = filterActiveGazzettaNews([{

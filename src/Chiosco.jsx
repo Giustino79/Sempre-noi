@@ -2791,6 +2791,722 @@ function CorsaDelLuppoloArena({ opponentName, isFreePlay = false, onSaveFreeReco
       </div>
     </div>
   );
+}// ============================================================================
+// 🍻 MINIGIOCO 4: SPILLATURA PERFETTA (LAGER CLASSICA • TIRATA UNICA • 60 FPS)
+// ============================================================================
+function SpillaturaPerfettaArena({ opponentName, isFreePlay = false, onSaveFreeRecord, onComplete, onCancel }) {
+  const [phase, setPhase] = useState('ready'); // 'ready' | 'pouring' | 'settling' | 'finished'
+  const [finalScore, setFinalScore] = useState(0);
+  const [isOverflowed, setIsOverflowed] = useState(false);
+
+  const canvasRef = useRef(null);
+  const wrapRef = useRef(null);
+  const pctBadgeRef = useRef(null);
+
+  const phaseRef = useRef('ready');
+  const pouringRef = useRef(false);
+  const beerRef = useRef(0);
+  const foamRef = useRef(0);
+  const foamMomentumRef = useRef(0);
+  const handleAngleRef = useRef(0);
+  const streamTopRef = useRef(0);
+  const streamBotRef = useRef(0);
+  const streamActiveRef = useRef(false);
+  const overflowedRef = useRef(false);
+  const overflowTimeRef = useRef(0);
+  const settleTimeRef = useRef(0);
+  const lastShownPctRef = useRef('');
+
+  const waveHRef = useRef(new Array(18).fill(0));
+  const waveVRef = useRef(new Array(18).fill(0));
+  const bubblesRef = useRef([]);
+  const splashesRef = useRef([]);
+  const dripsRef = useRef([]);
+
+  const resetPour = () => {
+    phaseRef.current = 'ready';
+    pouringRef.current = false;
+    beerRef.current = 0;
+    foamRef.current = 0;
+    foamMomentumRef.current = 0;
+    handleAngleRef.current = 0;
+    streamTopRef.current = 0;
+    streamBotRef.current = 0;
+    streamActiveRef.current = false;
+    overflowedRef.current = false;
+    overflowTimeRef.current = 0;
+    settleTimeRef.current = 0;
+    lastShownPctRef.current = '0.0%';
+    waveHRef.current = new Array(18).fill(0);
+    waveVRef.current = new Array(18).fill(0);
+    bubblesRef.current = [];
+    splashesRef.current = [];
+    dripsRef.current = [];
+    if (pctBadgeRef.current) pctBadgeRef.current.textContent = '0.0%';
+    setFinalScore(0);
+    setIsOverflowed(false);
+    setPhase('ready');
+  };
+
+  const beginPour = () => {
+    if (phaseRef.current !== 'ready') return;
+    phaseRef.current = 'pouring';
+    pouringRef.current = true;
+    streamActiveRef.current = true;
+    streamTopRef.current = 0;
+    streamBotRef.current = 0;
+    setPhase('pouring');
+    navigator.vibrate?.(15);
+  };
+
+  const endPour = () => {
+    if (phaseRef.current !== 'pouring') return;
+    pouringRef.current = false;
+    phaseRef.current = 'settling';
+    settleTimeRef.current = 0;
+    setPhase('settling');
+  };
+
+  useEffect(() => {
+    const onWinUp = () => endPour();
+    const onKeyDown = (e) => {
+      if (e.code === 'Space' && !e.repeat) {
+        e.preventDefault();
+        beginPour();
+      }
+    };
+    const onKeyUp = (e) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        endPour();
+      }
+    };
+    window.addEventListener('pointerup', onWinUp);
+    window.addEventListener('pointercancel', onWinUp);
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    return () => {
+      window.removeEventListener('pointerup', onWinUp);
+      window.removeEventListener('pointercancel', onWinUp);
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+    };
+  }, []);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const wrap = wrapRef.current;
+    if (!canvas || !wrap) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let width = wrap.clientWidth || 340;
+    let height = wrap.clientHeight || 440;
+    const resize = () => {
+      width = wrap.clientWidth || 340;
+      height = wrap.clientHeight || 440;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+    resize();
+    window.addEventListener('resize', resize);
+
+    let rafId;
+    let lastNow = performance.now();
+
+    const loop = (now) => {
+      const dt = Math.min(0.05, Math.max(0.001, (now - lastNow) / 1000));
+      lastNow = now;
+
+      // Geometria proporzionale del bancone, spina e pinta
+      const cx = width / 2;
+      const barY = height * 0.87;
+      const glassBotY = barY - 6;
+      const glassH = Math.min(height * 0.56, 265);
+      const glassTopY = glassBotY - glassH;
+      const topW = Math.min(width * 0.44, 152);
+      const botW = topW * 0.72;
+      const innerTopY = glassTopY + 5;
+      const innerBotY = glassBotY - 14;
+      const innerH = innerBotY - innerTopY;
+      const nozzleY = Math.max(58, glassTopY - 68);
+
+      const totalPct = beerRef.current + foamRef.current;
+      const clampedPct = Math.min(104, totalPct);
+      const surfaceY = innerBotY - (clampedPct / 100) * innerH;
+      const streamMaxLen = Math.max(20, surfaceY - nozzleY);
+
+      // 1. Leva spina fluida
+      const targetAngle = pouringRef.current ? 0.62 : 0;
+      handleAngleRef.current += (targetAngle - handleAngleRef.current) * Math.min(1, dt * 16);
+
+      // 2. Getto con gravità + riempimento Lager Classica + inerzia schiuma
+      let streamHitting = false;
+      if (streamActiveRef.current) {
+        const dropSpeed = 760;
+        if (pouringRef.current) {
+          streamTopRef.current = 0;
+          streamBotRef.current = Math.min(streamMaxLen, streamBotRef.current + dropSpeed * dt);
+        } else {
+          streamTopRef.current += dropSpeed * dt;
+          streamBotRef.current = Math.min(streamMaxLen, streamBotRef.current + dropSpeed * dt);
+        }
+
+        if (streamBotRef.current >= streamMaxLen - 3 && streamTopRef.current < streamMaxLen) {
+          streamHitting = true;
+        }
+        if (!pouringRef.current && streamTopRef.current >= streamMaxLen) {
+          streamActiveRef.current = false;
+        }
+      }
+
+      if (streamHitting && phaseRef.current !== 'finished') {
+        beerRef.current += 27.5 * dt;
+        foamRef.current += 4.2 * dt;
+        foamMomentumRef.current = Math.min(11.5, foamMomentumRef.current + 17 * dt);
+
+        // Eccita le onde al centro dove batte il getto
+        const mid = Math.floor(waveVRef.current.length / 2);
+        waveVRef.current[mid] += (Math.random() - 0.5) * 420 * dt;
+        waveVRef.current[mid - 1] += (Math.random() - 0.5) * 260 * dt;
+        waveVRef.current[mid + 1] += (Math.random() - 0.5) * 260 * dt;
+
+        // Schizzi dorati sulla superficie
+        if (Math.random() < 0.65) {
+          splashesRef.current.push({
+            x: cx + (Math.random() - 0.5) * 14,
+            y: surfaceY,
+            vx: (Math.random() - 0.5) * 85,
+            vy: -45 - Math.random() * 65,
+            r: 1.5 + Math.random() * 2.2,
+            life: 1
+          });
+        }
+
+        // Bollicine di CO2
+        if (Math.random() < 0.8) {
+          const halfW = botW * 0.42;
+          bubblesRef.current.push({
+            x: cx + (Math.random() - 0.5) * halfW * 1.6,
+            y: innerBotY - Math.random() * Math.max(8, (beerRef.current / 100) * innerH * 0.7),
+            r: 1 + Math.random() * 2.1,
+            speed: 35 + Math.random() * 55,
+            wobble: Math.random() * Math.PI * 2
+          });
+        }
+      }
+
+      // Espansione schiuma per inerzia (continua a lievitare mezzo secondo dopo il rilascio)
+      if (foamMomentumRef.current > 0.02 && phaseRef.current !== 'finished') {
+        const extraFoam = foamMomentumRef.current * dt;
+        foamRef.current += extraFoam;
+        foamMomentumRef.current *= Math.exp(-2.9 * dt);
+      }
+
+      // Controllo tracimazione (> 100%)
+      const liveTotal = beerRef.current + foamRef.current;
+      if (liveTotal > 100.15 && !overflowedRef.current && (phaseRef.current === 'pouring' || phaseRef.current === 'settling')) {
+        overflowedRef.current = true;
+        pouringRef.current = false;
+        overflowTimeRef.current = 0;
+        setIsOverflowed(true);
+        navigator.vibrate?.([80, 40, 120]);
+      }
+
+      if (overflowedRef.current && phaseRef.current !== 'finished') {
+        overflowTimeRef.current += dt;
+        // Colate esterne lungo i lati del bicchiere
+        if (overflowTimeRef.current < 0.85 && Math.random() < 0.65) {
+          const side = Math.random() < 0.5 ? -1 : 1;
+          dripsRef.current.push({
+            side,
+            progress: 0,
+            speed: 0.45 + Math.random() * 0.45,
+            size: 3.5 + Math.random() * 4.5,
+            isFoam: Math.random() < 0.65
+          });
+        }
+        if (overflowTimeRef.current >= 0.95) {
+          phaseRef.current = 'finished';
+          setFinalScore(0);
+          setPhase('finished');
+          if (isFreePlay) onSaveFreeRecord?.(0);
+        }
+      }
+
+      // Chiusura spillatura dopo assestamento
+      if (phaseRef.current === 'settling' && !overflowedRef.current) {
+        settleTimeRef.current += dt;
+        if (!streamActiveRef.current && foamMomentumRef.current < 0.12 && settleTimeRef.current >= 0.85) {
+          const scored = Math.min(100, Number(liveTotal.toFixed(1)));
+          phaseRef.current = 'finished';
+          setFinalScore(scored);
+          setPhase('finished');
+          if (scored >= 95) navigator.vibrate?.([40, 30, 70]);
+          if (isFreePlay) onSaveFreeRecord?.(scored);
+        }
+      }
+
+      // Aggiorna badge percentuale in alto
+      const shownPct = overflowedRef.current ? 'TRACIMATA!' : `${Math.min(100, liveTotal).toFixed(1)}%`;
+      if (shownPct !== lastShownPctRef.current) {
+        lastShownPctRef.current = shownPct;
+        if (pctBadgeRef.current) {
+          pctBadgeRef.current.textContent = shownPct;
+        }
+      }
+
+      // 3. Fisica onde 1D (molla + smorzamento)
+      const hArr = waveHRef.current;
+      const vArr = waveVRef.current;
+      const n = hArr.length;
+      for (let i = 0; i < n; i++) {
+        const left = i > 0 ? hArr[i - 1] : hArr[i];
+        const right = i < n - 1 ? hArr[i + 1] : hArr[i];
+        const accel = -45 * hArr[i] + 22 * (left + right - 2 * hArr[i]);
+        vArr[i] = (vArr[i] + accel * dt) * Math.exp(-3.4 * dt);
+      }
+      for (let i = 0; i < n; i++) {
+        hArr[i] = Math.max(-9, Math.min(9, hArr[i] + vArr[i] * dt));
+      }
+
+      // Bollicine passive lente anche a spillatura ferma
+      if (beerRef.current > 8 && Math.random() < 0.22) {
+        bubblesRef.current.push({
+          x: cx + (Math.random() - 0.5) * botW * 0.72,
+          y: innerBotY - 2,
+          r: 0.9 + Math.random() * 1.6,
+          speed: 24 + Math.random() * 35,
+          wobble: Math.random() * Math.PI * 2
+        });
+      }
+
+      const beerTopY = innerBotY - (Math.min(100, beerRef.current) / 100) * innerH;
+      const foamTopY = innerBotY - (Math.min(101.5, liveTotal) / 100) * innerH;
+
+      // Update bollicine
+      bubblesRef.current = bubblesRef.current.filter(b => {
+        b.y -= b.speed * dt;
+        b.wobble += 5 * dt;
+        b.x += Math.sin(b.wobble) * 9 * dt;
+        return b.y > beerTopY + 2;
+      });
+
+      // Update schizzi
+      splashesRef.current = splashesRef.current.filter(s => {
+        s.x += s.vx * dt;
+        s.y += s.vy * dt;
+        s.vy += 320 * dt;
+        s.life -= 2.4 * dt;
+        return s.life > 0;
+      });
+
+      // Update colate esterne
+      dripsRef.current.forEach(d => {
+        d.progress = Math.min(1.04, d.progress + d.speed * dt);
+      });
+
+      // ==================== RENDERING CANVAS 60 FPS ====================
+      // Sfondo pub caldo
+      const bg = ctx.createRadialGradient(cx, glassTopY, 20, cx, height * 0.5, height * 0.8);
+      bg.addColorStop(0, '#2a1d12');
+      bg.addColorStop(0.55, '#111827');
+      bg.addColorStop(1, '#020617');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, width, height);
+
+      // Bancone in legno + griglia scolapiatti metallica
+      const woodGrad = ctx.createLinearGradient(0, barY, 0, height);
+      woodGrad.addColorStop(0, '#5c3317');
+      woodGrad.addColorStop(0.2, '#451a03');
+      woodGrad.addColorStop(1, '#1c0a00');
+      ctx.fillStyle = woodGrad;
+      ctx.fillRect(0, barY, width, height - barY);
+      ctx.fillStyle = '#92400e';
+      ctx.fillRect(0, barY, width, 3);
+
+      // Griglia scolapiatti sotto il bicchiere
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(cx - botW * 0.9, barY - 2, botW * 1.8, 9);
+      ctx.strokeStyle = '#64748b';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(cx - botW * 0.9, barY - 2, botW * 1.8, 9);
+
+      // Pozza sul bancone se tracima
+      if (overflowedRef.current) {
+        const puddleW = Math.min(botW * 1.35, botW * 0.65 + overflowTimeRef.current * 95);
+        ctx.fillStyle = 'rgba(251, 191, 36, 0.72)';
+        ctx.beginPath();
+        ctx.ellipse(cx, barY + 2, puddleW, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Colonna spina dorata / cromata in alto
+      const towerGrad = ctx.createLinearGradient(cx - 22, 0, cx + 22, 0);
+      towerGrad.addColorStop(0, '#475569');
+      towerGrad.addColorStop(0.35, '#f8fafc');
+      towerGrad.addColorStop(0.7, '#94a3b8');
+      towerGrad.addColorStop(1, '#1e293b');
+      ctx.fillStyle = towerGrad;
+      ctx.fillRect(cx - 16, 0, 32, nozzleY - 14);
+      // Beccuccio spina
+      ctx.fillStyle = '#cbd5e1';
+      ctx.beginPath();
+      ctx.moveTo(cx - 9, nozzleY - 14);
+      ctx.lineTo(cx + 9, nozzleY - 14);
+      ctx.lineTo(cx + 6, nozzleY);
+      ctx.lineTo(cx - 6, nozzleY);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Leva dorata animata della spina
+      ctx.save();
+      ctx.translate(cx + 18, nozzleY - 26);
+      ctx.rotate(handleAngleRef.current);
+      ctx.fillStyle = '#1e293b';
+      ctx.beginPath();
+      ctx.arc(0, 0, 6, 0, Math.PI * 2);
+      ctx.fill();
+      const leverGrad = ctx.createLinearGradient(-5, -34, 5, 0);
+      leverGrad.addColorStop(0, '#fef08a');
+      leverGrad.addColorStop(0.5, '#f59e0b');
+      leverGrad.addColorStop(1, '#92400e');
+      ctx.fillStyle = leverGrad;
+      ctx.beginPath();
+      ctx.roundRect ? ctx.roundRect(-4.5, -36, 9, 34, 4) : ctx.fillRect(-4.5, -36, 9, 34);
+      ctx.fill();
+      ctx.fillStyle = '#facc15';
+      ctx.beginPath();
+      ctx.arc(0, -37, 7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // Getto di birra in caduta
+      if (streamActiveRef.current) {
+        const yStart = nozzleY + streamTopRef.current;
+        const yEnd = Math.min(surfaceY + 4, nozzleY + streamBotRef.current);
+        if (yEnd > yStart) {
+          const streamW = 6.5 + Math.sin(now * 0.04) * 1.1;
+          const stGrad = ctx.createLinearGradient(cx - streamW, yStart, cx + streamW, yStart);
+          stGrad.addColorStop(0, '#d97706');
+          stGrad.addColorStop(0.4, '#fef08a');
+          stGrad.addColorStop(0.75, '#f59e0b');
+          stGrad.addColorStop(1, '#b45309');
+          ctx.fillStyle = stGrad;
+          ctx.beginPath();
+          ctx.moveTo(cx - streamW * 0.62, yStart);
+          ctx.lineTo(cx + streamW * 0.62, yStart);
+          ctx.lineTo(cx + streamW * 0.48, yEnd);
+          ctx.lineTo(cx - streamW * 0.48, yEnd);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+
+      // Interno bicchiere (sfondo vetro scuro semi-trasparente)
+      const traceGlassPath = (inset = 0) => {
+        ctx.beginPath();
+        ctx.moveTo(cx - topW / 2 + inset, glassTopY + inset * 0.5);
+        ctx.lineTo(cx + topW / 2 - inset, glassTopY + inset * 0.5);
+        ctx.lineTo(cx + botW / 2 - inset, glassBotY - inset);
+        ctx.lineTo(cx - botW / 2 + inset, glassBotY - inset);
+        ctx.closePath();
+      };
+
+      traceGlassPath(0);
+      ctx.fillStyle = 'rgba(226, 232, 240, 0.06)';
+      ctx.fill();
+
+      // LIQUIDO + ONDE + BOLLICINE + SCHIUMA (clippati esattamente dentro il vetro)
+      ctx.save();
+      traceGlassPath(3);
+      ctx.clip();
+
+      const leftX = cx - topW / 2 - 4;
+      const fullSpan = topW + 8;
+
+      // Birra Lager Classica dorata
+      if (beerRef.current > 0.2) {
+        const beerGrad = ctx.createLinearGradient(cx - topW / 2, innerTopY, cx + topW / 2, innerBotY);
+        beerGrad.addColorStop(0, '#b45309');
+        beerGrad.addColorStop(0.28, '#f59e0b');
+        beerGrad.addColorStop(0.55, '#fde047');
+        beerGrad.addColorStop(0.82, '#d97706');
+        beerGrad.addColorStop(1, '#92400e');
+
+        ctx.fillStyle = beerGrad;
+        ctx.beginPath();
+        ctx.moveTo(leftX, innerBotY + 12);
+        for (let i = 0; i < n; i++) {
+          const px = leftX + (i / (n - 1)) * fullSpan;
+          const py = beerTopY + hArr[i] * 0.45;
+          ctx.lineTo(px, py);
+        }
+        ctx.lineTo(leftX + fullSpan, innerBotY + 12);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      // Bollicine di CO2 dentro la birra
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.72)';
+      for (let i = 0; i < bubblesRef.current.length; i++) {
+        const b = bubblesRef.current[i];
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Strato di Schiuma Cremosa sopra la birra
+      if (foamRef.current > 0.1) {
+        const foamGrad = ctx.createLinearGradient(0, foamTopY - 6, 0, beerTopY + 8);
+        foamGrad.addColorStop(0, '#ffffff');
+        foamGrad.addColorStop(0.65, '#fffbeb');
+        foamGrad.addColorStop(1, '#fde68a');
+
+        ctx.fillStyle = foamGrad;
+        ctx.beginPath();
+        for (let i = 0; i < n; i++) {
+          const px = leftX + (i / (n - 1)) * fullSpan;
+          const py = foamTopY + hArr[i];
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        for (let i = n - 1; i >= 0; i--) {
+          const px = leftX + (i / (n - 1)) * fullSpan;
+          const py = beerTopY + hArr[i] * 0.45 + 2;
+          ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      // Schizzi d'impatto
+      for (let i = 0; i < splashesRef.current.length; i++) {
+        const s = splashesRef.current[i];
+        ctx.fillStyle = `rgba(254, 240, 138, ${Math.max(0, s.life)})`;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Spesso fondo in cristallo del bicchiere
+      ctx.fillStyle = 'rgba(226, 232, 240, 0.32)';
+      ctx.fillRect(cx - botW / 2, innerBotY, botW, glassBotY - innerBotY);
+      ctx.restore();
+
+      // Tacca "95% MANO DA OSTE" sul lato del bicchiere
+      const y95 = innerBotY - 0.95 * innerH;
+      const wAt95 = botW + (topW - botW) * ((glassBotY - y95) / glassH);
+      ctx.strokeStyle = 'rgba(251, 191, 36, 0.7)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 3]);
+      ctx.beginPath();
+      ctx.moveTo(cx - wAt95 / 2 + 4, y95);
+      ctx.lineTo(cx + wAt95 / 2 - 4, y95);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(253, 224, 71, 0.9)';
+      ctx.font = '900 9px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('95%', cx + wAt95 / 2 + 6, y95 + 3);
+
+      // Linea limite 100% (orlo)
+      ctx.fillStyle = overflowedRef.current ? '#f87171' : 'rgba(248, 113, 113, 0.85)';
+      ctx.fillText('MAX', cx + topW / 2 + 6, innerTopY + 3);
+
+      // Bordo cristallo esterno + riflessi lucidi + stemma "74"
+      traceGlassPath(0);
+      ctx.strokeStyle = overflowedRef.current ? '#f87171' : 'rgba(241, 245, 249, 0.82)';
+      ctx.lineWidth = 2.8;
+      ctx.stroke();
+
+      // Riflesso verticale sinistro
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.42)';
+      ctx.lineWidth = 4;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(cx - topW / 2 + 12, glassTopY + 14);
+      ctx.lineTo(cx - botW / 2 + 10, innerBotY - 8);
+      ctx.stroke();
+
+      // Stemma inciso "74"
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
+      ctx.font = '900 26px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('74', cx, glassTopY + glassH * 0.56);
+
+      // Cupola di schiuma strabordante + colate esterne se tracima!
+      if (overflowedRef.current) {
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.ellipse(cx, glassTopY + 2, topW * 0.53, 11, 0, Math.PI, Math.PI * 2);
+        ctx.fill();
+
+        dripsRef.current.forEach(d => {
+          const t = d.progress;
+          const xRim = cx + d.side * (topW / 2);
+          const xBot = cx + d.side * (botW / 2);
+          const curX = xRim + (xBot - xRim) * t + d.side * 2;
+          const curY = glassTopY + 4 + t * (glassH - 4);
+
+          ctx.strokeStyle = d.isFoam ? 'rgba(255, 255, 255, 0.92)' : 'rgba(245, 158, 11, 0.88)';
+          ctx.lineWidth = d.size;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(xRim + d.side * 1.5, glassTopY + 3);
+          ctx.lineTo(curX, curY);
+          ctx.stroke();
+
+          ctx.fillStyle = d.isFoam ? '#ffffff' : '#fbbf24';
+          ctx.beginPath();
+          ctx.arc(curX, curY, d.size * 0.65, 0, Math.PI * 2);
+          ctx.fill();
+        });
+      }
+
+      rafId = requestAnimationFrame(loop);
+    };
+
+    rafId = requestAnimationFrame(loop);
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', resize);
+    };
+  }, [isFreePlay]);
+
+  const verdictBadge = isOverflowed
+    ? { emoji: '💦', title: 'TRACIMATA! (0 PT)', color: 'text-red-400', desc: 'Troppa foga: hai allagato il bancone del 74!' }
+    : finalScore >= 98
+    ? { emoji: '👑', title: 'DIO DELLA SPINA!', color: 'text-amber-300', desc: 'Precisione chirurgica al millimetro!' }
+    : finalScore >= 95
+    ? { emoji: '🔥', title: 'MANO DA OSTE!', color: 'text-emerald-300', desc: 'Due dita di schiuma da manuale!' }
+    : finalScore >= 85
+    ? { emoji: '🍺', title: 'OTTIMA PINTA!', color: 'text-sky-300', desc: 'Bella spillatura, mancava un soffio!' }
+    : { emoji: '🤏', title: 'TROPPO TIMIDO!', color: 'text-slate-300', desc: 'C’era ancora mezzo bicchiere libero!' };
+
+  return (
+    <div className="fixed inset-0 z-[220] bg-slate-950 flex flex-col items-center justify-between p-4 select-none touch-none">
+      {/* Header */}
+      <div className="w-full max-w-sm flex items-center justify-between">
+        <div>
+          <span className="text-[10px] font-black uppercase text-amber-400 block">
+            {isFreePlay ? '🎮 Gioco Libero • Lager Classica' : `🍻 Tirata Unica • Sfida contro ${opponentName}`}
+          </span>
+          <h3 className="text-base font-black text-white">Spillatura Perfetta</h3>
+        </div>
+        <div className="flex items-center gap-2">
+          <span
+            ref={pctBadgeRef}
+            className={`px-3 py-1 rounded-xl bg-slate-900 border font-mono text-sm font-black ${
+              isOverflowed ? 'border-red-500 text-red-400' : 'border-amber-400/50 text-amber-300'
+            }`}
+          >
+            0.0%
+          </span>
+          <button
+            type="button"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={onCancel}
+            className="px-2.5 py-1.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold"
+          >
+            Esci
+          </button>
+        </div>
+      </div>
+
+      {/* Arena Canvas */}
+      <div
+        ref={wrapRef}
+        onPointerDown={(e) => { e.preventDefault(); beginPour(); }}
+        className="relative w-full max-w-sm flex-1 my-3 rounded-3xl bg-slate-950 border-2 border-amber-400/50 overflow-hidden shadow-2xl cursor-pointer"
+      >
+        <canvas ref={canvasRef} className="w-full h-full block" />
+
+        {phase === 'ready' && (
+          <div className="pointer-events-none absolute inset-x-4 top-4 bg-slate-950/85 border border-amber-400/50 rounded-2xl p-3 text-center shadow-lg">
+            <span className="text-[11px] font-black uppercase text-amber-300 block">
+              🍺 Lager Classica • 1 sola tirata!
+            </span>
+            <p className="text-[10px] text-slate-300 mt-0.5 leading-snug">
+              Tieni premuto per aprire la spina e molla <strong>un attimo prima del MAX</strong>: la schiuma continua a salire! Se tracima vale <strong>0 pt</strong>.
+            </p>
+          </div>
+        )}
+
+        {phase === 'settling' && !isOverflowed && (
+          <div className="pointer-events-none absolute inset-x-10 top-5 bg-slate-950/90 border border-amber-400 rounded-2xl py-2 px-3 text-center animate-pulse">
+            <span className="text-xs font-black uppercase text-amber-300">
+              ⏳ Assestamento schiuma...
+            </span>
+          </div>
+        )}
+
+        {phase === 'finished' && (
+          <div
+            onPointerDown={(e) => e.stopPropagation()}
+            className="absolute inset-x-4 bottom-4 bg-slate-950/95 backdrop-blur-md border-2 border-amber-400 rounded-2xl p-4 text-center space-y-2.5 shadow-2xl"
+          >
+            <div className="flex items-center justify-center gap-2">
+              <span className="text-2xl">{verdictBadge.emoji}</span>
+              <h4 className={`text-sm font-black uppercase ${verdictBadge.color}`}>
+                {verdictBadge.title}
+              </h4>
+            </div>
+            <p className="text-[11px] text-slate-300">{verdictBadge.desc}</p>
+            <div className="inline-block px-4 py-1.5 rounded-xl bg-slate-900 border border-amber-400/40">
+              <span className="text-xl font-mono font-black text-amber-300">{finalScore.toFixed(1)} pt</span>
+            </div>
+
+            <div className="space-y-1.5 pt-1">
+              <button
+                type="button"
+                onClick={() => onComplete(finalScore)}
+                className="w-full py-3 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 text-xs font-black uppercase shadow-lg"
+              >
+                {isFreePlay ? `Chiudi & Salva (${finalScore.toFixed(1)} pt)` : `Invia Punteggio (${finalScore.toFixed(1)} pt)`}
+              </button>
+              {isFreePlay && (
+                <button
+                  type="button"
+                  onClick={resetPour}
+                  className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-black uppercase"
+                >
+                  🔄 Rispilla Subito
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Tasto Leva Spina */}
+      <button
+        type="button"
+        disabled={phase !== 'ready' && phase !== 'pouring'}
+        onPointerDown={(e) => { e.preventDefault(); beginPour(); }}
+        className={`w-full max-w-sm py-4 rounded-2xl border-2 text-sm font-black uppercase tracking-wider shadow-lg transition ${
+          phase === 'pouring'
+            ? 'bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-500 border-white text-slate-950 scale-[0.98]'
+            : phase === 'ready'
+            ? 'bg-gradient-to-r from-amber-500 to-amber-600 border-amber-300 text-slate-950'
+            : 'bg-slate-900 border-slate-800 text-slate-500'
+        }`}
+      >
+        {phase === 'pouring'
+          ? '🍺 SPILLANDO... MOLLA PER CHIUDERE!'
+          : phase === 'ready'
+          ? '👇 TIENI PREMUTO PER SPILLARE'
+          : phase === 'settling'
+          ? '⏳ SPINA CHIUSA...'
+          : '🏁 SPILLATURA COMPLETATA'}
+      </button>
+    </div>
+  );
 }
 // ============================================================================
 // 🏪 COMPONENTE PRINCIPALE DEL CHIOSCO (5 CATEGORIE + SEZIONE SISAL)
@@ -2966,11 +3682,11 @@ export default function Chiosco({
             <span className="text-[10px] font-black uppercase text-amber-400 block">
               1. Scegli il Minigioco
             </span>
-           <div className="grid grid-cols-3 gap-1.5">
+           <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => setSelectedGameType('boccale')}
-                className={`p-2 rounded-xl border text-center transition ${
+                className={`p-2.5 rounded-xl border text-center transition ${
                   selectedGameType === 'boccale' ? 'bg-amber-500/20 border-amber-400 text-white' : 'bg-slate-950 border-slate-800 text-slate-400'
                 }`}
               >
@@ -2985,7 +3701,7 @@ export default function Chiosco({
               <button
                 type="button"
                 onClick={() => setSelectedGameType('slot_dima')}
-                className={`p-2 rounded-xl border text-center transition ${
+                className={`p-2.5 rounded-xl border text-center transition ${
                   selectedGameType === 'slot_dima' ? 'bg-amber-500/20 border-amber-400 text-white' : 'bg-slate-950 border-slate-800 text-slate-400'
                 }`}
               >
@@ -3000,7 +3716,7 @@ export default function Chiosco({
               <button
                 type="button"
                 onClick={() => setSelectedGameType('corsa_luppolo')}
-                className={`p-2 rounded-xl border text-center transition ${
+                className={`p-2.5 rounded-xl border text-center transition ${
                   selectedGameType === 'corsa_luppolo' ? 'bg-amber-500/20 border-amber-400 text-white' : 'bg-slate-950 border-slate-800 text-slate-400'
                 }`}
               >
@@ -3012,8 +3728,23 @@ export default function Chiosco({
                   </span>
                 )}
               </button>
+              <button
+                type="button"
+                onClick={() => setSelectedGameType('spillatura')}
+                className={`p-2.5 rounded-xl border text-center transition ${
+                  selectedGameType === 'spillatura' ? 'bg-amber-500/20 border-amber-400 text-white' : 'bg-slate-950 border-slate-800 text-slate-400'
+                }`}
+              >
+                <span className="text-lg block">🍻</span>
+                <span className="text-[10px] font-black block leading-tight mt-0.5">Spillatura Perfetta</span>
+                {freePlayBests.spillatura !== undefined && (
+                  <span className="text-[9px] font-mono text-emerald-300 block mt-0.5">
+                    Best: {Number(freePlayBests.spillatura).toFixed(1)} pt
+                  </span>
+                )}
+              </button>
             </div>
-
+            
             <button
               type="button"
               onClick={handleStartFreePlay}
@@ -3065,7 +3796,7 @@ export default function Chiosco({
               myChallenges.map(ch => {
                 const isChallenger = ch.challengerId === currentUser?.id;
                 const otherName = isChallenger ? ch.opponentName : ch.challengerName;
-                const gameTitle = ch.gameType === 'boccale' ? 'Svuota il Boccale' : ch.gameType === 'corsa_luppolo' ? 'Corsa del Luppolo' : 'Slot di Dima';
+                const gameTitle = ch.gameType === 'boccale' ? 'Svuota il Boccale' : ch.gameType === 'corsa_luppolo' ? 'Corsa del Luppolo' : ch.gameType === 'spillatura' ? 'Spillatura Perfetta' : 'Slot di Dima';
                 const iNeedToPlayAsOpponent = !isChallenger && ch.status === 'pending_opponent' && ch.opponentScore == null;
 
                 return (
@@ -3073,7 +3804,7 @@ export default function Chiosco({
                     <div className="flex items-center justify-between gap-2">
                       <div>
                         <span className="text-xs font-black text-white block">
-                         {ch.gameType === 'boccale' ? '🍺' : ch.gameType === 'corsa_luppolo' ? '🏃‍♂️' : '🎰'} {gameTitle}
+                         {ch.gameType === 'boccale' ? '🍺' : ch.gameType === 'corsa_luppolo' ? '🏃‍♂️' : ch.gameType === 'spillatura' ? '🍻' : '🎰'} {gameTitle}
                         </span>
                         <span className="text-[10px] text-slate-400">
                           {isChallenger ? `Hai sfidato ${otherName}` : `${otherName} ti ha sfidato`}
@@ -3278,6 +4009,22 @@ export default function Chiosco({
             onCancel={() => setActiveArena(null)}
           />
         )}
+        {activeArena?.gameType === 'spillatura' && (
+            <SpillaturaPerfettaArena
+              opponentName={activeArena.opponentName}
+              isFreePlay={Boolean(activeArena.isFreePlay)}
+              onSaveFreeRecord={(newBest) => {
+                setFreePlayBests(prev => {
+                  if ((prev.spillatura || 0) >= newBest) return prev;
+                  const next = { ...prev, spillatura: newBest };
+                  try { localStorage.setItem('sempre_noi_freeplay_bests', JSON.stringify(next)); } catch {}
+                  return next;
+                });
+              }}
+              onComplete={(pts) => handleArenaFinish(pts)}
+              onCancel={() => setActiveArena(null)}
+            />
+          )}
         </div>
       ) : (
         <>
