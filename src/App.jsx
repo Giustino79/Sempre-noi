@@ -1688,43 +1688,122 @@ const [bonusSempreNoi, setBonusSempreNoi] = useState(false);
   const rainStatus = useMemo(() => isGodMode ? { isOpen: true, desc: 'Sbloccato (God Mode) • Attiva se piove fuori casa' } : { isOpen: romeWeather.isRaining, desc: romeWeather.desc }, [romeWeather, isGodMode]);
   const captainWindowStatus = useMemo(() => isGodMode ? { isOpen: true, reason: '' } : checkCaptainWindow(), [clockTick, isGodMode]);
   const currentWeekKey = useMemo(() => getCurrentWeekKey(), [clockTick]);
-  const pushLeagueToCloud = async (leagueObj) => {
-    if (!cleanDbUrl || !leagueObj?.id) return;
+const syncVersionRef = useRef(0);
+  const activeWritesRef = useRef(0);
+  const isFetchingCloudRef = useRef(false);
+
+  const saveVarBeerToCloud = async (leagueId, beerObj) => {
+    if (!cleanDbUrl || !leagueId || !beerObj?.id) return false;
+    syncVersionRef.current += 1;
+    activeWritesRef.current += 1;
     try {
-      await fetch(`${cleanDbUrl}/leagues/${leagueObj.id}.json`, {
+      const payload = { ...beerObj, inVarCloud: true };
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const res = await fetch(`${cleanDbUrl}/varFeed/${leagueId}/${beerObj.id}.json`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          if (res.ok) return true;
+        } catch (e) {}
+        if (attempt < 2) await new Promise(r => setTimeout(r, 700 * (attempt + 1)));
+      }
+      return false;
+    } finally {
+      activeWritesRef.current = Math.max(0, activeWritesRef.current - 1);
+    }
+  };
+
+  const deleteVarBeerFromCloud = async (leagueId, beerId) => {
+    if (!cleanDbUrl || !leagueId || !beerId) return;
+    syncVersionRef.current += 1;
+    activeWritesRef.current += 1;
+    try {
+      await fetch(`${cleanDbUrl}/varFeed/${leagueId}/${beerId}.json`, { method: 'DELETE' });
+    } catch (e) {
+    } finally {
+      activeWritesRef.current = Math.max(0, activeWritesRef.current - 1);
+    }
+  };
+
+  const pushLeagueToCloud = async (leagueObj) => {
+    if (!cleanDbUrl || !leagueObj?.id) return false;
+    syncVersionRef.current += 1;
+    activeWritesRef.current += 1;
+    try {
+      const payload = {
+        ...leagueObj,
+        feed: (leagueObj.feed || []).filter(item => item && !item.inVarCloud)
+      };
+      const res = await fetch(`${cleanDbUrl}/leagues/${leagueObj.id}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(leagueObj)
+        body: JSON.stringify(payload)
       });
-    } catch (e) {}
+      return res.ok;
+    } catch (e) {
+      return false;
+    } finally {
+      activeWritesRef.current = Math.max(0, activeWritesRef.current - 1);
+    }
   };
 
   const fetchAllLeaguesFromCloud = async () => {
-    if (!cleanDbUrl) return null;
+    if (!cleanDbUrl || isFetchingCloudRef.current || activeWritesRef.current > 0) return null;
+    isFetchingCloudRef.current = true;
+    const versionAtStart = syncVersionRef.current;
+
     try {
-      const res = await fetch(`${cleanDbUrl}/leagues.json`);
-      if (!res.ok) return null;
+      const [res, varRes] = await Promise.all([
+        fetch(`${cleanDbUrl}/leagues.json`),
+        fetch(`${cleanDbUrl}/varFeed.json`)
+      ]);
+      if (!res.ok || !varRes.ok) return null;
       const data = await res.json();
+      const varFeedData = await varRes.json();
       if (!data) return null;
+
+      // Se l'utente ha appena fatto una modifica mentre scaricavamo, scarta la risposta vecchia
+      if (syncVersionRef.current !== versionAtStart || activeWritesRef.current > 0) return null;
 
       const nowMs = Date.now();
       const rawValues = Object.values(data);
-      
       const deletedIds = new Set(rawValues.filter(l => l && l.deleted).map(l => l.id));
+
       const cloudList = rawValues
         .filter(l => l && l.id && !l.deleted)
-        .map(l => ({
-          ...l,
-          members: l.members || [],
-          history: l.history || [],
-          sisalChallenges: l.sisalChallenges || [],
-          gazzetta: filterActiveGazzettaNews(l.gazzetta || [], nowMs),
-          feed: (l.feed || []).map(item => ({
-            ...item,
-            approvals: item.approvals || [],
-            varVotes: item.varVotes || []
-          }))
-        }));
+        .map(l => {
+          const cloudVarItems = Object.values((varFeedData && varFeedData[l.id]) || {})
+            .filter(item => item && item.id)
+            .map(item => ({
+              ...item,
+              inVarCloud: true,
+              approvals: item.approvals || [],
+              varVotes: item.varVotes || []
+            }));
+
+          const legacyFeedItems = (l.feed || [])
+            .filter(item => item && item.id && !cloudVarItems.some(v => v.id === item.id))
+            .map(item => ({
+              ...item,
+              approvals: item.approvals || [],
+              varVotes: item.varVotes || []
+            }));
+
+          const combinedFeed = [...cloudVarItems, ...legacyFeedItems].sort(
+            (a, b) => Number(b.createdAtMs || 0) - Number(a.createdAtMs || 0)
+          );
+
+          return {
+            ...l,
+            members: l.members || [],
+            history: l.history || [],
+            sisalChallenges: l.sisalChallenges || [],
+            gazzetta: filterActiveGazzettaNews(l.gazzetta || [], nowMs),
+            feed: combinedFeed
+          };
+        });
 
       setLeagues(prev => {
         const mergedMap = new Map();
@@ -1775,6 +1854,8 @@ const [bonusSempreNoi, setBonusSempreNoi] = useState(false);
       return cloudList;
     } catch (e) {
       return null;
+    } finally {
+      isFetchingCloudRef.current = false;
     }
   };
 
@@ -1819,6 +1900,10 @@ const [bonusSempreNoi, setBonusSempreNoi] = useState(false);
     if (changed) {
       setLeagues(prev => prev.map(l => l.id === activeLeague.id ? updatedLeague : l));
       pushLeagueToCloud(updatedLeague);
+      const removedBeers = (activeLeague.feed || []).filter(
+        oldB => !(updatedLeague.feed || []).some(newB => newB.id === oldB.id)
+      );
+      removedBeers.forEach(b => { if (b.inVarCloud) deleteVarBeerFromCloud(activeLeague.id, b.id); });
       if (events.length > 0) {
         const ev = events[0];
         if (ev.type === 'success') {
@@ -2417,7 +2502,7 @@ const [inspectedMemberId, setInspectedMemberId] = useState(null);
  const handleGodForceVar = (beerItem, mode) => {
     if (!beerItem || !activeLeagueId) return;
     const nowMs = Date.now();
-
+if (beerItem.inVarCloud) deleteVarBeerFromCloud(activeLeagueId, beerItem.id);
     if (mode === 'approve' && beerItem.photoUrl) {
       savePhotoToCloudAlbum(activeLeagueId, beerItem.id, beerItem.photoUrl).then(polaroid => {
         setAlbumPhotosMap(prev => ({ ...prev, [beerItem.id]: polaroid }));
@@ -3032,7 +3117,7 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
     if (!capturedPhoto) return showToast('⚠️ Scatta la foto prima di confermare!', 'danger');
 
     const nowMs = Date.now();
-    const newBeerId = 'b_' + nowMs;
+    const newBeerId = 'b_' + nowMs + '_' + Math.random().toString(36).slice(2, 6);
     const todayKey = getTodayDateKey();
     const isRumeno = stappaCategory === 'birra' && qualityTier === 'rumeno';
 
@@ -3164,6 +3249,7 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
     const isCapSlot = calculatedDrink.eligibleForCaptainDouble;
     const newBeer = {
       id: newBeerId,
+      inVarCloud: true,
       playerId: currentUser.id,
       playerName: currentUser.username,
       glassType: currentUser.glassType || 'weiss',
@@ -3190,7 +3276,11 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
       varVotes: [],
       status: 'pending_var'
     };
-
+saveVarBeerToCloud(activeLeagueId, newBeer).then(ok => {
+      if (!ok) {
+        showToast('⚠️ Connessione debole: la foto non è arrivata al server! Riprova a caricarla.', 'danger');
+      }
+    });
     setLeagues(prev => prev.map(l => {
       if (l.id !== activeLeagueId) return l;
       const updated = {
@@ -3243,7 +3333,13 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
 
     const newApprovals = [...(target.approvals || []), currentUser.id];
     const reached2 = newApprovals.length >= 2;
-
+if (target.inVarCloud) {
+      if (reached2) {
+        deleteVarBeerFromCloud(activeLeagueId, beerId);
+      } else {
+        saveVarBeerToCloud(activeLeagueId, { ...target, approvals: newApprovals });
+      }
+    }
     const participants = (target.participants && target.participants.length > 0)
       ? target.participants
       : [{
@@ -3399,6 +3495,7 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
     }
 
     const nowMs = Date.now();
+    if (beerItem.inVarCloud) deleteVarBeerFromCloud(activeLeagueId, beerItem.id);
     const participants = (beerItem.participants && beerItem.participants.length > 0)
       ? beerItem.participants
       : [{ id: beerItem.playerId, isCaptainBeer: Boolean(beerItem.isCaptainBeer) }];
@@ -3458,7 +3555,13 @@ const [beerTypeTier, setBeerTypeTier] = useState('classica');
     const votes = [...(varModalBeer.varVotes || []), { voterId: currentUser.id, voterName: currentUser.username, reasonId: opt.id, reasonLabel: opt.label }];
     const reached2 = votes.length >= 2;
     const malus = Number(opt.penaltyPts);
-
+if (varModalBeer.inVarCloud) {
+      if (reached2) {
+        deleteVarBeerFromCloud(activeLeagueId, varModalBeer.id);
+      } else {
+        saveVarBeerToCloud(activeLeagueId, { ...varModalBeer, varVotes: votes });
+      }
+    }
     const participants = (varModalBeer.participants && varModalBeer.participants.length > 0)
       ? varModalBeer.participants
       : [{ id: varModalBeer.playerId, name: varModalBeer.playerName, isCaptainBeer: Boolean(varModalBeer.isCaptainBeer) }];
