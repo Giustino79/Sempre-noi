@@ -1932,6 +1932,12 @@ const syncVersionRef = useRef(0);
         oldB => !(updatedLeague.feed || []).some(newB => newB.id === oldB.id)
       );
       removedBeers.forEach(b => { if (b.inVarCloud) deleteVarBeerFromCloud(activeLeague.id, b.id); });
+      (updatedLeague.feed || []).forEach(newB => {
+        const oldB = (activeLeague.feed || []).find(b => b.id === newB.id);
+        if (newB.inVarCloud && oldB && (oldB.participants?.length || 0) !== (newB.participants?.length || 0)) {
+          saveVarBeerToCloud(activeLeague.id, newB);
+        }
+      });
       if (events.length > 0) {
         const ev = events[0];
         if (ev.type === 'success') {
