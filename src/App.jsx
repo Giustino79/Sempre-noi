@@ -208,10 +208,9 @@ const getAstinenceFillRatio = (member, nowMs = Date.now()) => {
   if (!member.lastDrinkAtMs) return (member.beers || 0) === 0 ? 0.0 : 1.0;
   const diff = nowMs - Number(member.lastDrinkAtMs);
   const days = diff / (24 * 60 * 60 * 1000);
-  if (days <= 0) return 1.0; // Pieno al 100%
-  if (days >= 5) return 0.0; // Vuoto totale (Panchinaro)
-  // Scala lineare da 1.0 (subito dopo la bevuta) a 0.0 (al 5° giorno)
-  return Math.max(0, 1.0 - (days / 5));
+  if (days < 1) return 1.0; // Prime 24 ore: pieno al 100% con schiuma
+  if (days >= 5) return 0.0; // Dal 5° giorno: vuoto totale + ragnatela (Panchinaro)
+  return Math.max(0.15, 1.0 - (days / 5)); // Giorni 1→4: cala progressivamente
 };
 const getMemberStreakLevel = (member, nowMs = Date.now()) => {
   const count = getActiveSessionStreak(member, nowMs);
@@ -230,7 +229,7 @@ const formatCaptainTimeLeft = (expiresAtMs, nowMs) => {
   return `${hrs}h ${String(mins).padStart(2, '0')}m`;
 };
 
-function BeerGlassAvatar({ type = 'weiss', size = 'md', isRumeno = false, crushed = false, streakLevel = 'none', streakCount = 0, streak = 0, dailyCount = 0, lastDrinkAtMs = null, beers = 1 }) {
+function BeerGlassAvatar({ type = 'weiss', size = 'md', isRumeno = false, crushed = false, streakLevel = 'none', streakCount = 0, streak = 0, dailyCount = 0, lastDrinkAtMs = undefined, beers = 1 }) {
   const sizeClasses = {
     xs: 'w-8 h-8',
     sm: 'w-10 h-10',
@@ -246,16 +245,16 @@ function BeerGlassAvatar({ type = 'weiss', size = 'md', isRumeno = false, crushe
   const isComet = streakLevel === 'comet' || activeStreak >= 5;
   const isOnFire = !isComet && (streakLevel === 'fire' || (activeStreak >= 3 && activeStreak < 5));
 
-  const fillRatio = lastDrinkAtMs !== null
+  const fillRatio = lastDrinkAtMs !== undefined
     ? getAstinenceFillRatio({ lastDrinkAtMs, beers })
     : (streakLevel === 'bench' ? 0 : 1);
 
   const isBench = !isComet && !isOnFire && (streakLevel === 'bench' || fillRatio <= 0);
-  const liquidClipY = 12 + Math.round((1 - fillRatio) * 31); // 12px = pieno, 43px = vuoto
+  const liquidClipPct = Math.round((1 - fillRatio) * 100); // 0% = pieno, 85% = quasi vuoto
 
   return (
     <div
-      style={{ '--sn-clip-y': `${liquidClipY}px` }}
+      style={{ '--sn-clip-y': `${liquidClipPct}%` }}
       className={`${sizeClasses[size] || sizeClasses.md} ${isBench ? 'sn-empty-glass' : fillRatio < 1 ? 'sn-draining-glass' : ''} relative rounded-2xl flex items-center justify-center p-1 select-none shrink-0 transition-all duration-300 ${
         isComet
           ? 'bg-gradient-to-b from-sky-950 via-indigo-950 to-slate-950 border-2 border-cyan-300 shadow-[0_0_22px_rgba(56,189,248,0.95)] scale-105'
@@ -2550,7 +2549,16 @@ if (beerItem.inVarCloud) deleteVarBeerFromCloud(activeLeagueId, beerItem.id);
         }];
     const participantMap = new Map(participants.map(p => [p.id, p]));
     let missionUnlockedSummary = null;
-
+    if (mode === 'approve' && activeLeague) {
+      for (const m of (activeLeague.members || [])) {
+        if (!participantMap.has(m.id)) continue;
+        const { completedDef } = applyMissionVarDecision(m, beerItem.id, 'approve', nowMs);
+        if (completedDef) {
+          missionUnlockedSummary = { playerName: m.name, title: completedDef.title, badge: completedDef.badgeLabel };
+          break;
+        }
+      }
+    }
     setLeagues(prev => prev.map(l => {
       if (l.id !== activeLeagueId) return l;
       const updatedFeed = (l.feed || []).filter(item => item.id !== beerItem.id);
@@ -3381,6 +3389,17 @@ if (target.inVarCloud) {
         }];
     const participantMap = new Map(participants.map(p => [p.id, p]));
     let missionUnlockedSummary = null;
+    if (reached2 && activeLeague) {
+      const checkNow = Date.now();
+      for (const m of (activeLeague.members || [])) {
+        if (!participantMap.has(m.id)) continue;
+        const { completedDef } = applyMissionVarDecision(m, beerId, 'approve', checkNow);
+        if (completedDef) {
+          missionUnlockedSummary = { playerName: m.name, title: completedDef.title, badge: completedDef.badgeLabel };
+          break;
+        }
+      }
+    }
 
     setLeagues(prev => prev.map(l => {
       if (l.id !== activeLeagueId) return l;
@@ -4505,6 +4524,8 @@ if (varModalBeer.inVarCloud) {
                         size="sm"
                         crushed={isCrushedCanActive(sortedMembers[1])}
                         streakLevel={getMemberStreakLevel(sortedMembers[1], clockTick)}
+                        lastDrinkAtMs={sortedMembers[1].lastDrinkAtMs}
+                        beers={sortedMembers[1].beers}
                       />
                       <span className="text-xs font-bold text-white truncate max-w-full mt-1.5">{sortedMembers[1].name}</span>
                       <span className="text-xs font-black text-amber-400">{sortedMembers[1].points} pt</span>
@@ -4516,11 +4537,13 @@ if (varModalBeer.inVarCloud) {
                       className="bg-amber-500/15 hover:bg-amber-500/25 border-2 border-amber-400 rounded-xl p-2.5 flex flex-col items-center -translate-y-1 shadow-lg cursor-pointer transition active:scale-95"
                     >
                       <span className="text-[9px] font-black bg-amber-400 text-slate-950 px-2 rounded mb-1.5">LEADER</span>
-                      <BeerGlassAvatar
+                     <BeerGlassAvatar
                         type={sortedMembers[0].glassType}
                         size="md"
                         crushed={isCrushedCanActive(sortedMembers[0])}
                         streakLevel={getMemberStreakLevel(sortedMembers[0], clockTick)}
+                        lastDrinkAtMs={sortedMembers[0].lastDrinkAtMs}
+                        beers={sortedMembers[0].beers}
                       />
                       <span className="text-xs font-black text-white truncate max-w-full mt-1.5">{sortedMembers[0].name}</span>
                       <span className="text-sm font-black text-amber-300">{sortedMembers[0].points} pt</span>
@@ -4537,6 +4560,8 @@ if (varModalBeer.inVarCloud) {
                         size="sm"
                         crushed={isCrushedCanActive(sortedMembers[2])}
                         streakLevel={getMemberStreakLevel(sortedMembers[2], clockTick)}
+                        lastDrinkAtMs={sortedMembers[2].lastDrinkAtMs}
+                        beers={sortedMembers[2].beers}
                       />
                       <span className="text-xs font-bold text-white truncate max-w-full mt-1.5">{sortedMembers[2].name}</span>
                       <span className="text-xs font-black text-amber-500">{sortedMembers[2].points} pt</span>
@@ -4602,6 +4627,8 @@ if (varModalBeer.inVarCloud) {
                             size="sm"
                             crushed={hasCanPenalty}
                             streakLevel={streakLevel}
+                            lastDrinkAtMs={member.lastDrinkAtMs}
+                            beers={member.beers}
                           />
                           <div className="text-left">
                             <div className="flex items-center justify-start gap-1.5 flex-wrap">
@@ -4682,10 +4709,25 @@ if (varModalBeer.inVarCloud) {
                       : 'Punti in Palio (Dopo 2 Conferme)'}
                   </span>
                   <h2 className="text-[11px] font-bold text-white mt-0.5">
-                    (({calculatedDrink.base}pt × {calculatedDrink.mult}) {calculatedDrink.qualityBonus >= 0 ? `+ ${calculatedDrink.qualityBonus}pt` : `${calculatedDrink.qualityBonus}pt`})
-                    {bonusSempreNoi ? ' × 1.3' : ''}
-                    {gocciaStatus.isOpen && bonusGocciaDOro ? ' + 3pt' : ''}
-                    {calculatedDrink.eligibleForCaptainDouble ? ' × 2 (CAP)' : ''}
+                    {stappaCategory === 'vino_drink' ? (
+                      <>
+                        {calculatedDrink.base}pt
+                        {bonusSempreNoi ? ' × 1.3' : ''}
+                        {calculatedDrink.gocciaBonus > 0 ? ' + 3pt' : ''}
+                        {calculatedDrink.rainBonus > 0 ? ' + 2pt' : ''}
+                        {calculatedDrink.eligibleForCaptainDouble ? ' × 2 (CAP)' : ''}
+                      </>
+                    ) : (
+                      <>
+                        (({calculatedDrink.base}pt × {calculatedDrink.mult})
+                        {calculatedDrink.qualityBonus >= 0 ? ` + ${calculatedDrink.qualityBonus}pt` : ` - ${Math.abs(calculatedDrink.qualityBonus)}pt`}
+                        {calculatedDrink.typeBonus > 0 ? ` + ${calculatedDrink.typeBonus}pt` : ''})
+                        {bonusSempreNoi ? ' × 1.3' : ''}
+                        {calculatedDrink.gocciaBonus > 0 ? ' + 3pt' : ''}
+                        {calculatedDrink.rainBonus > 0 ? ' + 2pt' : ''}
+                        {calculatedDrink.eligibleForCaptainDouble ? ' × 2 (CAP)' : ''}
+                      </>
+                    )}
                   </h2>
                 </div>
                 <div className="bg-slate-950 px-3 py-1.5 rounded-xl border border-amber-400/40 text-right">
@@ -5843,6 +5885,8 @@ if (varModalBeer.inVarCloud) {
                             size="sm"
                             crushed={isCrushedCanActive(rec.member)}
                             streakLevel={getMemberStreakLevel(rec.member, clockTick)}
+                            lastDrinkAtMs={rec.member.lastDrinkAtMs}
+                            beers={rec.member.beers}
                           />
                           <div className="truncate">
                             <span className="text-sm font-black text-amber-300 block truncate">
@@ -5925,11 +5969,13 @@ if (varModalBeer.inVarCloud) {
                 <div className="flex items-center justify-between bg-slate-950 border border-slate-800 rounded-2xl p-3">
                   <div className="flex items-center gap-3 min-w-0">
                     <BeerGlassAvatar
-                   type={inspectedMember.glassType}
-                   size="lg"
-                   crushed={isCrushedCanActive(inspectedMember)}
-                   streakLevel={getMemberStreakLevel(inspectedMember, clockTick)}
-                 />
+                      type={inspectedMember.glassType}
+                      size="lg"
+                      crushed={isCrushedCanActive(inspectedMember)}
+                      streakLevel={getMemberStreakLevel(inspectedMember, clockTick)}
+                      lastDrinkAtMs={inspectedMember.lastDrinkAtMs}
+                      beers={inspectedMember.beers}
+                    />
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
                         <h3 className="text-base font-black text-white truncate">
